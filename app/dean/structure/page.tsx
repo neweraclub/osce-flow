@@ -16,15 +16,16 @@ import {
 } from 'lucide-react'
 import { Select, SelectOption } from '@/components/ui/Select'
 import { useToast } from '@/context/ToastContext'
-
-export interface StudyLevel {
-  id: string
-  level_name: string
-}
+import { useAcademicYear } from '@/context/AcademicYearContext'
 
 export interface AcademicYearOption {
   id: string
   year_label: string
+}
+
+export interface StudyLevel {
+  id: string
+  level_name: string
 }
 
 export interface GroupItem {
@@ -44,6 +45,11 @@ export interface SectionItem {
 
 export default function AcademicStructurePage() {
   const { showSuccess, showError } = useToast()
+  const {
+    selectedYearId: globalYearId,
+    setSelectedYearId: setGlobalYearId,
+    years: globalYears,
+  } = useAcademicYear()
 
   const [studyLevels, setStudyLevels] = useState<StudyLevel[]>([])
   const [academicYears, setAcademicYears] = useState<AcademicYearOption[]>([])
@@ -86,14 +92,19 @@ export default function AcademicStructurePage() {
     if (isManual) setRefreshing(true)
     else setLoading(true)
 
+    const targetYearId = yearId || globalYearId
+
     try {
-      const url = yearId ? `/api/dean/structure?academic_year_id=${yearId}` : '/api/dean/structure'
+      const url = targetYearId ? `/api/dean/structure?academic_year_id=${targetYearId}` : '/api/dean/structure'
       const res = await fetch(url)
       const json = await res.json()
 
       if (res.ok && json.success) {
         if (json.activeYearId) {
           setSelectedYearId(json.activeYearId)
+          if (!globalYearId) {
+            setGlobalYearId(json.activeYearId)
+          }
         }
         setAcademicYears(json.academicYears || [])
         setSections(json.sections || [])
@@ -116,22 +127,29 @@ export default function AcademicStructurePage() {
     }
   }
 
+  // Cascade refetch whenever global academic year changes
   useEffect(() => {
-    fetchStructure()
-  }, [])
+    if (globalYearId) {
+      setSelectedYearId(globalYearId)
+      fetchStructure(globalYearId)
+    } else {
+      fetchStructure()
+    }
+  }, [globalYearId])
 
   const handleYearChange = (newYearId: string) => {
     setSelectedYearId(newYearId)
-    fetchStructure(newYearId, true)
+    setGlobalYearId(newYearId)
   }
 
   const filteredSections = sections.filter((s) => s.level_id === selectedLevelId)
   const activeSection = sections.find((s) => s.id === selectedSectionId) || (filteredSections.length > 0 ? filteredSections[0] : null)
 
-  const yearSelectOptions: SelectOption[] = academicYears.map((y) => ({
-    value: y.id,
-    label: y.year_label,
-  }))
+  const availableYears = globalYears.length > 0
+    ? globalYears.map((y) => ({ value: y.id, label: y.name || y.year_label || '' }))
+    : academicYears.map((y) => ({ value: y.id, label: y.year_label }))
+
+  const yearSelectOptions: SelectOption[] = availableYears
 
   const handleAddSectionSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

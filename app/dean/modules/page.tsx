@@ -22,6 +22,7 @@ import { Select, SelectOption } from '@/components/ui/Select'
 import { FilterDropdown } from '@/components/ui/FilterDropdown'
 import { TableToolbar } from '@/components/ui/TableToolbar'
 import { useToast } from '@/context/ToastContext'
+import { useAcademicYear } from '@/context/AcademicYearContext'
 
 export interface ResponsibleProfessor {
   id: string
@@ -63,6 +64,10 @@ export interface ProfessorOption {
 
 export default function ClinicalModulesPage() {
   const { showSuccess, showError } = useToast()
+  const {
+    selectedYearId: globalYearId,
+    setSelectedYearId: setGlobalYearId,
+  } = useAcademicYear()
 
   const [modules, setModules] = useState<ClinicalModule[]>([])
   const [studyLevels, setStudyLevels] = useState<StudyLevelOption[]>([])
@@ -106,8 +111,10 @@ export default function ClinicalModulesPage() {
     if (isManual) setRefreshing(true)
     else setLoading(true)
 
+    const targetYearId = yearId || globalYearId
+
     try {
-      const url = yearId ? `/api/dean/modules?academic_year_id=${yearId}` : '/api/dean/modules'
+      const url = targetYearId ? `/api/dean/modules?academic_year_id=${targetYearId}` : '/api/dean/modules'
       const res = await fetch(url)
       const json = await res.json()
 
@@ -116,8 +123,11 @@ export default function ClinicalModulesPage() {
         setStudyLevels(json.studyLevels || [])
         setProfessors(json.professors || [])
         setAcademicYears(json.academicYears || [])
-        if (json.activeYearId && (!selectedYearId || !yearId)) {
+        if (json.activeYearId) {
           setSelectedYearId(json.activeYearId)
+          if (!globalYearId) {
+            setGlobalYearId(json.activeYearId)
+          }
         }
       } else {
         showError(json.error || 'Failed to fetch clinical modules.')
@@ -130,13 +140,19 @@ export default function ClinicalModulesPage() {
     }
   }
 
+  // Cascade refetch whenever global academic year changes
   useEffect(() => {
-    fetchModules()
-  }, [])
+    if (globalYearId) {
+      setSelectedYearId(globalYearId)
+      fetchModules(globalYearId)
+    } else {
+      fetchModules()
+    }
+  }, [globalYearId])
 
   const handleYearChange = (newYearId: string) => {
     setSelectedYearId(newYearId)
-    fetchModules(newYearId, true)
+    setGlobalYearId(newYearId)
   }
 
   // Quick inline professor reassignment

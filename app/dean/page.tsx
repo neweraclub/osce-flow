@@ -21,10 +21,13 @@ import {
   Users,
 } from 'lucide-react'
 
+import { useAcademicYear } from '@/context/AcademicYearContext'
+
 export interface DeanOverviewData {
   faculty: {
-    id: string
+    id?: string
     name: string
+    code: string
   }
   activeAcademicYear: string
   stats: {
@@ -38,6 +41,7 @@ export interface DeanOverviewData {
 }
 
 export default function DeanOverviewPage() {
+  const { selectedYearId, selectedYear } = useAcademicYear()
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [data, setData] = useState<DeanOverviewData | null>(null)
@@ -47,7 +51,8 @@ export default function DeanOverviewPage() {
     else setLoading(true)
 
     try {
-      const res = await fetch('/api/dean/overview')
+      const url = selectedYearId ? `/api/dean/overview?academic_year_id=${selectedYearId}` : '/api/dean/overview'
+      const res = await fetch(url)
       if (res.ok) {
         const json = await res.json()
         if (json.success) {
@@ -64,7 +69,7 @@ export default function DeanOverviewPage() {
 
   useEffect(() => {
     fetchOverview()
-  }, [])
+  }, [selectedYearId])
 
   const stats = data?.stats || {
     totalAcademicYears: 0,
@@ -88,7 +93,7 @@ export default function DeanOverviewPage() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full size-2 bg-emerald-500"></span>
             </span>
-            <span>Academic Session {data?.activeAcademicYear || '2026–2027'}</span>
+            <span>Academic Session {selectedYear?.name || selectedYear?.year_label || data?.activeAcademicYear || 'Active Session'}</span>
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">

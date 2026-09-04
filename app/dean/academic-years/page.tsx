@@ -13,6 +13,7 @@ import {
   X,
 } from 'lucide-react'
 import { useToast } from '@/context/ToastContext'
+import { useAcademicYear } from '@/context/AcademicYearContext'
 
 export interface AcademicYear {
   id: string
@@ -23,6 +24,7 @@ export interface AcademicYear {
 
 export default function AcademicYearsPage() {
   const { showSuccess, showError } = useToast()
+  const { refreshYears } = useAcademicYear()
 
   const [years, setYears] = useState<AcademicYear[]>([])
   const [loading, setLoading] = useState(true)
@@ -101,6 +103,7 @@ export default function AcademicYearsPage() {
         setIsAddOpen(false)
         setYearLabel('')
         fetchYears(true)
+        refreshYears()
       } else {
         const msg = json.error || 'Failed to register academic year.'
         setFormError(msg)
@@ -134,6 +137,7 @@ export default function AcademicYearsPage() {
       if (res.ok && json.success) {
         setYears((prev) => prev.filter((y) => y.id !== targetId))
         showSuccess('Academic year removed successfully.')
+        refreshYears()
       } else {
         showError(json.error || 'Failed to remove academic year. Please try again.')
       }

@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import {
   Building2,
   Calendar,
+  ChevronDown,
   ChevronRight,
   GraduationCap,
   Loader2,
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { useToast } from '@/context/ToastContext'
+import { useAcademicYear } from '@/context/AcademicYearContext'
 
 export function DeanTopbar({
   setSidebarOpen,
@@ -24,11 +26,17 @@ export function DeanTopbar({
   const pathname = usePathname()
   const router = useRouter()
   const { showSuccess } = useToast()
+  const {
+    years,
+    selectedYearId,
+    selectedYear,
+    setSelectedYearId,
+    isLoading: yearsLoading,
+  } = useAcademicYear()
 
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [facultyName, setFacultyName] = useState<string>('')
-  const [activeYear, setActiveYear] = useState<string>('2025-2026')
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -51,7 +59,7 @@ export function DeanTopbar({
   }, [])
 
   useEffect(() => {
-    async function loadFacultyAndYears() {
+    async function loadFaculty() {
       try {
         const sessionRes = await fetch('/api/auth/session')
         if (sessionRes.ok) {
@@ -60,19 +68,11 @@ export function DeanTopbar({
             setFacultyName(sessionData.user.facultyName)
           }
         }
-
-        const res = await fetch('/api/dean/academic-years')
-        if (res.ok) {
-          const data = await res.json()
-          if (data.success && data.academicYears && data.academicYears.length > 0) {
-            setActiveYear(data.academicYears[0].year_label)
-          }
-        }
       } catch {
         // Fallback
       }
     }
-    loadFacultyAndYears()
+    loadFaculty()
   }, [])
 
   const getBreadcrumbTitle = () => {
@@ -132,10 +132,39 @@ export function DeanTopbar({
       </div>
 
       <div className="flex items-center gap-4">
-        {/* Active Academic Year Switcher Badge */}
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200">
-          <Calendar className="size-3.5 text-blue-600 dark:text-blue-400" />
-          <span>Year: {activeYear}</span>
+        {/* Interactive Global Academic Year Selector */}
+        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-sm transition-all focus-within:ring-2 focus-within:ring-blue-500/30">
+          <Calendar className="size-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+          <span className="text-slate-400 dark:text-slate-400 font-semibold text-[11px]">Year:</span>
+          {yearsLoading && !selectedYear ? (
+            <span className="inline-flex items-center gap-1.5 text-slate-400">
+              <Loader2 className="size-3 animate-spin text-blue-500" />
+              Loading...
+            </span>
+          ) : years.length > 0 ? (
+            <div className="relative flex items-center">
+              <select
+                value={selectedYearId || ''}
+                onChange={(e) => setSelectedYearId(e.target.value)}
+                className="appearance-none bg-transparent pr-5 text-slate-900 dark:text-white font-bold cursor-pointer focus:outline-none text-xs"
+                title="Switch active academic session"
+                aria-label="Active Academic Session"
+              >
+                {years.map((year) => (
+                  <option
+                    key={year.id}
+                    value={year.id}
+                    className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white py-1"
+                  >
+                    {year.name || year.year_label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-0 size-3 text-slate-400 dark:text-slate-400" />
+            </div>
+          ) : (
+            <span className="text-slate-400 text-xs">No years</span>
+          )}
         </div>
 
         <ThemeToggle />

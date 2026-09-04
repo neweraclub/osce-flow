@@ -9,6 +9,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized access.' }, { status: 401 })
     }
 
+    const { searchParams } = new URL(req.url)
+    const reqYearId = searchParams.get('academic_year_id')
+
     // 1. Fetch Academic Years for this faculty
     const { data: years } = await supabaseAdmin
       .from('academic_years')
@@ -16,10 +19,10 @@ export async function GET(req: NextRequest) {
       .eq('faculty_id', dean.facultyId)
       .order('created_at', { ascending: false })
 
-    const activeYear = years && years.length > 0 ? years[0] : null
+    const activeYear = (years || []).find((y) => y.id === reqYearId) || (years && years.length > 0 ? years[0] : null)
 
     // 2. Fetch Sections belonging to active year or faculty years
-    const yearIds = (years || []).map((y) => y.id)
+    const yearIds = activeYear ? [activeYear.id] : (years || []).map((y) => y.id)
     
     let totalSections = 0
     let totalGroups = 0

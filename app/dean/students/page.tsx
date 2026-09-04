@@ -30,6 +30,7 @@ import { FilterDropdown } from '@/components/ui/FilterDropdown'
 import { TableToolbar } from '@/components/ui/TableToolbar'
 import { useTableSelection } from '@/hooks/useTableSelection'
 import { useToast } from '@/context/ToastContext'
+import { useAcademicYear } from '@/context/AcademicYearContext'
 import { EditStudentModal, FullStructureSection } from '@/components/dean/EditStudentModal'
 
 export interface StudentRecord {
@@ -105,6 +106,7 @@ export const sanitizeTitleCase = (val: any): string => {
 
 export default function StudentsPage() {
   const { showSuccess, showError } = useToast()
+  const { selectedYearId: globalYearId } = useAcademicYear()
 
   const [students, setStudents] = useState<StudentRecord[]>([])
   const [groups, setGroups] = useState<GroupOption[]>([])
@@ -206,7 +208,9 @@ export default function StudentsPage() {
         setStudyLevels(json.studyLevels || [])
         setAcademicYears(json.academicYears || [])
         setSectionsWithGroups(json.sections || [])
-        if (json.activeYearId && !selectedYearId) {
+        if (globalYearId) {
+          setSelectedYearId(globalYearId)
+        } else if (json.activeYearId && !selectedYearId) {
           setSelectedYearId(json.activeYearId)
         }
         if (json.studyLevels && json.studyLevels.length > 0 && !selectedLevelId) {

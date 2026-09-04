@@ -2,11 +2,11 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
-@custom-variant dark (&:is(.dark *));
+@variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: 'Plus Jakarta Sans', Arial, sans-serif;
-  --font-display: 'Orbitron', Arial, sans-serif;
+  --font-sans: var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-display: var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -33,31 +33,81 @@
 
 :root {
   color-scheme: light;
-  --background: #caf0f8;
-  --foreground: #03045e;
+  --background: #ffffff;
+  --foreground: #0f172a;
   --card: #ffffff;
-  --card-foreground: #03045e;
+  --card-foreground: #0f172a;
   --popover: #ffffff;
-  --popover-foreground: #03045e;
-  --primary: #0077b6;
-  --primary-foreground: #caf0f8;
-  --secondary: #90e0ef;
-  --secondary-foreground: #03045e;
-  --muted: #90e0ef;
-  --muted-foreground: #03045e;
-  --accent: #00b4d8;
-  --accent-foreground: #03045e;
-  --destructive: #03045e;
-  --border: #90e0ef;
-  --input: #90e0ef;
-  --ring: #00b4d8;
+  --popover-foreground: #0f172a;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #eff6ff;
+  --accent-foreground: #1d4ed8;
+  --destructive: #ef4444;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #2563eb;
   --radius: .7rem;
 }
 
-* { @apply border-border outline-ring/50; }
-body { @apply bg-background text-foreground; font-family: var(--font-jakarta), Arial, Helvetica, sans-serif; }
-button, input, textarea, select, nav, label, p, span, td, th { font-family: var(--font-jakarta), Arial, Helvetica, sans-serif; }
-h1, h2, .font-display { font-family: var(--font-orbitron), Arial, Helvetica, sans-serif; letter-spacing: -0.035em; }
-.glass-card { background: color-mix(in srgb, white 80%, transparent); backdrop-filter: blur(16px); box-shadow: 0 24px 70px rgba(3, 4, 94, 0.14), 0 8px 24px rgba(3, 4, 94, 0.08); }
-.dark .glass-card { background: color-mix(in srgb, #03045e 82%, transparent); }
-button, input { font: inherit; }
+.dark {
+  color-scheme: dark;
+  --background: #0b0f19;
+  --foreground: #f8fafc;
+  --card: #111827;
+  --card-foreground: #f8fafc;
+  --popover: #111827;
+  --popover-foreground: #f8fafc;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #1f2937;
+  --secondary-foreground: #f8fafc;
+  --muted: #1f2937;
+  --muted-foreground: #9ca3af;
+  --accent: #1e3a8a;
+  --accent-foreground: #93c5fd;
+  --destructive: #ef4444;
+  --border: #1f2937;
+  --input: #1f2937;
+  --ring: #3b82f6;
+}
+
+html {
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  transition-property: color, background-color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+  font-family: var(--font-jakarta), 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+button, input, textarea, select, nav, label, p, span, td, th {
+  font-family: var(--font-jakarta), 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-jakarta), 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.glass-card {
+  background: color-mix(in srgb, white 80%, transparent);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 24px 70px rgba(3, 4, 94, 0.14), 0 8px 24px rgba(3, 4, 94, 0.08);
+}
+
+.dark .glass-card {
+  background: color-mix(in srgb, #0b0f19 82%, transparent);
+}

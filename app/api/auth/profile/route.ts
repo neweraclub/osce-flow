@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-import { verifyAuthToken, supabaseAdmin } from '@/lib/auth'
+import { verifyAuthToken, signAuthToken, supabaseAdmin } from '@/lib/auth'
 
 export async function GET(req: NextRequest) {
   try {
@@ -70,38 +70,80 @@ export async function PUT(req: NextRequest) {
     const body = await req.json()
     const { type } = body
 
-    // 1. UPDATE INSTITUTIONAL EMAIL
-    if (type === 'email') {
-      const { email } = body
-      if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-        return NextResponse.json({ success: false, error: 'Please provide a valid institutional email address.' }, { status: 400 })
+    // 1. UPDATE INSTITUTIONAL EMAIL / PROFILE DETAILS
+    if (type === 'email' || type === 'profile') {
+      const { email, firstName, lastName, first_name, last_name } = body
+
+      const newEmail = typeof email === 'string' ? email.trim().toLowerCase() : undefined
+      const newFirstName = typeof firstName === 'string' ? firstName.trim() : (typeof first_name === 'string' ? first_name.trim() : undefined)
+      const newLastName = typeof lastName === 'string' ? lastName.trim() : (typeof last_name === 'string' ? last_name.trim() : undefined)
+
+      if (newEmail !== undefined) {
+        if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+          return NextResponse.json({ success: false, error: 'Please provide a valid institutional email address.' }, { status: 400 })
+        }
+
+        // Check uniqueness if email is changed
+        const { data: existingUser } = await supabaseAdmin
+          .from('users')
+          .select('id')
+          .eq('email', newEmail)
+          .neq('id', payload.id)
+          .single()
+
+        if (existingUser) {
+          return NextResponse.json({ success: false, error: 'This institutional email is already assigned to another account.' }, { status: 400 })
+        }
       }
 
-      const cleanEmail = email.trim().toLowerCase()
+      const updateData: Record<string, any> = {
+        updated_at: new Date().toISOString(),
+      }
+      if (newEmail !== undefined) updateData.email = newEmail
+      if (newFirstName !== undefined) updateData.first_name = newFirstName
+      if (newLastName !== undefined) updateData.last_name = newLastName
 
-      // Check uniqueness
-      const { data: existingUser } = await supabaseAdmin
+      // Update user record
+      const { data: updatedUser, error: updateError } = await supabaseAdmin
         .from('users')
-        .select('id')
-        .eq('email', cleanEmail)
-        .neq('id', payload.id)
+        .update(updateData)
+        .eq('id', payload.id)
+        .select('*')
         .single()
 
-      if (existingUser) {
-        return NextResponse.json({ success: false, error: 'This institutional email is already assigned to another account.' }, { status: 400 })
+      if (updateError || !updatedUser) {
+        return NextResponse.json({ success: false, error: 'Failed to update profile details in database.' }, { status: 500 })
       }
 
-      // Update email
-      const { error: updateError } = await supabaseAdmin
-        .from('users')
-        .update({ email: cleanEmail, updated_at: new Date().toISOString() })
-        .eq('id', payload.id)
+      const response = NextResponse.json({
+        success: true,
+        message: 'Profile details updated successfully.',
+        user: {
+          id: updatedUser.id,
+          email: updatedUser.email,
+          role: updatedUser.role,
+          firstName: updatedUser.first_name || '',
+          lastName: updatedUser.last_name || '',
+        },
+      })
 
-      if (updateError) {
-        return NextResponse.json({ success: false, error: 'Failed to update email address in database.' }, { status: 500 })
+      // Re-issue updated auth cookie
+      try {
+        const refreshedToken = signAuthToken(updatedUser)
+        response.cookies.set({
+          name: 'ecos_auth_token',
+          value: refreshedToken,
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+          maxAge: 60 * 60 * 8,
+        })
+      } catch {
+        // Fallback gracefully if cookie re-sign fails
       }
 
-      return NextResponse.json({ success: true, message: 'Institutional email updated successfully.' })
+      return response
     }
 
     // 2. UPDATE SECURITY PASSWORD

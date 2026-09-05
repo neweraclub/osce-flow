@@ -14,7 +14,6 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import { Select, SelectOption } from '@/components/ui/Select'
 import { useToast } from '@/context/ToastContext'
 import { useAcademicYear } from '@/context/AcademicYearContext'
 
@@ -137,19 +136,8 @@ export default function AcademicStructurePage() {
     }
   }, [globalYearId])
 
-  const handleYearChange = (newYearId: string) => {
-    setSelectedYearId(newYearId)
-    setGlobalYearId(newYearId)
-  }
-
   const filteredSections = sections.filter((s) => s.level_id === selectedLevelId)
   const activeSection = sections.find((s) => s.id === selectedSectionId) || (filteredSections.length > 0 ? filteredSections[0] : null)
-
-  const availableYears = globalYears.length > 0
-    ? globalYears.map((y) => ({ value: y.id, label: y.name || y.year_label || '' }))
-    : academicYears.map((y) => ({ value: y.id, label: y.year_label }))
-
-  const yearSelectOptions: SelectOption[] = availableYears
 
   const handleAddSectionSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -295,18 +283,10 @@ export default function AcademicStructurePage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="w-56">
-            <Select
-              options={yearSelectOptions}
-              value={selectedYearId}
-              onChange={handleYearChange}
-              placeholder="Select Academic Year"
-            />
-          </div>
           <button
-            onClick={() => fetchStructure(selectedYearId, true)}
+            onClick={() => fetchStructure(globalYearId || selectedYearId, true)}
             disabled={refreshing}
-            className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-all"
+            className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm"
             title="Refresh structure"
           >
             <RefreshCw className={`size-4 ${refreshing ? 'animate-spin' : ''}`} />

@@ -58,7 +58,7 @@ export function DeanSidebar({
     { label: 'Academic Years', href: '/dean/academic-years', icon: Calendar },
     { label: 'Academic Structure', href: '/dean/structure', icon: Layers },
     { label: 'Clinical Modules', href: '/dean/modules', icon: BookOpen },
-    { label: 'Exams & Stations', href: '/dean/exams', icon: ClipboardCheck },
+    { label: 'Stations', href: '/dean/exams', icon: ClipboardCheck },
     { label: 'Professors', href: '/dean/professors', icon: Stethoscope },
     { label: 'Students', href: '/dean/students', icon: Users },
   ]
@@ -74,9 +74,8 @@ export function DeanSidebar({
       )}
 
       <aside
-        className={`fixed md:sticky top-0 inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800/80 flex flex-col justify-between transition-transform duration-200 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-        } h-screen`}
+        className={`fixed md:sticky top-0 inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800/80 flex flex-col justify-between transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+          } h-screen`}
       >
         {/* Brand & Faculty Context Header */}
         <div className="p-6 border-b border-slate-100 dark:border-slate-800/80 space-y-3">
@@ -125,11 +124,10 @@ export function DeanSidebar({
                 key={item.href}
                 href={item.href}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                  isActive
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${isActive
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
-                }`}
+                  }`}
               >
                 <Icon className={`size-5 ${isActive ? 'text-white' : 'text-slate-400 dark:text-slate-500'}`} />
                 <span>{item.label}</span>

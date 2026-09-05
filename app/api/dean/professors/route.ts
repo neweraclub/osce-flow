@@ -122,6 +122,142 @@ export async function POST(req: NextRequest) {
   }
 }
 
+export async function PUT(req: NextRequest) {
+  try {
+    const dean = await getAuthenticatedDean(req)
+    if (!dean) {
+      return NextResponse.json({ success: false, error: 'Unauthorized.' }, { status: 401 })
+    }
+
+    const body = await req.json()
+    const { id, user_id, first_name, last_name, email, is_active, password } = body
+
+    if (!id && !user_id) {
+      return NextResponse.json({ success: false, error: 'Professor ID or User ID is required.' }, { status: 400 })
+    }
+
+    // Resolve user_id and professor record
+    let targetUserId = user_id
+    let targetProfId = id
+
+    if (!targetUserId && targetProfId) {
+      const { data: prof } = await supabaseAdmin
+        .from('professors')
+        .select('id, user_id')
+        .eq('id', targetProfId)
+        .single()
+      if (prof) {
+        targetUserId = prof.user_id
+      }
+    }
+
+    if (!targetProfId && targetUserId) {
+      const { data: prof } = await supabaseAdmin
+        .from('professors')
+        .select('id, user_id')
+        .eq('user_id', targetUserId)
+        .single()
+      if (prof) {
+        targetProfId = prof.id
+      }
+    }
+
+    // Verify user belongs to dean's faculty
+    const { data: existingUser, error: findErr } = await supabaseAdmin
+      .from('users')
+      .select('id, email, first_name, last_name, is_active')
+      .eq('id', targetUserId)
+      .eq('faculty_id', dean.facultyId)
+      .single()
+
+    if (findErr || !existingUser) {
+      return NextResponse.json({ success: false, error: 'Professor account not found in this faculty.' }, { status: 404 })
+    }
+
+    // If email is changing, ensure it's not taken by another user
+    if (email) {
+      const cleanEmail = email.trim().toLowerCase()
+      if (cleanEmail !== existingUser.email) {
+        const { data: emailConflict } = await supabaseAdmin
+          .from('users')
+          .select('id')
+          .eq('email', cleanEmail)
+          .neq('id', targetUserId)
+          .single()
+
+        if (emailConflict) {
+          return NextResponse.json({ success: false, error: 'Another account already uses this institutional email.' }, { status: 400 })
+        }
+      }
+    }
+
+    // Prepare User update payload
+    const userUpdatePayload: any = {
+      updated_at: new Date().toISOString(),
+    }
+    if (first_name !== undefined) userUpdatePayload.first_name = first_name.trim()
+    if (last_name !== undefined) userUpdatePayload.last_name = last_name.trim()
+    if (email !== undefined) userUpdatePayload.email = email.trim().toLowerCase()
+    if (is_active !== undefined) userUpdatePayload.is_active = Boolean(is_active)
+
+    if (password && typeof password === 'string' && password.trim().length > 0) {
+      userUpdatePayload.password_hash = await bcrypt.hash(password.trim(), 10)
+    }
+
+    // 1. Update public.users
+    const { data: updatedUser, error: userUpdateErr } = await supabaseAdmin
+      .from('users')
+      .update(userUpdatePayload)
+      .eq('id', targetUserId)
+      .eq('faculty_id', dean.facultyId)
+      .select()
+      .single()
+
+    if (userUpdateErr) throw userUpdateErr
+
+    // 2. Update public.professors
+    const profUpdatePayload: any = {}
+    if (first_name !== undefined) profUpdatePayload.first_name = first_name.trim()
+    if (last_name !== undefined) profUpdatePayload.last_name = last_name.trim()
+
+    let updatedProf = null
+    if (targetProfId && Object.keys(profUpdatePayload).length > 0) {
+      const { data: p, error: profUpdateErr } = await supabaseAdmin
+        .from('professors')
+        .update(profUpdatePayload)
+        .eq('id', targetProfId)
+        .select()
+        .single()
+
+      if (profUpdateErr) throw profUpdateErr
+      updatedProf = p
+    } else if (targetUserId && Object.keys(profUpdatePayload).length > 0) {
+      const { data: p } = await supabaseAdmin
+        .from('professors')
+        .update(profUpdatePayload)
+        .eq('user_id', targetUserId)
+        .select()
+        .single()
+      updatedProf = p
+    }
+
+    const unifiedProfessor = {
+      id: updatedProf?.id || targetProfId || targetUserId,
+      user_id: targetUserId,
+      first_name: updatedUser.first_name,
+      last_name: updatedUser.last_name,
+      email: updatedUser.email,
+      is_active: updatedUser.is_active,
+    }
+
+    return NextResponse.json({ success: true, professor: unifiedProfessor })
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error?.message || 'Failed to update professor.' }, { status: 500 })
+  }
+}
+
+export const PATCH = PUT
+
 export async function DELETE(req: NextRequest) {
   try {
     const dean = await getAuthenticatedDean(req)

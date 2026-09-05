@@ -8,6 +8,7 @@ import {
   BookOpen,
   Building2,
   Calendar,
+  ClipboardCheck,
   Layers,
   LayoutDashboard,
   Stethoscope,
@@ -56,7 +57,8 @@ export function DeanSidebar({
     { label: 'Overview', href: '/dean', icon: LayoutDashboard },
     { label: 'Academic Years', href: '/dean/academic-years', icon: Calendar },
     { label: 'Academic Structure', href: '/dean/structure', icon: Layers },
-    { label: 'Modules & Stations', href: '/dean/modules', icon: BookOpen },
+    { label: 'Clinical Modules', href: '/dean/modules', icon: BookOpen },
+    { label: 'Exams & Stations', href: '/dean/exams', icon: ClipboardCheck },
     { label: 'Professors', href: '/dean/professors', icon: Stethoscope },
     { label: 'Students', href: '/dean/students', icon: Users },
   ]

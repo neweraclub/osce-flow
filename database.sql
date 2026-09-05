@@ -37,8 +37,7 @@ CREATE TABLE public.study_levels (
   level_name character varying NOT NULL CHECK (level_name::text = ANY (ARRAY['4th Year'::character varying, '5th Year'::character varying, '6th Year'::character varying]::text[])),
   academic_year_id uuid NOT NULL,
   CONSTRAINT study_levels_pkey PRIMARY KEY (id),
-  CONSTRAINT study_levels_academic_year_id_fkey FOREIGN KEY (academic_year_id) REFERENCES public.academic_years(id),
-  CONSTRAINT study_levels_level_name_academic_year_id_key UNIQUE (level_name, academic_year_id)
+  CONSTRAINT study_levels_academic_year_id_fkey FOREIGN KEY (academic_year_id) REFERENCES public.academic_years(id)
 );
 CREATE TABLE public.sections (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -87,14 +86,12 @@ CREATE TABLE public.modules (
 CREATE TABLE public.exams (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   module_id uuid NOT NULL,
-  section_id uuid,
-  group_id uuid,
+  group_id uuid NOT NULL,
   session_type USER-DEFINED NOT NULL DEFAULT 'regular'::session_type_enum,
   exam_date date NOT NULL DEFAULT CURRENT_DATE,
   created_at timestamp with time zone NOT NULL DEFAULT clock_timestamp(),
   CONSTRAINT exams_pkey PRIMARY KEY (id),
   CONSTRAINT exams_module_id_fkey FOREIGN KEY (module_id) REFERENCES public.modules(id),
-  CONSTRAINT exams_section_id_fkey FOREIGN KEY (section_id) REFERENCES public.sections(id),
   CONSTRAINT exams_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.groups(id)
 );
 CREATE TABLE public.stations (

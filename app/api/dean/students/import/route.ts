@@ -97,11 +97,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'No valid sections detected in spreadsheet.' }, { status: 400 })
     }
 
-    // 4. Auto-provision missing Sections for (academic_year_id, study_level_id)
+    // 4. Auto-provision missing Sections for study_level_id
     const { data: existingSections } = await supabaseAdmin
       .from('sections')
       .select('id, section_name')
-      .eq('academic_year_id', academic_year_id)
       .eq('level_id', study_level_id)
 
     const sectionMap = new Map<string, string>() // lowercased section_name -> section_id
@@ -116,7 +115,6 @@ export async function POST(req: NextRequest) {
       const sectionsToInsert = missingSections.map((name) => ({
         section_name: name,
         level_id: study_level_id,
-        academic_year_id: academic_year_id,
       }))
 
       const { data: newlyInsertedSections, error: secErr } = await supabaseAdmin

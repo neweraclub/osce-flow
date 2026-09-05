@@ -80,6 +80,16 @@ export async function POST(req: NextRequest) {
 
     if (error) throw error
 
+    // Auto-provision standard medical study levels for the newly created academic year
+    // (Scoped uniquely per academic_year_id)
+    const standardLevels = ['4th Year', '5th Year', '6th Year']
+    await supabaseAdmin.from('study_levels').insert(
+      standardLevels.map((lvl) => ({
+        level_name: lvl,
+        academic_year_id: newYear.id,
+      }))
+    )
+
     return NextResponse.json({ success: true, academicYear: newYear })
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error?.message || 'Failed to create academic year.' }, { status: 500 })
@@ -112,17 +122,33 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Academic year not found or permission denied.' }, { status: 404 })
     }
 
-    // Check if sections are associated
-    const { count: sectionCount } = await supabaseAdmin
-      .from('sections')
-      .select('id', { count: 'exact' })
+    // Check if study levels and sections are associated (sections inherit year through study_levels)
+    const { data: levels } = await supabaseAdmin
+      .from('study_levels')
+      .select('id')
       .eq('academic_year_id', id)
 
-    if (sectionCount && sectionCount > 0) {
+    const levelIds = (levels || []).map((l) => l.id)
+    let sectionCount = 0
+
+    if (levelIds.length > 0) {
+      const { count } = await supabaseAdmin
+        .from('sections')
+        .select('id', { count: 'exact' })
+        .in('level_id', levelIds)
+      sectionCount = count || 0
+    }
+
+    if (sectionCount > 0) {
       return NextResponse.json(
         { success: false, error: `Cannot remove ${year.year_label} because it contains active academic sections.` },
         { status: 400 }
       )
+    }
+
+    // Also clean up study levels for this academic year if any
+    if (levelIds.length > 0) {
+      await supabaseAdmin.from('study_levels').delete().eq('academic_year_id', id)
     }
 
     const { error: deleteErr } = await supabaseAdmin

@@ -38,7 +38,6 @@ export interface SectionItem {
   id: string
   section_name: string
   level_id: string
-  academic_year_id: string
   groups: GroupItem[]
 }
 
@@ -161,7 +160,6 @@ export default function AcademicStructurePage() {
           type: 'section',
           section_name: sectionName.trim(),
           level_id: selectedLevelId,
-          academic_year_id: selectedYearId,
         }),
       })
 

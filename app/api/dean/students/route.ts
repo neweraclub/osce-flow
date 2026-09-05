@@ -9,40 +9,51 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized.' }, { status: 401 })
     }
 
+    const { searchParams } = new URL(req.url)
+    const reqYearId = searchParams.get('academic_year_id')
+
     // 1. Get academic years for faculty
     const { data: years } = await supabaseAdmin
       .from('academic_years')
       .select('id')
       .eq('faculty_id', dean.facultyId)
 
-    const yearIds = (years || []).map((y) => y.id)
-    if (yearIds.length === 0) {
+    const facultyYearIds = (years || []).map((y) => y.id)
+    if (facultyYearIds.length === 0) {
       return NextResponse.json({ success: true, students: [], groups: [], sections: [] })
     }
 
-    // 2. Get sections
+    const targetYearIds = reqYearId && facultyYearIds.includes(reqYearId) ? [reqYearId] : facultyYearIds
+
+    // 2. Get study levels for target academic years
+    const { data: studyLevels } = await supabaseAdmin
+      .from('study_levels')
+      .select('*')
+      .in('academic_year_id', targetYearIds)
+
+    const levelIds = (studyLevels || []).map((l) => l.id)
+    if (levelIds.length === 0) {
+      return NextResponse.json({ success: true, students: [], groups: [], sections: [] })
+    }
+
+    // 3. Get sections for these study levels
     const { data: sections } = await supabaseAdmin
       .from('sections')
       .select('id, section_name, level_id')
-      .in('academic_year_id', yearIds)
+      .in('level_id', levelIds)
 
     const sectionIds = (sections || []).map((s) => s.id)
     if (sectionIds.length === 0) {
       return NextResponse.json({ success: true, students: [], groups: [], sections: [] })
     }
 
-    // 3. Get groups
+    // 4. Get groups
     const { data: groups } = await supabaseAdmin
       .from('groups')
       .select('id, group_name, section_id')
       .in('section_id', sectionIds)
 
     const groupIds = (groups || []).map((g) => g.id)
-
-    // 4. Get study levels
-    const { data: studyLevels } = await supabaseAdmin
-      .from('study_levels')
-      .select('*')
 
     const levelMap = new Map((studyLevels || []).map((l) => [l.id, l.level_name]))
     const sectionMap = new Map((sections || []).map((s) => [s.id, s]))

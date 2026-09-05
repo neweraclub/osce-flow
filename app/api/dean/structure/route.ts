@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedDean } from '@/lib/deanAuth'
 import { supabaseAdmin } from '@/lib/auth'
+import { isAcademicYearCurrent, sortAcademicYears } from '@/lib/academicYearUtils'
 
 export async function GET(req: NextRequest) {
   try {
@@ -13,13 +14,21 @@ export async function GET(req: NextRequest) {
     const academicYearIdParam = searchParams.get('academic_year_id')
 
     // 1. Fetch academic years for this faculty
-    const { data: academicYears } = await supabaseAdmin
+    const { data: rawYears } = await supabaseAdmin
       .from('academic_years')
       .select('*')
       .eq('faculty_id', dean.facultyId)
-      .order('created_at', { ascending: false })
 
-    const activeYearId = academicYearIdParam || (academicYears && academicYears.length > 0 ? academicYears[0].id : null)
+    const academicYears = sortAcademicYears(rawYears || []).map((y) => ({
+      ...y,
+      name: y.year_label,
+      is_current: typeof y.is_current === 'boolean' ? y.is_current : isAcademicYearCurrent(y.year_label),
+    }))
+
+    const activeYearId =
+      academicYearIdParam ||
+      academicYears.find((y) => y.is_current)?.id ||
+      (academicYears.length > 0 ? academicYears[0].id : null)
 
     // 2. Fetch study levels scoped by academic_year_id
     let studyLevels: any[] = []
@@ -33,29 +42,20 @@ export async function GET(req: NextRequest) {
       studyLevels = levelsForYear || []
     }
 
-    // Fallback: If study_levels has legacy rows without matching academic_year_id, fallback to all study_levels
-    if (studyLevels.length === 0) {
-      const { data: globalLevels } = await supabaseAdmin
-        .from('study_levels')
-        .select('*')
-        .order('level_name', { ascending: true })
-      studyLevels = globalLevels || []
-    }
-
+    const levelIds = studyLevels.map((l) => l.id)
     let sectionsWithGroups: any[] = []
 
-    if (activeYearId) {
-      // 3. Fetch sections for this year
+    if (levelIds.length > 0) {
+      // 3. Fetch sections for these study levels (sections inherit year through level_id)
       const { data: sections } = await supabaseAdmin
         .from('sections')
         .select(`
           id,
           section_name,
           level_id,
-          academic_year_id,
           created_at
         `)
-        .eq('academic_year_id', activeYearId)
+        .in('level_id', levelIds)
         .order('section_name', { ascending: true })
 
       const sectionIds = (sections || []).map((s) => s.id)
@@ -128,26 +128,25 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { type, section_name, level_id, academic_year_id, group_name, section_id } = body
+    const { type, section_name, level_id, group_name, section_id } = body
 
     if (type === 'section') {
-      if (!section_name || !level_id || !academic_year_id) {
+      if (!section_name || !level_id) {
         return NextResponse.json(
-          { success: false, error: 'Section name, study level, and academic year are required.' },
+          { success: false, error: 'Section name and target study level are required.' },
           { status: 400 }
         )
       }
 
-      // Verify academic year belongs to faculty
-      const { data: yearCheck } = await supabaseAdmin
-        .from('academic_years')
+      // Verify study level exists
+      const { data: levelCheck } = await supabaseAdmin
+        .from('study_levels')
         .select('id')
-        .eq('id', academic_year_id)
-        .eq('faculty_id', dean.facultyId)
+        .eq('id', level_id)
         .single()
 
-      if (!yearCheck) {
-        return NextResponse.json({ success: false, error: 'Invalid academic year or permission denied.' }, { status: 403 })
+      if (!levelCheck) {
+        return NextResponse.json({ success: false, error: 'Invalid study level.' }, { status: 400 })
       }
 
       const { data: newSection, error } = await supabaseAdmin
@@ -156,7 +155,6 @@ export async function POST(req: NextRequest) {
           {
             section_name: section_name.trim(),
             level_id,
-            academic_year_id,
           },
         ])
         .select()

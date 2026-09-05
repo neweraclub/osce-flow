@@ -34,20 +34,19 @@ CREATE TABLE public.academic_years (
 );
 CREATE TABLE public.study_levels (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
-  level_name character varying NOT NULL UNIQUE CHECK (level_name::text = ANY (ARRAY['4th Year'::character varying, '5th Year'::character varying, '6th Year'::character varying]::text[])),
+  level_name character varying NOT NULL CHECK (level_name::text = ANY (ARRAY['4th Year'::character varying, '5th Year'::character varying, '6th Year'::character varying]::text[])),
   academic_year_id uuid NOT NULL,
   CONSTRAINT study_levels_pkey PRIMARY KEY (id),
-  CONSTRAINT study_levels_academic_year_id_fkey FOREIGN KEY (academic_year_id) REFERENCES public.academic_years(id)
+  CONSTRAINT study_levels_academic_year_id_fkey FOREIGN KEY (academic_year_id) REFERENCES public.academic_years(id),
+  CONSTRAINT study_levels_level_name_academic_year_id_key UNIQUE (level_name, academic_year_id)
 );
 CREATE TABLE public.sections (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   section_name character varying NOT NULL,
   level_id uuid NOT NULL,
-  academic_year_id uuid NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT clock_timestamp(),
   CONSTRAINT sections_pkey PRIMARY KEY (id),
-  CONSTRAINT sections_level_id_fkey FOREIGN KEY (level_id) REFERENCES public.study_levels(id),
-  CONSTRAINT sections_academic_year_id_fkey FOREIGN KEY (academic_year_id) REFERENCES public.academic_years(id)
+  CONSTRAINT sections_level_id_fkey FOREIGN KEY (level_id) REFERENCES public.study_levels(id)
 );
 CREATE TABLE public.groups (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

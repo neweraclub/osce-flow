@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedDean } from '@/lib/deanAuth'
 import { supabaseAdmin } from '@/lib/auth'
+import { isAcademicYearCurrent, sortAcademicYears } from '@/lib/academicYearUtils'
 
 export async function GET(req: NextRequest) {
   try {
@@ -13,38 +14,55 @@ export async function GET(req: NextRequest) {
     const reqYearId = searchParams.get('academic_year_id')
 
     // 1. Fetch Academic Years for this faculty
-    const { data: years } = await supabaseAdmin
+    const { data: rawYears } = await supabaseAdmin
       .from('academic_years')
       .select('id, year_label, created_at')
       .eq('faculty_id', dean.facultyId)
-      .order('created_at', { ascending: false })
 
-    const activeYear = (years || []).find((y) => y.id === reqYearId) || (years && years.length > 0 ? years[0] : null)
+    const years = sortAcademicYears(rawYears || []).map((y) => ({
+      ...y,
+      name: y.year_label,
+      is_current: typeof (y as any).is_current === 'boolean' ? (y as any).is_current : isAcademicYearCurrent(y.year_label),
+    }))
 
-    // 2. Fetch Sections belonging to active year or faculty years
-    const yearIds = activeYear ? [activeYear.id] : (years || []).map((y) => y.id)
+    const activeYear =
+      (reqYearId ? years.find((y) => y.id === reqYearId) : null) ||
+      years.find((y) => y.is_current) ||
+      (years.length > 0 ? years[0] : null)
+
+    // 2. Fetch Sections belonging to active year or faculty years (via study_levels)
+    const yearIds = activeYear ? [activeYear.id] : years.map((y) => y.id)
     
     let totalSections = 0
     let totalGroups = 0
     let groupIds: string[] = []
 
     if (yearIds.length > 0) {
-      const { data: sections } = await supabaseAdmin
-        .from('sections')
+      const { data: levels } = await supabaseAdmin
+        .from('study_levels')
         .select('id')
         .in('academic_year_id', yearIds)
 
-      totalSections = (sections || []).length
-      const sectionIds = (sections || []).map((s) => s.id)
+      const levelIds = (levels || []).map((l) => l.id)
 
-      if (sectionIds.length > 0) {
-        const { data: groups } = await supabaseAdmin
-          .from('groups')
+      if (levelIds.length > 0) {
+        const { data: sections } = await supabaseAdmin
+          .from('sections')
           .select('id')
-          .in('section_id', sectionIds)
+          .in('level_id', levelIds)
 
-        totalGroups = (groups || []).length
-        groupIds = (groups || []).map((g) => g.id)
+        totalSections = (sections || []).length
+        const sectionIds = (sections || []).map((s) => s.id)
+
+        if (sectionIds.length > 0) {
+          const { data: groups } = await supabaseAdmin
+            .from('groups')
+            .select('id')
+            .in('section_id', sectionIds)
+
+          totalGroups = (groups || []).length
+          groupIds = (groups || []).map((g) => g.id)
+        }
       }
     }
 

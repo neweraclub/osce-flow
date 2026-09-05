@@ -31,7 +31,7 @@ function getRoleDashboard(role?: string): string {
     case 'dean':
       return '/dean'
     case 'professor':
-      return '/evaluator'
+      return '/professor/dashboard'
     default:
       return '/login'
   }
@@ -102,9 +102,43 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL(targetDashboard, request.url))
   }
 
+  // 4. Protect /professor and /prof routes
+  if (pathname.startsWith('/professor') || pathname.startsWith('/prof')) {
+    if (!isValidSession || !payload) {
+      const response = NextResponse.redirect(new URL('/login', request.url))
+      if (token) response.cookies.delete('ecos_auth_token')
+      response.cookies.set({
+        name: 'next_destination',
+        value: pathname,
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 300,
+      })
+      return response
+    }
+
+    if (payload.role === 'professor' || payload.role === 'dean' || payload.role === 'superadmin') {
+      return NextResponse.next()
+    }
+
+    const targetDashboard = getRoleDashboard(payload.role)
+    return NextResponse.redirect(new URL(targetDashboard, request.url))
+  }
+
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: ['/superadmin/:path*', '/superadmin', '/dean/:path*', '/dean', '/login'],
+  matcher: [
+    '/superadmin/:path*',
+    '/superadmin',
+    '/dean/:path*',
+    '/dean',
+    '/professor/:path*',
+    '/professor',
+    '/prof/:path*',
+    '/prof',
+    '/login',
+  ],
 }

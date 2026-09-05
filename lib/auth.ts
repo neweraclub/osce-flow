@@ -105,8 +105,9 @@ export function getRedirectPath(role: AppRole): string {
     case 'dean':
       return '/dean'
     case 'professor':
-      return '/evaluator'
+      return '/professor/dashboard'
     default:
       return '/login'
   }
 }
+

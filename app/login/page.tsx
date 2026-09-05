@@ -92,7 +92,7 @@ export default function LoginPage() {
       case 'dean':
         return '/dean'
       case 'professor':
-        return '/evaluator'
+        return '/professor/dashboard'
       default:
         return '/login'
     }

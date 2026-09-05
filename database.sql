@@ -96,7 +96,7 @@ CREATE TABLE public.exams (
 );
 CREATE TABLE public.stations (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
-  exam_id uuid NOT NULL,
+  exam_id uuid,
   station_number integer NOT NULL CHECK (station_number >= 1),
   title character varying NOT NULL,
   access_pin character varying NOT NULL CHECK (length(access_pin::text) >= 4),

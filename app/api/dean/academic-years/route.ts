@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedDean } from '@/lib/deanAuth'
 import { supabaseAdmin } from '@/lib/auth'
+import { isAcademicYearCurrent, sortAcademicYears } from '@/lib/academicYearUtils'
 
 export async function GET(req: NextRequest) {
   try {
@@ -13,15 +14,21 @@ export async function GET(req: NextRequest) {
       .from('academic_years')
       .select('*')
       .eq('faculty_id', dean.facultyId)
-      .order('created_at', { ascending: false })
 
     if (error) throw error
 
-    // Determine active year (most recent)
-    const formattedYears = (years || []).map((y, index) => ({
-      ...y,
-      is_active: index === 0,
-    }))
+    const sorted = sortAcademicYears(years || [])
+
+    // Determine active / current year dynamically
+    const formattedYears = sorted.map((y) => {
+      const isCurrent = typeof y.is_current === 'boolean' ? y.is_current : isAcademicYearCurrent(y.year_label)
+      return {
+        ...y,
+        name: y.year_label,
+        is_active: isCurrent,
+        is_current: isCurrent,
+      }
+    })
 
     return NextResponse.json({ success: true, academicYears: formattedYears })
   } catch (error: any) {

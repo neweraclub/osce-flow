@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedDean } from '@/lib/deanAuth'
 import { supabaseAdmin } from '@/lib/auth'
+import { isAcademicYearCurrent, sortAcademicYears } from '@/lib/academicYearUtils'
 
 export async function GET(req: NextRequest) {
   try {
@@ -13,13 +14,21 @@ export async function GET(req: NextRequest) {
     const academicYearIdParam = searchParams.get('academic_year_id')
 
     // 1. Fetch academic years for faculty
-    const { data: academicYears } = await supabaseAdmin
+    const { data: rawYears } = await supabaseAdmin
       .from('academic_years')
       .select('*')
       .eq('faculty_id', dean.facultyId)
-      .order('created_at', { ascending: false })
 
-    const activeYearId = academicYearIdParam || (academicYears && academicYears.length > 0 ? academicYears[0].id : null)
+    const academicYears = sortAcademicYears(rawYears || []).map((y) => ({
+      ...y,
+      name: y.year_label,
+      is_current: typeof y.is_current === 'boolean' ? y.is_current : isAcademicYearCurrent(y.year_label),
+    }))
+
+    const activeYearId =
+      academicYearIdParam ||
+      academicYears.find((y) => y.is_current)?.id ||
+      (academicYears.length > 0 ? academicYears[0].id : null)
 
     // 2. Fetch study levels scoped by academic_year_id
     let studyLevels: any[] = []
@@ -31,14 +40,6 @@ export async function GET(req: NextRequest) {
         .order('level_name', { ascending: true })
 
       studyLevels = levelsForYear || []
-    }
-
-    if (studyLevels.length === 0) {
-      const { data: globalLevels } = await supabaseAdmin
-        .from('study_levels')
-        .select('*')
-        .order('level_name', { ascending: true })
-      studyLevels = globalLevels || []
     }
 
     const levelIds = studyLevels.map((l) => l.id)
@@ -72,18 +73,18 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    // 4. Fetch modules for these study levels
-    let modulesQuery = supabaseAdmin
-      .from('modules')
-      .select('*')
-      .order('module_name', { ascending: true })
-
+    // 4. Fetch modules strictly scoped for these study levels
+    let modules: any[] = []
     if (levelIds.length > 0) {
-      modulesQuery = modulesQuery.in('level_id', levelIds)
-    }
+      const { data: fetchedModules, error } = await supabaseAdmin
+        .from('modules')
+        .select('*')
+        .in('level_id', levelIds)
+        .order('module_name', { ascending: true })
 
-    const { data: modules, error } = await modulesQuery
-    if (error) throw error
+      if (error) throw error
+      modules = fetchedModules || []
+    }
 
     // Fetch station counts per module
     const moduleIds = (modules || []).map((m) => m.id)

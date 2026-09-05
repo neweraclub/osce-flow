@@ -49,11 +49,6 @@ export interface StudyLevelOption {
   level_name: string
 }
 
-export interface AcademicYearOption {
-  id: string
-  year_label: string
-}
-
 export interface ProfessorOption {
   id: string
   first_name: string
@@ -65,14 +60,13 @@ export interface ProfessorOption {
 export default function ClinicalModulesPage() {
   const { showSuccess, showError } = useToast()
   const {
-    selectedYearId: globalYearId,
-    setSelectedYearId: setGlobalYearId,
+    selectedYearId,
+    selectedYear,
+    isLoading: isYearLoading,
   } = useAcademicYear()
 
   const [modules, setModules] = useState<ClinicalModule[]>([])
   const [studyLevels, setStudyLevels] = useState<StudyLevelOption[]>([])
-  const [academicYears, setAcademicYears] = useState<AcademicYearOption[]>([])
-  const [selectedYearId, setSelectedYearId] = useState<string>('')
   const [professors, setProfessors] = useState<ProfessorOption[]>([])
 
   const [filterLevelId, setFilterLevelId] = useState<string>('')
@@ -107,11 +101,11 @@ export default function ClinicalModulesPage() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  const fetchModules = async (yearId?: string, isManual = false) => {
+  const fetchModules = async (yearId?: string | null, isManual = false) => {
     if (isManual) setRefreshing(true)
     else setLoading(true)
 
-    const targetYearId = yearId || globalYearId
+    const targetYearId = yearId || selectedYearId
 
     try {
       const url = targetYearId ? `/api/dean/modules?academic_year_id=${targetYearId}` : '/api/dean/modules'
@@ -122,13 +116,6 @@ export default function ClinicalModulesPage() {
         setModules(json.modules || [])
         setStudyLevels(json.studyLevels || [])
         setProfessors(json.professors || [])
-        setAcademicYears(json.academicYears || [])
-        if (json.activeYearId) {
-          setSelectedYearId(json.activeYearId)
-          if (!globalYearId) {
-            setGlobalYearId(json.activeYearId)
-          }
-        }
       } else {
         showError(json.error || 'Failed to fetch clinical modules.')
       }
@@ -142,18 +129,12 @@ export default function ClinicalModulesPage() {
 
   // Cascade refetch whenever global academic year changes
   useEffect(() => {
-    if (globalYearId) {
-      setSelectedYearId(globalYearId)
-      fetchModules(globalYearId)
-    } else {
-      fetchModules()
+    if (selectedYearId) {
+      fetchModules(selectedYearId)
+    } else if (!isYearLoading) {
+      fetchModules(null)
     }
-  }, [globalYearId])
-
-  const handleYearChange = (newYearId: string) => {
-    setSelectedYearId(newYearId)
-    setGlobalYearId(newYearId)
-  }
+  }, [selectedYearId, isYearLoading])
 
   // Quick inline professor reassignment
   const handleQuickReassignProf = async (moduleId: string, profId: string) => {
@@ -238,11 +219,6 @@ export default function ClinicalModulesPage() {
   const levelFilterOptions = useMemo(() => {
     return studyLevels.map((l) => ({ label: l.level_name, value: l.id }))
   }, [studyLevels])
-
-  const yearSelectOptions: SelectOption[] = academicYears.map((y) => ({
-    value: y.id,
-    label: y.year_label,
-  }))
 
   const modalLevelOptions: SelectOption[] = studyLevels.map((l) => ({
     value: l.id,
@@ -392,21 +368,13 @@ export default function ClinicalModulesPage() {
             Clinical Modules Directory
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Clinical medical curriculum modules & lead examiner assignments.
+            Clinical medical curriculum modules & lead examiner assignments for <span className="font-semibold text-blue-600 dark:text-blue-400">{selectedYear?.name || 'current session'}</span>.
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {/* Academic Calendar Selector */}
-          <div className="w-52">
-            <Select
-              options={yearSelectOptions}
-              value={selectedYearId}
-              onChange={handleYearChange}
-            />
-          </div>
           <button
             onClick={() => fetchModules(selectedYearId, true)}
-            disabled={refreshing}
+            disabled={refreshing || isYearLoading}
             className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-all"
             title="Refresh database records"
           >
@@ -439,10 +407,10 @@ export default function ClinicalModulesPage() {
       />
 
       {/* Modules Data View Grouped by Study Level */}
-      {loading ? (
+      {loading || isYearLoading ? (
         <div className="p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-center text-slate-400">
           <Loader2 className="size-6 animate-spin mx-auto mb-2 text-blue-500" />
-          Loading clinical modules hierarchy...
+          Loading clinical modules hierarchy for {selectedYear?.name || 'session'}...
         </div>
       ) : groupedModulesByLevel.length > 0 ? (
         <div className="space-y-6">
@@ -571,7 +539,13 @@ export default function ClinicalModulesPage() {
         </div>
       ) : (
         <div className="p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-center text-slate-400">
-          No clinical modules found for the selected criteria.
+          <BookOpen className="size-8 mx-auto mb-3 text-slate-300 dark:text-slate-600" />
+          <p className="font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            No clinical modules found
+          </p>
+          <p className="text-xs text-slate-400">
+            There are no clinical modules registered for {selectedYear?.name || 'this academic session'}.
+          </p>
         </div>
       )}
 
@@ -586,7 +560,7 @@ export default function ClinicalModulesPage() {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">Add Clinical Module</h3>
-                  <p className="text-xs text-slate-500">Register new clinical module in medical curriculum.</p>
+                  <p className="text-xs text-slate-500">Register new clinical module for {selectedYear?.name || 'session'}.</p>
                 </div>
               </div>
               <button
@@ -618,14 +592,20 @@ export default function ClinicalModulesPage() {
                 />
               </div>
 
-              <div>
-                <Select
-                  label="Target Study Level"
-                  options={modalLevelOptions}
-                  value={selectedLevelId}
-                  onChange={setSelectedLevelId}
-                />
-              </div>
+              {studyLevels.length === 0 ? (
+                <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-900 text-xs text-amber-700 dark:text-amber-300">
+                  No study levels found for {selectedYear?.name || 'this session'}. Please add study levels in Academic Structure before registering modules.
+                </div>
+              ) : (
+                <div>
+                  <Select
+                    label="Target Study Level"
+                    options={modalLevelOptions}
+                    value={selectedLevelId}
+                    onChange={setSelectedLevelId}
+                  />
+                </div>
+              )}
 
               <div>
                 <Select

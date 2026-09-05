@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { isAcademicYearCurrent, sortAcademicYears } from '@/lib/academicYearUtils'
 
 export interface AcademicYear {
   id: string
@@ -34,35 +35,53 @@ export function AcademicYearProvider({ children }: { children: React.ReactNode }
       if (res.ok) {
         const json = await res.json()
         const rawList = Array.isArray(json) ? json : json.academicYears || []
-        data = rawList.map((y: any, idx: number) => ({
-          id: y.id,
-          name: y.name || y.year_label || 'Academic Year',
-          year_label: y.year_label || y.name || 'Academic Year',
-          is_current: y.is_current ?? (y.is_active ?? idx === 0),
-          faculty_id: y.faculty_id,
-        }))
+        data = rawList.map((y: any) => {
+          const label = y.year_label || y.name || 'Academic Year'
+          const isCurrent = typeof y.is_current === 'boolean'
+            ? y.is_current
+            : typeof y.is_active === 'boolean'
+              ? y.is_active
+              : isAcademicYearCurrent(label)
+
+          return {
+            id: y.id,
+            name: label,
+            year_label: label,
+            is_current: isCurrent,
+            faculty_id: y.faculty_id,
+          }
+        })
       } else {
         // Fallback to /api/dean/academic-years
         const fallbackRes = await fetch('/api/dean/academic-years')
         if (fallbackRes.ok) {
           const fallbackJson = await fallbackRes.json()
-          data = (fallbackJson.academicYears || []).map((y: any, idx: number) => ({
-            id: y.id,
-            name: y.year_label,
-            year_label: y.year_label,
-            is_current: idx === 0,
-            faculty_id: y.faculty_id,
-          }))
+          data = (fallbackJson.academicYears || []).map((y: any) => {
+            const label = y.year_label || y.name || 'Academic Year'
+            const isCurrent = typeof y.is_current === 'boolean'
+              ? y.is_current
+              : typeof y.is_active === 'boolean'
+                ? y.is_active
+                : isAcademicYearCurrent(label)
+
+            return {
+              id: y.id,
+              name: label,
+              year_label: label,
+              is_current: isCurrent,
+              faculty_id: y.faculty_id,
+            }
+          })
         }
       }
 
-      setYears(data)
+      const sortedData = sortAcademicYears(data)
+      setYears(sortedData)
 
       const savedId = typeof window !== 'undefined' ? localStorage.getItem('selected_academic_year_id') : null
-      const defaultYear =
-        data.find((y) => y.id === savedId) ||
-        data.find((y) => y.is_current) ||
-        data[0]
+      const savedYear = sortedData.find((y) => y.id === savedId)
+      const currentYear = sortedData.find((y) => y.is_current)
+      const defaultYear = savedYear || currentYear || sortedData[0]
 
       if (defaultYear) {
         setSelectedYearIdState(defaultYear.id)

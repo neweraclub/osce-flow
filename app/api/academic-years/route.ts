@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyAuthToken, supabaseAdmin } from '@/lib/auth'
 
+import { isAcademicYearCurrent, sortAcademicYears } from '@/lib/academicYearUtils'
+
 export interface AcademicYearDto {
   id: string
   name: string
@@ -24,7 +26,6 @@ export async function GET(req: NextRequest) {
     let query = supabaseAdmin
       .from('academic_years')
       .select('*')
-      .order('created_at', { ascending: false })
 
     if (payload.role !== 'superadmin' && payload.faculty_id) {
       query = query.eq('faculty_id', payload.faculty_id)
@@ -36,11 +37,13 @@ export async function GET(req: NextRequest) {
       throw error
     }
 
-    const formattedYears: AcademicYearDto[] = (years || []).map((y, index) => ({
+    const sorted = sortAcademicYears(years || [])
+
+    const formattedYears: AcademicYearDto[] = sorted.map((y) => ({
       id: y.id,
       name: y.year_label,
       year_label: y.year_label,
-      is_current: index === 0,
+      is_current: typeof y.is_current === 'boolean' ? y.is_current : isAcademicYearCurrent(y.year_label),
       faculty_id: y.faculty_id,
     }))
 

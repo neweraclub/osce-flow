@@ -141,7 +141,7 @@ export function ProfessorSidebar({
               <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">
                 {professorName}
               </span>
-              <span className="text-[10px] text-slate-400 truncate">Examiner & Invigilator</span>
+              <span className="text-[10px] text-slate-400 truncate">Professor</span>
             </div>
           </div>
         </div>

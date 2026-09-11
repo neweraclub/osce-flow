@@ -85,44 +85,34 @@ CREATE TABLE public.modules (
 );
 CREATE TABLE public.exams (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
-  module_id uuid NOT NULL,
-  group_id uuid NOT NULL,
   session_type USER-DEFINED NOT NULL DEFAULT 'regular'::session_type_enum,
   exam_date date NOT NULL DEFAULT CURRENT_DATE,
   created_at timestamp with time zone NOT NULL DEFAULT clock_timestamp(),
+  station_id uuid NOT NULL,
   CONSTRAINT exams_pkey PRIMARY KEY (id),
-  CONSTRAINT exams_module_id_fkey FOREIGN KEY (module_id) REFERENCES public.modules(id),
-  CONSTRAINT exams_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.groups(id)
+  CONSTRAINT exams_station_id_fkey FOREIGN KEY (station_id) REFERENCES public.stations(id)
 );
 CREATE TABLE public.stations (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
-  exam_id uuid,
   station_number integer NOT NULL CHECK (station_number >= 1),
   title character varying NOT NULL,
-  access_pin character varying NOT NULL CHECK (length(access_pin::text) >= 4),
-  invigilator_prof_id uuid,
+  access_pin character varying NOT NULL UNIQUE CHECK (length(access_pin::text) >= 4),
   created_at timestamp with time zone NOT NULL DEFAULT clock_timestamp(),
+  weightage_percentage numeric DEFAULT 0.00 CHECK (weightage_percentage >= 0.00 AND weightage_percentage <= 100.00),
+  module_id uuid NOT NULL,
   CONSTRAINT stations_pkey PRIMARY KEY (id),
-  CONSTRAINT stations_exam_id_fkey FOREIGN KEY (exam_id) REFERENCES public.exams(id),
-  CONSTRAINT stations_invigilator_prof_id_fkey FOREIGN KEY (invigilator_prof_id) REFERENCES public.professors(id)
+  CONSTRAINT stations_module_id_fkey FOREIGN KEY (module_id) REFERENCES public.modules(id)
 );
 CREATE TABLE public.questions (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
-  station_id uuid NOT NULL,
   question_text text NOT NULL,
   question_type USER-DEFINED NOT NULL,
-  max_points numeric NOT NULL CHECK (max_points >= 1.00),
   created_at timestamp with time zone NOT NULL DEFAULT clock_timestamp(),
+  max_scale_value integer DEFAULT 10 CHECK (max_scale_value >= 1),
+  exam_id uuid NOT NULL,
+  options jsonb NOT NULL DEFAULT '[]'::jsonb,
   CONSTRAINT questions_pkey PRIMARY KEY (id),
-  CONSTRAINT questions_station_id_fkey FOREIGN KEY (station_id) REFERENCES public.stations(id)
-);
-CREATE TABLE public.question_options (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  question_id uuid NOT NULL,
-  option_text text NOT NULL,
-  is_correct boolean NOT NULL DEFAULT false,
-  CONSTRAINT question_options_pkey PRIMARY KEY (id),
-  CONSTRAINT question_options_question_id_fkey FOREIGN KEY (question_id) REFERENCES public.questions(id)
+  CONSTRAINT questions_exam_id_fkey FOREIGN KEY (exam_id) REFERENCES public.exams(id)
 );
 CREATE TABLE public.exam_attempts (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -135,34 +125,19 @@ CREATE TABLE public.exam_attempts (
   CONSTRAINT exam_attempts_student_matricule_fkey FOREIGN KEY (student_matricule) REFERENCES public.students(matricule),
   CONSTRAINT exam_attempts_exam_id_fkey FOREIGN KEY (exam_id) REFERENCES public.exams(id)
 );
-CREATE TABLE public.station_scores (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  attempt_id uuid NOT NULL,
-  exam_id uuid NOT NULL,
-  station_id uuid NOT NULL,
-  evaluated_by_prof_id uuid,
-  station_total_points numeric NOT NULL DEFAULT 0.00 CHECK (station_total_points >= 0.00),
-  graded_at timestamp with time zone NOT NULL DEFAULT clock_timestamp(),
-  CONSTRAINT station_scores_pkey PRIMARY KEY (id),
-  CONSTRAINT station_scores_evaluated_by_prof_id_fkey FOREIGN KEY (evaluated_by_prof_id) REFERENCES public.professors(id),
-  CONSTRAINT station_scores_attempt_id_exam_id_fkey FOREIGN KEY (attempt_id) REFERENCES public.exam_attempts(id),
-  CONSTRAINT station_scores_attempt_id_exam_id_fkey FOREIGN KEY (exam_id) REFERENCES public.exam_attempts(exam_id),
-  CONSTRAINT station_scores_station_id_exam_id_fkey FOREIGN KEY (station_id) REFERENCES public.stations(id),
-  CONSTRAINT station_scores_station_id_exam_id_fkey FOREIGN KEY (exam_id) REFERENCES public.stations(exam_id)
-);
 CREATE TABLE public.student_answers (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
-  station_score_id uuid NOT NULL,
+  attempt_id uuid NOT NULL,
   station_id uuid NOT NULL,
   question_id uuid NOT NULL,
   selected_option_id uuid,
-  text_answer text,
+  evaluation_score numeric,
   points_awarded numeric NOT NULL DEFAULT 0.00 CHECK (points_awarded >= 0.00),
+  graded_by_prof_id uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT clock_timestamp(),
   CONSTRAINT student_answers_pkey PRIMARY KEY (id),
-  CONSTRAINT student_answers_station_score_id_station_id_fkey FOREIGN KEY (station_score_id) REFERENCES public.station_scores(id),
-  CONSTRAINT student_answers_station_score_id_station_id_fkey FOREIGN KEY (station_id) REFERENCES public.station_scores(station_id),
-  CONSTRAINT student_answers_question_id_station_id_fkey FOREIGN KEY (question_id) REFERENCES public.questions(id),
-  CONSTRAINT student_answers_question_id_station_id_fkey FOREIGN KEY (station_id) REFERENCES public.questions(station_id),
-  CONSTRAINT student_answers_selected_option_id_question_id_fkey FOREIGN KEY (selected_option_id) REFERENCES public.question_options(id),
-  CONSTRAINT student_answers_selected_option_id_question_id_fkey FOREIGN KEY (question_id) REFERENCES public.question_options(question_id)
+  CONSTRAINT fk_ans_attempt FOREIGN KEY (attempt_id) REFERENCES public.exam_attempts(id),
+  CONSTRAINT fk_ans_station FOREIGN KEY (station_id) REFERENCES public.stations(id),
+  CONSTRAINT fk_ans_question FOREIGN KEY (question_id) REFERENCES public.questions(id),
+  CONSTRAINT fk_ans_prof FOREIGN KEY (graded_by_prof_id) REFERENCES public.professors(id)
 );

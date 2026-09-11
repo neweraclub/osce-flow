@@ -10,6 +10,7 @@ import {
   Calendar,
   ClipboardCheck,
   LayoutDashboard,
+  LayoutGrid,
   LogOut,
   Stethoscope,
   X,
@@ -48,8 +49,8 @@ export function ProfessorSidebar({
 
   const navItems = [
     { label: 'Overview Dashboard', href: '/professor/dashboard', icon: LayoutDashboard },
+    { label: 'Stations', href: '/professor/stations', icon: LayoutGrid },
     { label: 'My Clinical Modules', href: '/professor/modules', icon: BookOpen },
-    { label: 'Station Blueprints & Rubrics', href: '/professor/stations', icon: ClipboardCheck },
     { label: 'Live OSCE Evaluator', href: '/evaluator', icon: Stethoscope },
   ]
 

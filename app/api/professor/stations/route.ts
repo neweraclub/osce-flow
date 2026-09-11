@@ -35,49 +35,45 @@ export async function GET(req: NextRequest) {
 
     const activeYearId = activeYear ? activeYear.id : null
 
-    // 2. Fetch study levels scoped by active year
-    let studyLevels: any[] = []
-    if (activeYearId) {
+    // 2. Query ONLY modules where responsible_prof_id matches current professor
+    const { data: profModules, error: modErr } = await supabaseAdmin
+      .from('modules')
+      .select('id, module_name, level_id, responsible_prof_id')
+      .eq('responsible_prof_id', prof.professorId)
+
+    if (modErr) throw modErr
+
+    const moduleIds = (profModules || []).map((m) => m.id)
+    if (moduleIds.length === 0) {
+      return NextResponse.json({
+        success: true,
+        stations: [],
+        academicYears,
+        activeYearId,
+      })
+    }
+
+    // 3. Fetch study levels for these modules
+    const levelIds = Array.from(new Set((profModules || []).map((m) => m.level_id).filter(Boolean)))
+    const levelMap = new Map<string, string>()
+    if (levelIds.length > 0) {
       const { data: levels } = await supabaseAdmin
         .from('study_levels')
-        .select('id, level_name, academic_year_id')
-        .eq('academic_year_id', activeYearId)
+        .select('id, level_name')
+        .in('id', levelIds)
 
-      studyLevels = levels || []
+      ;(levels || []).forEach((l) => levelMap.set(l.id, l.level_name))
     }
 
-    const levelIds = studyLevels.map((l) => l.id)
-    const levelMap = new Map(studyLevels.map((l) => [l.id, l.level_name]))
+    const moduleMap = new Map((profModules || []).map((m) => [m.id, m]))
 
-    // 3. Fetch modules for this year (where professor is responsible, or all faculty modules for this year)
-    let modulesList: any[] = []
-    if (levelIds.length > 0) {
-      let modulesQuery = supabaseAdmin
-        .from('modules')
-        .select('id, module_name, level_id, responsible_prof_id')
-        .in('level_id', levelIds)
-
-      const { data: mods } = await modulesQuery
-      modulesList = (mods || []).map((m) => ({
-        ...m,
-        level_name: levelMap.get(m.level_id) || 'General',
-      }))
-    }
-
-    const moduleIds = modulesList.map((m) => m.id)
-    const moduleMap = new Map(modulesList.map((m) => [m.id, m]))
-
-    // 4. Fetch stations for these modules (or all faculty stations)
-    let stationsQuery = supabaseAdmin
+    // 4. Query ONLY stations where module_id is in professor's assigned modules
+    const { data: rawStations, error: stationsErr } = await supabaseAdmin
       .from('stations')
       .select('*')
+      .in('module_id', moduleIds)
       .order('station_number', { ascending: true })
 
-    if (moduleIds.length > 0) {
-      stationsQuery = stationsQuery.in('module_id', moduleIds)
-    }
-
-    const { data: rawStations, error: stationsErr } = await stationsQuery
     if (stationsErr) throw stationsErr
 
     const stationIds = (rawStations || []).map((s) => s.id)
@@ -105,7 +101,7 @@ export async function GET(req: NextRequest) {
         access_pin: st.access_pin,
         weightage_percentage: Number(st.weightage_percentage || 0),
         module_name: mod ? mod.module_name : 'General Module',
-        level_name: mod ? mod.level_name : 'Study Level',
+        level_name: mod ? levelMap.get(mod.level_id) || 'General Level' : 'General Level',
         exam_count: examsCountMap.get(st.id) || 0,
         created_at: st.created_at,
       }
@@ -120,6 +116,87 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: error?.message || 'Failed to fetch stations.' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const prof = await getAuthenticatedProfessor(req)
+    if (!prof) {
+      return NextResponse.json({ success: false, error: 'Unauthorized.' }, { status: 401 })
+    }
+
+    const body = await req.json()
+    const { module_id, title, station_number, access_pin, weightage_percentage } = body
+
+    if (!module_id) {
+      return NextResponse.json({ success: false, error: 'Module selection is required.' }, { status: 400 })
+    }
+
+    if (!title || !title.trim()) {
+      return NextResponse.json({ success: false, error: 'Station title is required.' }, { status: 400 })
+    }
+
+    const parsedStationNumber = Number(station_number) || 1
+    if (parsedStationNumber < 1) {
+      return NextResponse.json({ success: false, error: 'Station number must be at least 1.' }, { status: 400 })
+    }
+
+    const pinStr = String(access_pin || '').trim()
+    if (pinStr.length < 4) {
+      return NextResponse.json({ success: false, error: 'Access PIN must be at least 4 characters.' }, { status: 400 })
+    }
+
+    const weightage = Math.max(0, Math.min(100, Number(weightage_percentage) || 0))
+
+    // Row-level authorization: Verify module belongs to this professor
+    const { data: moduleCheck, error: modErr } = await supabaseAdmin
+      .from('modules')
+      .select('id, module_name, responsible_prof_id')
+      .eq('id', module_id)
+      .single()
+
+    if (modErr || !moduleCheck) {
+      return NextResponse.json({ success: false, error: 'Selected module not found.' }, { status: 404 })
+    }
+
+    if (moduleCheck.responsible_prof_id !== prof.professorId) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized: You are not assigned as the lead professor for this module.' },
+        { status: 403 }
+      )
+    }
+
+    const { data: newStation, error: insertErr } = await supabaseAdmin
+      .from('stations')
+      .insert([
+        {
+          module_id,
+          title: title.trim(),
+          station_number: parsedStationNumber,
+          access_pin: pinStr,
+          weightage_percentage: weightage,
+        },
+      ])
+      .select()
+      .single()
+
+    if (insertErr) {
+      if (insertErr.code === '23505') {
+        return NextResponse.json(
+          { success: false, error: 'This Access PIN is already in use by another station. Please choose another PIN.' },
+          { status: 400 }
+        )
+      }
+      throw insertErr
+    }
+
+    return NextResponse.json({ success: true, station: newStation })
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: error?.message || 'Failed to create station.' },
       { status: 500 }
     )
   }

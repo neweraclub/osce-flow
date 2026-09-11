@@ -1,29 +1,34 @@
 'use client'
 
 import React, { useState, useEffect, useMemo } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
+  AlertCircle,
+  AlertTriangle,
   ArrowRight,
   BookOpen,
   Calendar,
   Check,
+  CheckCircle2,
   ChevronRight,
   ClipboardCheck,
   Copy,
+  Edit2,
   Eye,
   EyeOff,
   Filter,
   GraduationCap,
   Key,
-  LayoutGrid,
+  Layers,
   Loader2,
   Percent,
   Plus,
   RefreshCw,
   Search,
   ShieldCheck,
+  Sparkles,
   Stethoscope,
+  Trash2,
   X,
 } from 'lucide-react'
 import { useAcademicYear } from '@/context/AcademicYearContext'
@@ -42,6 +47,13 @@ export interface StationCardItem {
   created_at?: string
 }
 
+export interface AssignedModuleOption {
+  id: string
+  module_name: string
+  level_id: string
+  level_name: string
+}
+
 export default function ProfessorStationsPage() {
   const router = useRouter()
   const { showSuccess, showError } = useToast()
@@ -52,6 +64,7 @@ export default function ProfessorStationsPage() {
   } = useAcademicYear()
 
   const [stations, setStations] = useState<StationCardItem[]>([])
+  const [assignedModules, setAssignedModules] = useState<AssignedModuleOption[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [search, setSearch] = useState('')
@@ -61,23 +74,61 @@ export default function ProfessorStationsPage() {
   const [revealedPins, setRevealedPins] = useState<Record<string, boolean>>({})
   const [copiedPinId, setCopiedPinId] = useState<string | null>(null)
 
-  const fetchStations = async (yearId?: string | null, isManual = false) => {
+  // Modals state
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [editingStation, setEditingStation] = useState<StationCardItem | null>(null)
+  const [deletingStation, setDeletingStation] = useState<StationCardItem | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  // Form Fields
+  const [formModuleId, setFormModuleId] = useState('')
+  const [formTitle, setFormTitle] = useState('')
+  const [formStationNumber, setFormStationNumber] = useState<number>(1)
+  const [formAccessPin, setFormAccessPin] = useState('')
+  const [formShowPin, setFormShowPin] = useState(true)
+  const [formWeightage, setFormWeightage] = useState<number>(10)
+  const [formError, setFormError] = useState('')
+
+  // Global ESC key listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsCreateOpen(false)
+        setEditingStation(null)
+        setDeletingStation(null)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  // Fetch stations and assigned modules
+  const fetchData = async (yearId?: string | null, isManual = false) => {
     if (isManual) setRefreshing(true)
     else setLoading(true)
 
     const targetYearId = yearId || selectedYearId
 
     try {
-      const url = targetYearId
-        ? `/api/professor/stations?academic_year_id=${targetYearId}`
-        : '/api/professor/stations'
-      const res = await fetch(url)
-      const json = await res.json()
+      const yearQuery = targetYearId ? `?academic_year_id=${targetYearId}` : ''
+      const [stationsRes, modulesRes] = await Promise.all([
+        fetch(`/api/professor/stations${yearQuery}`),
+        fetch(`/api/professor/modules${yearQuery}`),
+      ])
 
-      if (res.ok && json.success) {
-        setStations(json.stations || [])
+      const [stationsJson, modulesJson] = await Promise.all([
+        stationsRes.json(),
+        modulesRes.json(),
+      ])
+
+      if (stationsRes.ok && stationsJson.success) {
+        setStations(stationsJson.stations || [])
       } else {
-        showError(json.error || 'Failed to fetch clinical stations.')
+        showError(stationsJson.error || 'Failed to fetch clinical stations.')
+      }
+
+      if (modulesRes.ok && modulesJson.success) {
+        setAssignedModules(modulesJson.modules || [])
       }
     } catch (err: any) {
       showError(err?.message || 'Error connecting to server.')
@@ -89,7 +140,7 @@ export default function ProfessorStationsPage() {
 
   useEffect(() => {
     if (selectedYearId) {
-      fetchStations(selectedYearId)
+      fetchData(selectedYearId)
     }
   }, [selectedYearId])
 
@@ -107,6 +158,156 @@ export default function ProfessorStationsPage() {
     setCopiedPinId(stationId)
     setTimeout(() => setCopiedPinId(null), 2000)
     showSuccess('Station PIN copied to clipboard.')
+  }
+
+  const generateRandomPin = () => {
+    const code = Math.floor(100000 + Math.random() * 900000).toString()
+    setFormAccessPin(code)
+  }
+
+  // --- Modal Openers ---
+  const handleOpenCreate = () => {
+    const nextNum = stations.length > 0 ? Math.max(...stations.map((s) => s.station_number)) + 1 : 1
+    setFormModuleId(assignedModules.length > 0 ? assignedModules[0].id : '')
+    setFormTitle(`Station ${nextNum}: Clinical Skills Assessment`)
+    setFormStationNumber(nextNum)
+    setFormAccessPin(Math.floor(100000 + Math.random() * 900000).toString())
+    setFormShowPin(true)
+    setFormWeightage(10)
+    setFormError('')
+    setIsCreateOpen(true)
+  }
+
+  const handleOpenEdit = (e: React.MouseEvent, st: StationCardItem) => {
+    e.stopPropagation()
+    setEditingStation(st)
+    setFormModuleId(st.module_id)
+    setFormTitle(st.title)
+    setFormStationNumber(st.station_number)
+    setFormAccessPin(st.access_pin)
+    setFormShowPin(true)
+    setFormWeightage(st.weightage_percentage)
+    setFormError('')
+  }
+
+  // --- Submit Create Station ---
+  const handleSubmitCreate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!formModuleId) {
+      setFormError('Please select an assigned clinical module.')
+      return
+    }
+    if (!formTitle.trim()) {
+      setFormError('Station title is required.')
+      return
+    }
+    if (!formAccessPin || formAccessPin.trim().length < 4) {
+      setFormError('Access PIN must be at least 4 characters.')
+      return
+    }
+
+    setSubmitting(true)
+    setFormError('')
+
+    try {
+      const res = await fetch('/api/professor/stations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          module_id: formModuleId,
+          title: formTitle.trim(),
+          station_number: formStationNumber,
+          access_pin: formAccessPin.trim(),
+          weightage_percentage: formWeightage,
+        }),
+      })
+
+      const json = await res.json()
+      if (res.ok && json.success) {
+        showSuccess('Station created successfully.')
+        setIsCreateOpen(false)
+        fetchData(selectedYearId, true)
+      } else {
+        setFormError(json.error || 'Failed to create station.')
+      }
+    } catch (err: any) {
+      setFormError(err?.message || 'Error communicating with server.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // --- Submit Edit Station ---
+  const handleSubmitEdit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingStation) return
+    if (!formModuleId) {
+      setFormError('Please select a module.')
+      return
+    }
+    if (!formTitle.trim()) {
+      setFormError('Station title is required.')
+      return
+    }
+    if (!formAccessPin || formAccessPin.trim().length < 4) {
+      setFormError('Access PIN must be at least 4 characters.')
+      return
+    }
+
+    setSubmitting(true)
+    setFormError('')
+
+    try {
+      const res = await fetch(`/api/professor/stations/${editingStation.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          module_id: formModuleId,
+          title: formTitle.trim(),
+          station_number: formStationNumber,
+          access_pin: formAccessPin.trim(),
+          weightage_percentage: formWeightage,
+        }),
+      })
+
+      const json = await res.json()
+      if (res.ok && json.success) {
+        showSuccess('Station blueprint updated.')
+        setEditingStation(null)
+        fetchData(selectedYearId, true)
+      } else {
+        setFormError(json.error || 'Failed to update station.')
+      }
+    } catch (err: any) {
+      setFormError(err?.message || 'Error communicating with server.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // --- Submit Delete Station ---
+  const handleDeleteStation = async () => {
+    if (!deletingStation) return
+    setSubmitting(true)
+
+    try {
+      const res = await fetch(`/api/professor/stations/${deletingStation.id}`, {
+        method: 'DELETE',
+      })
+      const json = await res.json()
+
+      if (res.ok && json.success) {
+        showSuccess('Station deleted successfully.')
+        setDeletingStation(null)
+        fetchData(selectedYearId, true)
+      } else {
+        showError(json.error || 'Failed to delete station.')
+      }
+    } catch {
+      showError('Network error deleting station.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const uniqueModules = useMemo(() => {
@@ -136,28 +337,42 @@ export default function ProfessorStationsPage() {
         <div className="space-y-1">
           <div className="flex items-center gap-2.5">
             <div className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-500/25">
-              <LayoutGrid className="size-5" />
+              <Layers className="size-5" />
             </div>
             <div>
               <h1 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-                Clinical Station Blueprints
+                Clinical Stations
               </h1>
               <p className="text-xs font-semibold text-slate-400">
-                Author exam sessions, questions, and scoring rubrics for your stations
+                Manage your clinical station blueprints, PIN credentials, and exam question rubrics
               </p>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
           <button
-            onClick={() => fetchStations(selectedYearId, true)}
+            onClick={() => fetchData(selectedYearId, true)}
             disabled={refreshing || loading}
             aria-label="Refresh stations list"
             className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-all shadow-sm disabled:opacity-50"
           >
             <RefreshCw className={`size-3.5 ${refreshing ? 'animate-spin text-emerald-500' : ''}`} />
             <span className="hidden sm:inline">Refresh</span>
+          </button>
+
+          <button
+            onClick={handleOpenCreate}
+            disabled={assignedModules.length === 0}
+            title={
+              assignedModules.length === 0
+                ? 'You have no assigned modules. Contact the Dean to assign you as lead professor.'
+                : 'Create Station'
+            }
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold shadow-md shadow-emerald-500/25 hover:from-emerald-700 hover:to-teal-700 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Plus className="size-4" />
+            <span>+ Create Station</span>
           </button>
         </div>
       </div>
@@ -210,16 +425,27 @@ export default function ProfessorStationsPage() {
       ) : filteredStations.length === 0 ? (
         <div className="p-12 rounded-3xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 text-center space-y-3">
           <div className="size-14 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
-            <LayoutGrid className="size-7" />
+            <Layers className="size-7" />
           </div>
           <h3 className="text-base font-bold text-slate-900 dark:text-white">
-            {search || filterModule !== 'ALL' ? 'No matching stations found' : 'No stations available'}
+            {search || filterModule !== 'ALL' ? 'No matching stations found' : 'No stations created yet'}
           </h3>
           <p className="text-xs text-slate-400 max-w-md mx-auto">
-            {search || filterModule !== 'ALL'
+            {assignedModules.length === 0
+              ? 'You have not been assigned to any clinical modules yet. Contact the Dean to assign you as a lead professor.'
+              : search || filterModule !== 'ALL'
               ? 'Try modifying your search or clearing the module filter.'
-              : 'Stations configured by the Dean will appear here for exam authoring.'}
+              : 'Click "+ Create Station" to set up your first clinical station blueprint for your assigned modules.'}
           </p>
+          {assignedModules.length > 0 && !search && (
+            <button
+              onClick={handleOpenCreate}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/25 hover:bg-emerald-700 transition-all"
+            >
+              <Plus className="size-4" />
+              <span>Create First Station</span>
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -231,18 +457,40 @@ export default function ProfessorStationsPage() {
               <div
                 key={station.id}
                 onClick={() => router.push(`/professor/stations/${station.id}`)}
-                className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-emerald-500/40 dark:hover:border-emerald-500/40 transition-all cursor-pointer flex flex-col justify-between space-y-4 group"
+                className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-emerald-500/40 dark:hover:border-emerald-500/40 transition-all cursor-pointer flex flex-col justify-between space-y-4 group relative"
               >
                 <div className="space-y-3">
-                  {/* Top Badges */}
+                  {/* Top Badges & Actions */}
                   <div className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-600 text-white text-xs font-black shadow-xs">
-                      Station #{station.station_number}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-600 text-white text-xs font-black shadow-xs">
+                        Station #{station.station_number}
+                      </span>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/50">
+                        {station.level_name}
+                      </span>
+                    </div>
 
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/50">
-                      {station.level_name}
-                    </span>
+                    {/* Card Actions: Edit & Delete */}
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={(e) => handleOpenEdit(e, station)}
+                        title="Edit Station"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                      >
+                        <Edit2 className="size-3.5" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setDeletingStation(station)
+                        }}
+                        title="Delete Station"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Title & Module */}
@@ -319,6 +567,236 @@ export default function ProfessorStationsPage() {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* --- Create / Edit Station Modal --- */}
+      {(isCreateOpen || editingStation) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <div className="relative w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-5 animate-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="flex size-9 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-500/20">
+                  <Layers className="size-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    {editingStation ? 'Edit Station Blueprint' : 'Create Station Blueprint'}
+                  </h3>
+                  <p className="text-[11px] font-semibold text-slate-400">
+                    {editingStation
+                      ? `Updating Station #${editingStation.station_number}`
+                      : 'Define clinical station blueprint for your assigned module'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setIsCreateOpen(false)
+                  setEditingStation(null)
+                }}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            {formError && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-bold flex items-center gap-2">
+                <AlertTriangle className="size-4 shrink-0" />
+                <span>{formError}</span>
+              </div>
+            )}
+
+            <form
+              onSubmit={editingStation ? handleSubmitEdit : handleSubmitCreate}
+              className="space-y-4"
+            >
+              {/* Module Selection */}
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Clinical Module * (Only your assigned modules)
+                </label>
+                <select
+                  value={formModuleId}
+                  onChange={(e) => setFormModuleId(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  required
+                >
+                  {assignedModules.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.module_name} ({m.level_name})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Station Number & Title */}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div className="space-y-1 sm:col-span-1">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Station # *
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={formStationNumber}
+                    onChange={(e) => setFormStationNumber(parseInt(e.target.value) || 1)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1 sm:col-span-3">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Station Title *
+                  </label>
+                  <input
+                    type="text"
+                    value={formTitle}
+                    onChange={(e) => setFormTitle(e.target.value)}
+                    placeholder="e.g. Cardiovascular Examination"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Station Access PIN */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Access PIN * (Min 4 characters)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={generateRandomPin}
+                    className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 transition-colors"
+                  >
+                    <Sparkles className="size-3" />
+                    <span>Generate Random PIN</span>
+                  </button>
+                </div>
+                <div className="relative">
+                  <Key className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+                  <input
+                    type={formShowPin ? 'text' : 'password'}
+                    value={formAccessPin}
+                    onChange={(e) => setFormAccessPin(e.target.value)}
+                    placeholder="e.g. 583921"
+                    className="w-full pl-10 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold tracking-widest text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFormShowPin(!formShowPin)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    aria-label="Toggle PIN visibility"
+                  >
+                    {formShowPin ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  Used by the scoring invigilator to unlock the tablet on exam day.
+                </p>
+              </div>
+
+              {/* Weightage Percentage */}
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Weightage Percentage (0 - 100%)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                    value={formWeightage}
+                    onChange={(e) => setFormWeightage(parseFloat(e.target.value) || 0)}
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                    %
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCreateOpen(false)
+                    setEditingStation(null)
+                  }}
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/25 hover:bg-emerald-700 transition-all disabled:opacity-50"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <span>{editingStation ? 'Save Changes' : 'Create Station'}</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- Delete Station Confirmation Modal --- */}
+      {deletingStation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <div className="relative w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4 animate-in zoom-in-95 text-center">
+            <div className="flex size-14 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-600 mx-auto">
+              <Trash2 className="size-7" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                Delete Station #{deletingStation.station_number}?
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Are you sure you want to remove{' '}
+                <strong className="text-slate-800 dark:text-slate-200">{deletingStation.title}</strong>
+                ? All associated exam sessions and questions will be permanently deleted.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-center gap-2.5 pt-3">
+              <button
+                type="button"
+                onClick={() => setDeletingStation(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteStation}
+                disabled={submitting}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-600 text-white text-xs font-bold shadow-md shadow-rose-500/25 hover:bg-rose-700 transition-all disabled:opacity-50"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <span>Yes, Delete Station</span>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

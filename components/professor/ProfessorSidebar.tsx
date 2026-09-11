@@ -5,12 +5,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   Activity,
-  BookOpen,
   Building2,
   Calendar,
   ClipboardCheck,
+  Layers,
   LayoutDashboard,
-  LayoutGrid,
   LogOut,
   Stethoscope,
   X,
@@ -49,9 +48,7 @@ export function ProfessorSidebar({
 
   const navItems = [
     { label: 'Overview Dashboard', href: '/professor/dashboard', icon: LayoutDashboard },
-    { label: 'Stations', href: '/professor/stations', icon: LayoutGrid },
-    { label: 'My Clinical Modules', href: '/professor/modules', icon: BookOpen },
-    { label: 'Live OSCE Evaluator', href: '/evaluator', icon: Stethoscope },
+    { label: 'Stations', href: '/professor/stations', icon: Layers },
   ]
 
   return (

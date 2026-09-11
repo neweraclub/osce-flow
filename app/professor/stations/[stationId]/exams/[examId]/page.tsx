@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, use } from 'react'
+import React, { useState, useEffect, useRef, use } from 'react'
 import Link from 'next/link'
 import {
   AlertCircle,
@@ -10,7 +10,10 @@ import {
   Calendar,
   Check,
   CheckCircle2,
+  CheckSquare,
+  ChevronDown,
   ChevronRight,
+  CircleDot,
   ClipboardCheck,
   Copy,
   Edit2,
@@ -67,6 +70,36 @@ export interface StationMeta {
   level_name: string
 }
 
+export const QUESTION_TYPES = [
+  {
+    value: 'MCQ' as const,
+    title: 'Multiple Choice (MCQ)',
+    badge: 'MCQ',
+    description: 'Multiple correct answers allowed',
+    icon: CheckSquare,
+    iconBg: 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400',
+    badgeColor: 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200/60 dark:border-blue-900/50',
+  },
+  {
+    value: 'SCQ' as const,
+    title: 'Single Choice (SCQ)',
+    badge: 'SCQ',
+    description: 'Single correct answer only',
+    icon: CircleDot,
+    iconBg: 'bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400',
+    badgeColor: 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200/60 dark:border-purple-900/50',
+  },
+  {
+    value: 'Q&A' as const,
+    title: 'Clinical Task (Q&A)',
+    badge: 'Scale',
+    description: 'Continuous scale grading rubric',
+    icon: Sliders,
+    iconBg: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400',
+    badgeColor: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-900/50',
+  },
+]
+
 export default function ProfessorExamQuestionsPage({
   params,
 }: {
@@ -93,6 +126,7 @@ export default function ProfessorExamQuestionsPage({
   // Form Fields
   const [formText, setFormText] = useState('')
   const [formType, setFormType] = useState<'MCQ' | 'SCQ' | 'Q&A'>('MCQ')
+  const selectedTypeConfig = QUESTION_TYPES.find((t) => t.value === formType) || QUESTION_TYPES[0]
   const [formMaxScale, setFormMaxScale] = useState<number>(10)
   const [formOptions, setFormOptions] = useState<QuestionOptionItem[]>([
     { id: 'opt_1', text: '', is_correct: true },
@@ -101,10 +135,29 @@ export default function ProfessorExamQuestionsPage({
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState('')
 
+  // Custom Dropdown State for Question Type
+  const [typeDropdownOpen, setTypeDropdownOpen] = useState(false)
+  const typeDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Outside click listener for type dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (typeDropdownRef.current && !typeDropdownRef.current.contains(event.target as Node)) {
+        setTypeDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   // Global ESC key listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        if (typeDropdownOpen) {
+          setTypeDropdownOpen(false)
+          return
+        }
         setIsQuestionModalOpen(false)
         setEditingQuestion(null)
         setDeletingQuestion(null)
@@ -112,7 +165,7 @@ export default function ProfessorExamQuestionsPage({
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [typeDropdownOpen])
 
   const fetchExamQuestions = async (isManual = false) => {
     if (isManual) setRefreshing(true)
@@ -163,6 +216,7 @@ export default function ProfessorExamQuestionsPage({
       { id: 'opt_3', text: '', is_correct: false },
     ])
     setFormError('')
+    setTypeDropdownOpen(false)
     setIsQuestionModalOpen(true)
   }
 
@@ -180,6 +234,7 @@ export default function ProfessorExamQuestionsPage({
       ])
     }
     setFormError('')
+    setTypeDropdownOpen(false)
     setIsQuestionModalOpen(true)
   }
 
@@ -657,35 +712,113 @@ export default function ProfessorExamQuestionsPage({
               </div>
 
               {/* Question Type & Scale */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Custom Styled Question Type Dropdown */}
+                <div className="sm:col-span-2 space-y-1 relative" ref={typeDropdownRef}>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                     Question Type *
                   </label>
-                  <select
-                    value={formType}
-                    onChange={(e) => setFormType(e.target.value as any)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  <button
+                    type="button"
+                    onClick={() => setTypeDropdownOpen((prev) => !prev)}
+                    className={`w-full flex items-center justify-between px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border ${
+                      typeDropdownOpen
+                        ? 'border-emerald-500 ring-2 ring-emerald-500/20'
+                        : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                    } rounded-xl text-xs font-semibold text-slate-900 dark:text-white transition-all text-left`}
                   >
-                    <option value="MCQ">Multiple Choice (MCQ) - Multiple Correct</option>
-                    <option value="SCQ">Single Choice (SCQ) - One Correct</option>
-                    <option value="Q&A">Clinical Task (Q&A) - Continuous Scale</option>
-                  </select>
+                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                      <span className={`flex size-6 items-center justify-center rounded-lg ${selectedTypeConfig.iconBg} shrink-0`}>
+                        <selectedTypeConfig.icon className="size-3.5" />
+                      </span>
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-bold text-slate-900 dark:text-white truncate">
+                          {selectedTypeConfig.title}
+                        </span>
+                        <span className="text-[10px] text-slate-400 truncate">
+                          {selectedTypeConfig.description}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${selectedTypeConfig.badgeColor}`}>
+                        {selectedTypeConfig.badge}
+                      </span>
+                      <ChevronDown
+                        className={`size-4 text-slate-400 transition-transform duration-200 ${
+                          typeDropdownOpen ? 'rotate-180 text-emerald-500' : ''
+                        }`}
+                      />
+                    </div>
+                  </button>
+
+                  {/* Custom Dropdown Menu Popover */}
+                  {typeDropdownOpen && (
+                    <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl backdrop-blur-md p-2 space-y-1 animate-in fade-in zoom-in-95">
+                      {QUESTION_TYPES.map((t) => {
+                        const isSelected = formType === t.value
+                        const Icon = t.icon
+                        return (
+                          <button
+                            key={t.value}
+                            type="button"
+                            onClick={() => {
+                              setFormType(t.value)
+                              setTypeDropdownOpen(false)
+                            }}
+                            className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs transition-all ${
+                              isSelected
+                                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/20'
+                                : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0 text-left">
+                              <span className={`flex size-7 items-center justify-center rounded-lg ${t.iconBg} shrink-0`}>
+                                <Icon className="size-4" />
+                              </span>
+                              <div className="flex flex-col min-w-0">
+                                <span className="font-bold text-slate-900 dark:text-white truncate">
+                                  {t.title}
+                                </span>
+                                <span className="text-[10px] text-slate-400 truncate">
+                                  {t.description}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0 pl-2">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${t.badgeColor}`}>
+                                {t.badge}
+                              </span>
+                              {isSelected && <Check className="size-4 text-emerald-600 dark:text-emerald-400" />}
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
 
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Maximum Scale Value (Points) *
+                {/* Maximum Scale / Points Input */}
+                <div className="space-y-1 sm:col-span-1">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 truncate" title="Points (1 - 100)">
+                    {formType === 'Q&A' ? 'Max Scale *' : 'Max Points *'}
                   </label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={100}
-                    value={formMaxScale}
-                    onChange={(e) => setFormMaxScale(parseInt(e.target.value) || 10)}
-                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    required
-                  />
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={formMaxScale}
+                      onChange={(e) => setFormMaxScale(parseInt(e.target.value) || 10)}
+                      className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      required
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      pts
+                    </span>
+                  </div>
                 </div>
               </div>
 

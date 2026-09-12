@@ -30,15 +30,12 @@ export function ProfessorTopbar({
 
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [loadingSession, setLoadingSession] = useState(true)
   const [userProfile, setUserProfile] = useState<{
     name: string
     email: string
     faculty: string
-  }>({
-    name: 'Professor',
-    email: '',
-    faculty: 'Medical Faculty',
-  })
+  } | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -76,6 +73,8 @@ export function ProfessorTopbar({
         }
       } catch {
         // Fallback
+      } finally {
+        setLoadingSession(false)
       }
     }
     loadSession()
@@ -145,14 +144,21 @@ export function ProfessorTopbar({
             <div className="flex size-8 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white font-black text-xs shadow-md shadow-emerald-500/20">
               <Stethoscope className="size-4" />
             </div>
-            <div className="hidden md:flex flex-col text-left">
-              <span className="text-xs font-bold text-slate-900 dark:text-white leading-tight truncate max-w-[120px]">
-                {userProfile.name}
-              </span>
-              <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                Professor
-              </span>
-            </div>
+            {loadingSession ? (
+              <div className="hidden md:flex flex-col gap-1 py-0.5 animate-pulse">
+                <div className="h-3 w-20 bg-slate-200 dark:bg-slate-700 rounded" />
+                <div className="h-2.5 w-12 bg-slate-200 dark:bg-slate-700 rounded" />
+              </div>
+            ) : (
+              <div className="hidden md:flex flex-col text-left">
+                <span className="text-xs font-bold text-slate-900 dark:text-white leading-tight truncate max-w-[120px]">
+                  {userProfile?.name || 'Professor'}
+                </span>
+                <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                  Professor
+                </span>
+              </div>
+            )}
             <ChevronDown
               className={`size-3.5 text-slate-400 transition-transform duration-200 ${
                 dropdownOpen ? 'rotate-180' : ''
@@ -165,12 +171,21 @@ export function ProfessorTopbar({
             <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
               {/* User Meta Header */}
               <div className="p-3 border-b border-slate-100 dark:border-slate-800 space-y-1">
-                <span className="text-xs font-bold text-slate-900 dark:text-white block truncate">
-                  {userProfile.name}
-                </span>
-                <span className="text-[11px] text-slate-400 block truncate">
-                  {userProfile.email}
-                </span>
+                {loadingSession ? (
+                  <div className="space-y-1.5 animate-pulse">
+                    <div className="h-3.5 w-28 bg-slate-200 dark:bg-slate-700 rounded" />
+                    <div className="h-3 w-36 bg-slate-200 dark:bg-slate-700 rounded" />
+                  </div>
+                ) : (
+                  <>
+                    <span className="text-xs font-bold text-slate-900 dark:text-white block truncate">
+                      {userProfile?.name || 'Professor'}
+                    </span>
+                    <span className="text-[11px] text-slate-400 block truncate">
+                      {userProfile?.email || ''}
+                    </span>
+                  </>
+                )}
                 <div className="flex items-center gap-1.5 pt-1.5">
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60">
                     Professor
@@ -182,7 +197,7 @@ export function ProfessorTopbar({
               <div className="p-2.5 my-1 rounded-xl bg-slate-50 dark:bg-slate-800/50 flex items-center gap-2">
                 <Building2 className="size-3.5 text-slate-400 shrink-0" />
                 <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 truncate">
-                  {userProfile.faculty}
+                  {loadingSession ? 'Loading Faculty...' : (userProfile?.faculty || 'Medical Faculty')}
                 </span>
               </div>
 

@@ -23,8 +23,9 @@ export function ProfessorSidebar({
   setSidebarOpen: (open: boolean) => void
 }) {
   const pathname = usePathname()
-  const [facultyName, setFacultyName] = useState<string>('Medical Faculty')
-  const [professorName, setProfessorName] = useState<string>('Professor')
+  const [professorName, setProfessorName] = useState<string | null>(null)
+  const [facultyName, setFacultyName] = useState<string | null>(null)
+  const [loadingSession, setLoadingSession] = useState(true)
 
   useEffect(() => {
     async function loadSession() {
@@ -36,11 +37,15 @@ export function ProfessorSidebar({
             if (data.user.facultyName) setFacultyName(data.user.facultyName)
             if (data.user.firstName || data.user.lastName) {
               setProfessorName(`Prof. ${data.user.firstName || ''} ${data.user.lastName || ''}`.trim())
+            } else {
+              setProfessorName('Professor')
             }
           }
         }
       } catch {
         // Fallback
+      } finally {
+        setLoadingSession(false)
       }
     }
     loadSession()
@@ -98,9 +103,13 @@ export function ProfessorSidebar({
               <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600/80 dark:text-emerald-400/80">
                 Faculty Workspace
               </span>
-              <span className="text-xs font-extrabold text-slate-900 dark:text-white truncate" title={facultyName}>
-                {facultyName}
-              </span>
+              {loadingSession ? (
+                <span className="inline-block h-3.5 w-28 bg-slate-200 dark:bg-slate-700 rounded animate-pulse mt-0.5" />
+              ) : (
+                <span className="text-xs font-extrabold text-slate-900 dark:text-white truncate" title={facultyName || 'Medical Faculty'}>
+                  {facultyName || 'Medical Faculty'}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -138,10 +147,19 @@ export function ProfessorSidebar({
               <span className="relative inline-flex rounded-full size-3 bg-emerald-500" />
             </span>
             <div className="flex flex-col min-w-0">
-              <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">
-                {professorName}
-              </span>
-              <span className="text-[10px] text-slate-400 truncate">Professor</span>
+              {loadingSession ? (
+                <div className="space-y-1 animate-pulse">
+                  <div className="h-3 w-20 bg-slate-200 dark:bg-slate-700 rounded" />
+                  <div className="h-2 w-12 bg-slate-200 dark:bg-slate-700 rounded" />
+                </div>
+              ) : (
+                <>
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">
+                    {professorName || 'Professor'}
+                  </span>
+                  <span className="text-[10px] text-slate-400 truncate">Professor</span>
+                </>
+              )}
             </div>
           </div>
         </div>

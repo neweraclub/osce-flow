@@ -97,7 +97,11 @@ export default function DeanOverviewPage() {
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-            {data?.faculty?.name || 'Medical Faculty Management'}
+            {loading ? (
+              <span className="inline-block h-8 w-64 bg-slate-200 dark:bg-slate-800 rounded-xl animate-pulse" />
+            ) : (
+              data?.faculty?.name || 'Faculty Overview'
+            )}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-2xl leading-relaxed">
             Academic session overview and examination readiness.

@@ -18,6 +18,7 @@ import {
 import { ThemeToggle } from '@/components/theme-toggle'
 import { useToast } from '@/context/ToastContext'
 import { NavbarYearSelector } from '@/components/dean/NavbarYearSelector'
+import { ExaminerLaunchButton } from '@/components/evaluator/ExaminerLaunchButton'
 
 export function ProfessorTopbar({
   setSidebarOpen,
@@ -127,9 +128,11 @@ export function ProfessorTopbar({
         </div>
       </div>
 
-      {/* Right Controls: Academic Year Selector + Theme + User Menu */}
-      <div className="flex items-center gap-3.5">
+      {/* Right Controls: Academic Year Selector + Evaluator Mode + Theme + User Menu */}
+      <div className="flex items-center gap-3">
         <NavbarYearSelector />
+
+        <ExaminerLaunchButton variant="topbar" />
 
         <ThemeToggle />
 
@@ -137,9 +140,10 @@ export function ProfessorTopbar({
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setDropdownOpen(!dropdownOpen)}
+            disabled={loggingOut}
             aria-haspopup="true"
             aria-expanded={dropdownOpen}
-            className="flex items-center gap-2.5 p-1.5 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+            className="flex items-center gap-2.5 p-1.5 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/20 disabled:pointer-events-none"
           >
             <div className="flex size-8 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white font-black text-xs shadow-md shadow-emerald-500/20">
               <Stethoscope className="size-4" />
@@ -201,6 +205,9 @@ export function ProfessorTopbar({
                 </span>
               </div>
 
+              {/* Enter Examiner Portal Action */}
+              <ExaminerLaunchButton variant="dropdown" onClick={() => setDropdownOpen(false)} />
+
               {/* My Profile Action */}
               <Link
                 href="/professor/profile"
@@ -215,19 +222,31 @@ export function ProfessorTopbar({
               <button
                 onClick={handleSignOut}
                 disabled={loggingOut}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors disabled:opacity-50 mt-1"
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors disabled:opacity-50 mt-1 cursor-pointer disabled:cursor-not-allowed"
               >
                 {loggingOut ? (
-                  <Loader2 className="size-4 animate-spin text-rose-600" />
+                  <Loader2 className="size-4 animate-spin text-rose-600 shrink-0" />
                 ) : (
-                  <LogOut className="size-4" />
+                  <LogOut className="size-4 shrink-0" />
                 )}
-                <span>Sign Out of Portal</span>
+                <span>{loggingOut ? 'Signing Out...' : 'Sign Out of Portal'}</span>
               </button>
             </div>
           )}
         </div>
       </div>
+
+      {/* Global Logout Interaction Guard */}
+      {loggingOut && (
+        <div className="fixed inset-0 z-50 bg-slate-900/30 backdrop-blur-[2px] flex items-center justify-center cursor-wait pointer-events-auto">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-5 py-3 rounded-2xl shadow-xl flex items-center gap-3 animate-in fade-in zoom-in-95">
+            <Loader2 className="size-5 animate-spin text-rose-600" />
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+              Signing out securely...
+            </span>
+          </div>
+        </div>
+      )}
     </header>
   )
 }

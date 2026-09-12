@@ -40,6 +40,7 @@ import { ThemeToggle } from '@/components/theme-toggle'
 import { useToast } from '@/context/ToastContext'
 
 interface StudentItem {
+  id?: string
   matricule: string
   first_name: string
   last_name: string
@@ -259,6 +260,7 @@ function EvaluatorDashboardContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          student_id: student.id,
           matricule: student.matricule,
           exam_id: activeExamId,
           station_id: station?.id,
@@ -275,13 +277,13 @@ function EvaluatorDashboardContent() {
       // Optimistically update list
       setStudents((prev) =>
         prev.map((s) =>
-          s.matricule === student.matricule
+          (student.id ? s.id === student.id : s.matricule === student.matricule)
             ? { ...s, status: 'absent', final_score: 0 }
             : s
         )
       )
 
-      if (activeStudent?.matricule === student.matricule) {
+      if ((activeStudent?.id && activeStudent.id === student.id) || activeStudent?.matricule === student.matricule) {
         setActiveStudent(null)
       }
 
@@ -413,6 +415,7 @@ function EvaluatorDashboardContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          student_id: activeStudent.id,
           matricule: activeStudent.matricule,
           exam_id: activeExamId,
           station_id: station.id,
@@ -430,10 +433,11 @@ function EvaluatorDashboardContent() {
       showSuccess(`Assessment submitted for ${activeStudent.full_name} (${data.final_score} pts).`)
 
       // Update student in local roster
+      const currentStudentId = activeStudent.id
       const currentMatricule = activeStudent.matricule
       setStudents((prev) =>
         prev.map((s) =>
-          s.matricule === currentMatricule
+          (currentStudentId ? s.id === currentStudentId : s.matricule === currentMatricule)
             ? { ...s, status: 'completed', final_score: data.final_score }
             : s
         )
@@ -603,14 +607,14 @@ function EvaluatorDashboardContent() {
               </div>
             ) : (
               filteredStudents.map((st) => {
-                const isSelected = activeStudent?.matricule === st.matricule
+                const isSelected = activeStudent?.id ? activeStudent.id === st.id : activeStudent?.matricule === st.matricule
                 const isAbsent = st.status === 'absent'
                 const isCompleted = st.status === 'completed'
                 const isEvaluating = st.status === 'in_progress'
 
                 return (
                   <div
-                    key={st.matricule}
+                    key={st.id || st.matricule}
                     onClick={() => handleStartExamination(st)}
                     className={`p-3 rounded-2xl border transition-all cursor-pointer select-none group ${
                       isSelected

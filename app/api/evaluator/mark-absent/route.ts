@@ -4,20 +4,34 @@ import { supabaseAdmin } from '@/lib/auth'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { matricule, exam_id } = body
+    const { student_id, matricule, exam_id } = body
 
-    if (!matricule || !exam_id) {
+    if ((!student_id && !matricule) || !exam_id) {
       return NextResponse.json(
-        { success: false, error: 'matricule and exam_id are required' },
+        { success: false, error: 'student_id or matricule, and exam_id are required' },
         { status: 400 }
       )
+    }
+
+    let targetStudentId = student_id
+    if (!targetStudentId && matricule) {
+      const { data: st } = await supabaseAdmin
+        .from('students')
+        .select('id')
+        .eq('matricule', matricule.trim())
+        .maybeSingle()
+      targetStudentId = st?.id
+    }
+
+    if (!targetStudentId) {
+      return NextResponse.json({ success: false, error: 'Student not found.' }, { status: 404 })
     }
 
     // Check if an attempt already exists
     const { data: existingAttempt } = await supabaseAdmin
       .from('exam_attempts')
       .select('id, status')
-      .eq('student_matricule', matricule)
+      .eq('student_id', targetStudentId)
       .eq('exam_id', exam_id)
       .maybeSingle()
 
@@ -55,7 +69,7 @@ export async function POST(req: NextRequest) {
       let insertRes = await supabaseAdmin
         .from('exam_attempts')
         .insert({
-          student_matricule: matricule,
+          student_id: targetStudentId,
           exam_id: exam_id,
           final_score: 0.0,
           status: 'absent',
@@ -68,7 +82,7 @@ export async function POST(req: NextRequest) {
         insertRes = await supabaseAdmin
           .from('exam_attempts')
           .insert({
-            student_matricule: matricule,
+            student_id: targetStudentId,
             exam_id: exam_id,
             final_score: 0.0,
             status: 'passed',

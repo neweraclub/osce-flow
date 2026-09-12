@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedDean } from '@/lib/deanAuth'
 import { supabaseAdmin } from '@/lib/auth'
+import { randomUUID } from 'crypto'
 
 export async function GET(req: NextRequest) {
   try {
@@ -59,15 +60,16 @@ export async function GET(req: NextRequest) {
     const sectionMap = new Map((sections || []).map((s) => [s.id, s]))
     const groupMap = new Map((groups || []).map((g) => [g.id, g]))
 
-    // 5. Get students
+    // 5. Get students sorted by import_index ascending by default
     let studentsList: any[] = []
     if (groupIds.length > 0) {
-      const { data: stData } = await supabaseAdmin
+      const { data: stData, error: stErr } = await supabaseAdmin
         .from('students')
-        .select('*')
+        .select('id, matricule, first_name, last_name, group_id, import_index, created_at')
         .in('group_id', groupIds)
-        .order('created_at', { ascending: false })
+        .order('import_index', { ascending: true })
 
+      if (stErr) throw stErr
       studentsList = stData || []
     }
 
@@ -77,6 +79,7 @@ export async function GET(req: NextRequest) {
       const lvlName = sec ? levelMap.get(sec.level_id) : 'Unassigned'
 
       return {
+        id: st.id,
         matricule: st.matricule,
         first_name: st.first_name,
         last_name: st.last_name,
@@ -84,6 +87,7 @@ export async function GET(req: NextRequest) {
         group_name: grp ? grp.group_name : 'Unassigned',
         section_name: sec ? sec.section_name : 'Unassigned',
         level_name: lvlName || 'Unassigned',
+        import_index: typeof st.import_index === 'number' ? st.import_index : 0,
         created_at: st.created_at ? new Date(st.created_at).toLocaleDateString() : 'N/A',
       }
     })
@@ -106,7 +110,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { matricule, first_name, last_name, group_id } = body
+    const { matricule, first_name, last_name, group_id, import_index } = body
 
     if (!matricule || !first_name || !last_name || !group_id) {
       return NextResponse.json(
@@ -117,25 +121,44 @@ export async function POST(req: NextRequest) {
 
     const cleanMatricule = matricule.trim()
 
-    // Check existing matricule
+    // Multi-Year Duplicate Check: Check duplicate (matricule, group_id)
     const { data: existing } = await supabaseAdmin
       .from('students')
-      .select('matricule')
+      .select('id')
       .eq('matricule', cleanMatricule)
-      .single()
+      .eq('group_id', group_id)
+      .maybeSingle()
 
     if (existing) {
-      return NextResponse.json({ success: false, error: 'A student with this matricule already exists.' }, { status: 400 })
+      return NextResponse.json(
+        { success: false, error: 'A student with this matricule already exists in this rotation group.' },
+        { status: 400 }
+      )
     }
 
+    // Determine next import_index if not supplied
+    let targetIndex = 0
+    if (typeof import_index === 'number') {
+      targetIndex = import_index
+    } else {
+      const { count } = await supabaseAdmin
+        .from('students')
+        .select('id', { count: 'exact', head: true })
+        .eq('group_id', group_id)
+      targetIndex = count || 0
+    }
+
+    const studentId = randomUUID()
     const { data: newStudent, error } = await supabaseAdmin
       .from('students')
       .insert([
         {
+          id: studentId,
           matricule: cleanMatricule,
           first_name: first_name.trim(),
           last_name: last_name.trim(),
           group_id,
+          import_index: targetIndex,
         },
       ])
       .select()
@@ -157,45 +180,61 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { original_matricule, matricule, first_name, last_name, group_id } = body
+    const { id, original_matricule, matricule, first_name, last_name, group_id } = body
 
-    if (!original_matricule || !matricule || !first_name || !last_name || !group_id) {
+    if ((!id && !original_matricule) || !matricule || !first_name || !last_name || !group_id) {
       return NextResponse.json(
-        { success: false, error: 'Original matricule, new matricule, first name, last name, and rotation group are required.' },
+        { success: false, error: 'Student ID, matricule, first name, last name, and rotation group are required.' },
         { status: 400 }
       )
     }
 
-    const cleanOriginalMat = original_matricule.trim()
     const cleanNewMat = matricule.trim()
     const cleanFn = first_name.trim()
     const cleanLn = last_name.trim()
 
-    // 1. Check if target student exists
+    // 1. Locate student by UUID (id) or fallback to original_matricule
+    let studentId = id
+    if (!studentId && original_matricule) {
+      const { data: byMat } = await supabaseAdmin
+        .from('students')
+        .select('id')
+        .eq('matricule', original_matricule.trim())
+        .maybeSingle()
+      studentId = byMat?.id
+    }
+
+    if (!studentId) {
+      return NextResponse.json({ success: false, error: 'Student record not found.' }, { status: 404 })
+    }
+
     const { data: existingStudent } = await supabaseAdmin
       .from('students')
-      .select('matricule')
-      .eq('matricule', cleanOriginalMat)
-      .single()
+      .select('id, matricule, group_id, import_index')
+      .eq('id', studentId)
+      .maybeSingle()
 
     if (!existingStudent) {
       return NextResponse.json({ success: false, error: 'Student record not found.' }, { status: 404 })
     }
 
-    // 2. If matricule is being changed, check if new matricule collides with another student
-    if (cleanNewMat !== cleanOriginalMat) {
-      const { data: collision } = await supabaseAdmin
-        .from('students')
-        .select('matricule')
-        .eq('matricule', cleanNewMat)
-        .single()
+    // 2. Multi-year check: If matricule or group is changing, check for collision strictly within (cleanNewMat, group_id)
+    const { data: collision } = await supabaseAdmin
+      .from('students')
+      .select('id')
+      .eq('matricule', cleanNewMat)
+      .eq('group_id', group_id)
+      .neq('id', studentId)
+      .maybeSingle()
 
-      if (collision) {
-        return NextResponse.json({ success: false, error: 'A student with this matricule already exists.' }, { status: 400 })
-      }
+    if (collision) {
+      return NextResponse.json(
+        { success: false, error: 'Another student with this matricule already exists in this group.' },
+        { status: 400 }
+      )
     }
 
-    // 3. Update student record
+    // 3. Update student record by UUID (id)
     const { data: updatedStudent, error } = await supabaseAdmin
       .from('students')
       .update({
@@ -204,7 +243,7 @@ export async function PUT(req: NextRequest) {
         last_name: cleanLn,
         group_id: group_id,
       })
-      .eq('matricule', cleanOriginalMat)
+      .eq('id', studentId)
       .select()
       .single()
 
@@ -225,6 +264,7 @@ export async function PUT(req: NextRequest) {
     }
 
     const formattedStudent = {
+      id: updatedStudent.id,
       matricule: updatedStudent.matricule,
       first_name: updatedStudent.first_name,
       last_name: updatedStudent.last_name,
@@ -232,6 +272,7 @@ export async function PUT(req: NextRequest) {
       group_name: grp ? grp.group_name : 'Unassigned',
       section_name: sectionName,
       level_name: levelName,
+      import_index: updatedStudent.import_index ?? existingStudent.import_index ?? 0,
       created_at: updatedStudent.created_at ? new Date(updatedStudent.created_at).toLocaleDateString() : 'N/A',
     }
 
@@ -249,13 +290,33 @@ export async function DELETE(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url)
+    const id = searchParams.get('id')
+    const idsParam = searchParams.get('ids')
     const matricule = searchParams.get('matricule')
 
-    if (!matricule) {
-      return NextResponse.json({ success: false, error: 'Student matricule is required.' }, { status: 400 })
+    if (!id && !idsParam && !matricule) {
+      return NextResponse.json({ success: false, error: 'Student ID or matricule is required.' }, { status: 400 })
     }
 
-    const { error } = await supabaseAdmin.from('students').delete().eq('matricule', matricule)
+    // Support batch delete via comma-separated ?ids=id1,id2
+    if (idsParam) {
+      const idList = idsParam.split(',').map((x) => x.trim()).filter(Boolean)
+      if (idList.length > 0) {
+        const { error } = await supabaseAdmin.from('students').delete().in('id', idList)
+        if (error) throw error
+        return NextResponse.json({ success: true, message: `Removed ${idList.length} student record(s).` })
+      }
+    }
+
+    // Single student delete by UUID id (or fallback to matricule)
+    let deleteQuery = supabaseAdmin.from('students').delete()
+    if (id) {
+      deleteQuery = deleteQuery.eq('id', id)
+    } else {
+      deleteQuery = deleteQuery.eq('matricule', matricule!)
+    }
+
+    const { error } = await deleteQuery
     if (error) throw error
 
     return NextResponse.json({ success: true, message: 'Student record removed.' })

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedDean } from '@/lib/deanAuth'
 import { supabaseAdmin } from '@/lib/auth'
+import { randomUUID } from 'crypto'
 
 export interface ImportStudentPayloadItem {
   matricule: string
@@ -8,6 +9,7 @@ export interface ImportStudentPayloadItem {
   last_name: string
   section: string
   grp: string
+  import_index?: number
 }
 
 // Sanitization & Normalization Helpers
@@ -76,9 +78,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Invalid academic year or permission denied.' }, { status: 403 })
     }
 
-    // 2. Sanitize payload items
+    // 2. Sanitize payload items and preserve Excel row order (import_index)
     const sanitizedStudents = students
-      .map((s) => ({
+      .map((s, index) => ({
+        import_index: typeof s.import_index === 'number' ? s.import_index : index,
         matricule: sanitizeMatricule(s.matricule),
         first_name: sanitizeFirstName(s.first_name),
         last_name: sanitizeLastName(s.last_name),
@@ -190,8 +193,8 @@ export async function POST(req: NextRequest) {
       createdGroupsCount = newlyInsertedGroups?.length || 0
     }
 
-    // 6. Batch Student Enrollment with SQL ON CONFLICT (matricule) DO UPDATE
-    const studentRecordsToUpsert = sanitizedStudents
+    // 6. Map each student to their target group_id while preserving Excel import_index
+    const studentRecords = sanitizedStudents
       .map((s) => {
         const pairKey = `${s.section.toLowerCase()}::${s.grp.toLowerCase()}`
         const grpId = groupKeyMap.get(pairKey)
@@ -203,24 +206,115 @@ export async function POST(req: NextRequest) {
           first_name: s.first_name,
           last_name: s.last_name,
           group_id: grpId,
+          import_index: s.import_index,
         }
       })
-      .filter(Boolean) as Array<{ matricule: string; first_name: string; last_name: string; group_id: string }>
+      .filter(Boolean) as Array<{
+        matricule: string
+        first_name: string
+        last_name: string
+        group_id: string
+        import_index: number
+      }>
 
-    if (studentRecordsToUpsert.length === 0) {
+    if (studentRecords.length === 0) {
       return NextResponse.json({ success: false, error: 'No valid student records to enroll.' }, { status: 400 })
     }
 
-    // Upsert gracefully handles existing matricules by updating their record
-    const { error: stUpsertErr } = await supabaseAdmin
-      .from('students')
-      .upsert(studentRecordsToUpsert, { onConflict: 'matricule' })
+    // 7. Multi-Year Duplicate Check Scoped Strictly to (matricule, group_id)
+    // De-duplicate in-payload duplicates first (keeping earliest row or updating)
+    const distinctBatchMap = new Map<string, typeof studentRecords[0]>()
+    for (const item of studentRecords) {
+      const key = `${item.matricule}::${item.group_id}`
+      distinctBatchMap.set(key, item)
+    }
+    const dedupedStudentRecords = Array.from(distinctBatchMap.values())
 
-    if (stUpsertErr) throw stUpsertErr
+    // Fetch existing students in the target groups to check for existing (matricule, group_id)
+    const targetGroupIds = Array.from(new Set(dedupedStudentRecords.map((s) => s.group_id)))
+    const { data: existingInGroups, error: fetchExistingErr } = await supabaseAdmin
+      .from('students')
+      .select('id, matricule, group_id')
+      .in('group_id', targetGroupIds)
+
+    if (fetchExistingErr) throw fetchExistingErr
+
+    const existingStudentMap = new Map<string, string>() // `${matricule}::${group_id}` -> id
+    ;(existingInGroups || []).forEach((row) => {
+      existingStudentMap.set(`${row.matricule}::${row.group_id}`, row.id)
+    })
+
+    // Separate records into inserts (with auto-generated UUID) and updates
+    const toInsert: Array<{
+      id: string
+      matricule: string
+      first_name: string
+      last_name: string
+      group_id: string
+      import_index: number
+    }> = []
+
+    const toUpdate: Array<{
+      id: string
+      matricule: string
+      first_name: string
+      last_name: string
+      group_id: string
+      import_index: number
+    }> = []
+
+    for (const record of dedupedStudentRecords) {
+      const pairKey = `${record.matricule}::${record.group_id}`
+      const existingId = existingStudentMap.get(pairKey)
+
+      if (existingId) {
+        toUpdate.push({
+          id: existingId,
+          matricule: record.matricule,
+          first_name: record.first_name,
+          last_name: record.last_name,
+          group_id: record.group_id,
+          import_index: record.import_index,
+        })
+      } else {
+        toInsert.push({
+          id: randomUUID(),
+          matricule: record.matricule,
+          first_name: record.first_name,
+          last_name: record.last_name,
+          group_id: record.group_id,
+          import_index: record.import_index,
+        })
+      }
+    }
+
+    // Execute Inserts
+    if (toInsert.length > 0) {
+      const { error: insertErr } = await supabaseAdmin.from('students').insert(toInsert)
+      if (insertErr) throw insertErr
+    }
+
+    // Execute Updates for existing students in the same group
+    if (toUpdate.length > 0) {
+      await Promise.all(
+        toUpdate.map((up) =>
+          supabaseAdmin
+            .from('students')
+            .update({
+              first_name: up.first_name,
+              last_name: up.last_name,
+              import_index: up.import_index,
+            })
+            .eq('id', up.id)
+        )
+      )
+    }
 
     return NextResponse.json({
       success: true,
-      importedCount: studentRecordsToUpsert.length,
+      importedCount: dedupedStudentRecords.length,
+      insertedCount: toInsert.length,
+      updatedCount: toUpdate.length,
       createdSectionsCount,
       createdGroupsCount,
     })

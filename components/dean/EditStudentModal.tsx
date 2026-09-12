@@ -5,6 +5,7 @@ import { Loader2, Pencil, X } from 'lucide-react'
 import { Select, SelectOption } from '@/components/ui/Select'
 
 export interface StudentRecord {
+  id: string
   matricule: string
   first_name: string
   last_name: string
@@ -12,6 +13,7 @@ export interface StudentRecord {
   group_name: string
   section_name: string
   level_name: string
+  import_index?: number
   created_at: string
 }
 
@@ -35,7 +37,7 @@ export interface EditStudentModalProps {
   student: StudentRecord
   isOpen: boolean
   onClose: () => void
-  onSuccess: (updatedStudent: StudentRecord, originalMatricule: string) => void
+  onSuccess: (updatedStudent: StudentRecord, studentId: string) => void
   studyLevels: StudyLevelOption[]
   sectionsWithGroups: FullStructureSection[]
 }
@@ -146,6 +148,7 @@ export function EditStudentModal({
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          id: student.id,
           original_matricule: student.matricule,
           matricule: matricule.trim(),
           first_name: firstName.trim(),
@@ -157,7 +160,7 @@ export function EditStudentModal({
       const json = await res.json()
 
       if (res.ok && json.success) {
-        onSuccess(json.student, student.matricule)
+        onSuccess(json.student, student.id)
       } else {
         setError(json.error || 'Failed to update student record.')
       }

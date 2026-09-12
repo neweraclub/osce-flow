@@ -70,7 +70,9 @@ CREATE TABLE public.students (
   last_name character varying NOT NULL,
   group_id uuid NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT clock_timestamp(),
-  CONSTRAINT students_pkey PRIMARY KEY (matricule),
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  import_index integer NOT NULL DEFAULT 0,
+  CONSTRAINT students_pkey PRIMARY KEY (id),
   CONSTRAINT students_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.groups(id)
 );
 CREATE TABLE public.modules (
@@ -116,14 +118,14 @@ CREATE TABLE public.questions (
 );
 CREATE TABLE public.exam_attempts (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
-  student_matricule character varying NOT NULL,
   exam_id uuid NOT NULL,
   final_score numeric NOT NULL DEFAULT 0.00 CHECK (final_score >= 0.00),
   status USER-DEFINED NOT NULL DEFAULT 'passed'::attempt_status_enum,
   created_at timestamp with time zone NOT NULL DEFAULT clock_timestamp(),
+  student_id uuid NOT NULL,
   CONSTRAINT exam_attempts_pkey PRIMARY KEY (id),
-  CONSTRAINT exam_attempts_student_matricule_fkey FOREIGN KEY (student_matricule) REFERENCES public.students(matricule),
-  CONSTRAINT exam_attempts_exam_id_fkey FOREIGN KEY (exam_id) REFERENCES public.exams(id)
+  CONSTRAINT exam_attempts_exam_id_fkey FOREIGN KEY (exam_id) REFERENCES public.exams(id),
+  CONSTRAINT fk_exam_attempts_student FOREIGN KEY (student_id) REFERENCES public.students(id)
 );
 CREATE TABLE public.student_answers (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

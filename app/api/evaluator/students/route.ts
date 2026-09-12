@@ -108,15 +108,15 @@ export async function GET(req: NextRequest) {
     // 6. Fetch existing exam_attempts for these students on the active exam
     const attemptMap = new Map<string, any>()
     if (activeExam && studentList.length > 0) {
-      const studentMatricules = studentList.map((s) => s.matricule)
+      const studentIds = studentList.map((s) => s.id)
       const { data: attempts } = await supabaseAdmin
         .from('exam_attempts')
         .select('*')
         .eq('exam_id', activeExam.id)
-        .in('student_matricule', studentMatricules)
+        .in('student_id', studentIds)
 
       ;(attempts || []).forEach((att) => {
-        attemptMap.set(att.student_matricule, att)
+        attemptMap.set(att.student_id, att)
       })
     }
 
@@ -124,7 +124,7 @@ export async function GET(req: NextRequest) {
     const formattedStudents = studentList.map((st) => {
       const grp = groupMap.get(st.group_id)
       const sec = grp ? sectionMap.get(grp.section_id) : null
-      const attempt = attemptMap.get(st.matricule)
+      const attempt = attemptMap.get(st.id)
 
       // Derive status: 'completed' | 'absent' | 'pending'
       let status: 'pending' | 'present' | 'in_progress' | 'completed' | 'absent' = 'pending'
@@ -143,6 +143,7 @@ export async function GET(req: NextRequest) {
       }
 
       return {
+        id: st.id,
         matricule: st.matricule,
         first_name: st.first_name,
         last_name: st.last_name,

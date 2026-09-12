@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Activity, ArrowRight, BarChart3, Bell, Check, ChevronDown, ClipboardCheck, FileText, LayoutDashboard, LockKeyhole, Menu, Search, Settings, ShieldCheck, Stethoscope, UserRound, Users, X, Mail, Phone, BookOpen, TrendingUp, Upload, Download, Eye, EyeOff, Layers, LogIn, UserPlus, Sparkles } from 'lucide-react'
+import { Activity, ArrowRight, BarChart3, Bell, Check, ChevronDown, ClipboardCheck, FileText, LayoutDashboard, Lock, LockKeyhole, Menu, Search, Settings, ShieldCheck, Stethoscope, UserRound, Users, X, Mail, Phone, BookOpen, TrendingUp, Upload, Download, Eye, EyeOff, Layers, LogIn, UserPlus, Sparkles, Zap } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { SiteFooter } from '@/components/footer'
@@ -198,11 +198,13 @@ function Landing({ navigate, openWorkspace }: any) {
                 <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Live Stations Active
               </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                🔐 PIN Lock-In
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                <Lock className="size-3 text-slate-500 dark:text-slate-400" />
+                <span>PIN Lock-In</span>
               </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                ⚡ Real-time Rubrics
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                <Zap className="size-3 text-blue-500" />
+                <span>Real-time Rubrics</span>
               </span>
             </div>
           </div>

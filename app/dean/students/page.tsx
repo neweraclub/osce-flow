@@ -34,6 +34,7 @@ import { useAcademicYear } from '@/context/AcademicYearContext'
 import { EditStudentModal, FullStructureSection } from '@/components/dean/EditStudentModal'
 
 export interface StudentRecord {
+  id: string
   matricule: string
   first_name: string
   last_name: string
@@ -41,6 +42,7 @@ export interface StudentRecord {
   group_name: string
   section_name: string
   level_name: string
+  import_index?: number
   created_at: string
 }
 
@@ -66,6 +68,7 @@ export interface ParsedStudentRow {
   last_name: string
   section: string
   grp: string
+  import_index: number
   isValid: boolean
   isDuplicateInFile?: boolean
   errorMsg?: string
@@ -126,7 +129,9 @@ export default function StudentsPage() {
   const [levelFilter, setLevelFilter] = useState<string>('')
   const [sectionFilter, setSectionFilter] = useState<string>('')
   const [groupFilter, setGroupFilter] = useState<string>('')
-  const [sortKey, setSortKey] = useState<'last_name' | 'first_name' | 'matricule' | 'section_name' | 'group_name'>('last_name')
+  const [sortKey, setSortKey] = useState<
+    'import_index' | 'last_name' | 'first_name' | 'matricule' | 'section_name' | 'group_name'
+  >('import_index')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
   // Multi-select hook
@@ -244,6 +249,7 @@ export default function StudentsPage() {
   }, [students])
 
   const sortOptions = [
+    { label: 'Default Excel Order', value: 'import_index_asc' },
     { label: 'Last Name (A → Z)', value: 'last_name_asc' },
     { label: 'Last Name (Z → A)', value: 'last_name_desc' },
     { label: 'First Name (A → Z)', value: 'first_name_asc' },
@@ -255,7 +261,10 @@ export default function StudentsPage() {
   const currentSortVal = `${sortKey}_${sortOrder}`
 
   const handleSortOptionChange = (val: string) => {
-    if (val === 'last_name_asc') {
+    if (val === 'import_index_asc') {
+      setSortKey('import_index')
+      setSortOrder('asc')
+    } else if (val === 'last_name_asc') {
       setSortKey('last_name')
       setSortOrder('asc')
     } else if (val === 'last_name_desc') {
@@ -276,7 +285,9 @@ export default function StudentsPage() {
     }
   }
 
-  const toggleSort = (key: 'last_name' | 'first_name' | 'matricule' | 'section_name' | 'group_name') => {
+  const toggleSort = (
+    key: 'import_index' | 'last_name' | 'first_name' | 'matricule' | 'section_name' | 'group_name'
+  ) => {
     if (sortKey === key) {
       setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
     } else {
@@ -304,6 +315,12 @@ export default function StudentsPage() {
     })
 
     filtered.sort((a, b) => {
+      if (sortKey === 'import_index') {
+        const aIdx = typeof a.import_index === 'number' ? a.import_index : 0
+        const bIdx = typeof b.import_index === 'number' ? b.import_index : 0
+        return sortOrder === 'asc' ? aIdx - bIdx : bIdx - aIdx
+      }
+
       let valA = ''
       let valB = ''
 
@@ -331,8 +348,8 @@ export default function StudentsPage() {
     return filtered
   }, [students, search, levelFilter, sectionFilter, groupFilter, sortKey, sortOrder])
 
-  const filteredMatricules = useMemo(
-    () => filteredAndSortedStudents.map((s) => s.matricule),
+  const filteredIds = useMemo(
+    () => filteredAndSortedStudents.map((s) => s.id),
     [filteredAndSortedStudents]
   )
 
@@ -368,10 +385,10 @@ export default function StudentsPage() {
     fetchStructureMetadata()
   }
 
-  const handleEditSuccess = (updatedStudent: StudentRecord, originalMatricule: string) => {
+  const handleEditSuccess = (updatedStudent: StudentRecord, studentId: string) => {
     setEditingStudent(null)
     setStudents((prev) =>
-      prev.map((s) => (s.matricule === originalMatricule ? updatedStudent : s))
+      prev.map((s) => (s.id === studentId ? updatedStudent : s))
     )
     showSuccess('Student record updated successfully.')
   }
@@ -436,9 +453,9 @@ export default function StudentsPage() {
           return
         }
 
-        // Sanitization & File-Level Deduplication Pass
-        const seenMatricules = new Set<string>()
-        const parsed: ParsedStudentRow[] = rawJson.map((row) => {
+        // Sanitization & File-Level Deduplication Pass Scoped to (matricule, section, group)
+        const seenGroupMatricules = new Set<string>()
+        const parsed: ParsedStudentRow[] = rawJson.map((row, index) => {
           const mat = sanitizeMatricule(row[keyMatricule!])
           const fn = sanitizeFirstName(row[keyFirstName!])
           const ln = sanitizeLastName(row[keyLastName!])
@@ -449,15 +466,17 @@ export default function StudentsPage() {
           let isDuplicateInFile = false
           let errorMsg = ''
 
+          const fileDedupeKey = `${mat}::${sec.toLowerCase()}::${grp.toLowerCase()}`
+
           if (!mat || !fn || !ln || !sec || !grp) {
             isValid = false
             errorMsg = 'Missing required field values'
-          } else if (seenMatricules.has(mat)) {
+          } else if (seenGroupMatricules.has(fileDedupeKey)) {
             isValid = false
             isDuplicateInFile = true
-            errorMsg = 'Duplicate matricule in file'
+            errorMsg = 'Duplicate matricule in same group in file'
           } else {
-            seenMatricules.add(mat)
+            seenGroupMatricules.add(fileDedupeKey)
           }
 
           return {
@@ -466,6 +485,7 @@ export default function StudentsPage() {
             last_name: ln,
             section: sec,
             grp: grp,
+            import_index: index,
             isValid,
             isDuplicateInFile,
             errorMsg,
@@ -511,6 +531,7 @@ export default function StudentsPage() {
         last_name: r.last_name,
         section: r.section,
         grp: r.grp,
+        import_index: r.import_index,
       }))
 
     try {
@@ -596,21 +617,21 @@ export default function StudentsPage() {
   // Deletion with In-Flight Row Loading Spinner (Single Student)
   const handleDeleteConfirm = async () => {
     if (!deletingStudent) return
-    const targetMatricule = deletingStudent.matricule
+    const targetId = deletingStudent.id
 
     // Close modal & set in-flight deleting ID
     setDeletingStudent(null)
-    setDeletingId(targetMatricule)
+    setDeletingId(targetId)
 
     try {
-      const res = await fetch(`/api/dean/students?matricule=${encodeURIComponent(targetMatricule)}`, {
+      const res = await fetch(`/api/dean/students?id=${encodeURIComponent(targetId)}`, {
         method: 'DELETE',
       })
 
       const json = await res.json()
 
       if (res.ok && json.success) {
-        setStudents((prev) => prev.filter((s) => s.matricule !== targetMatricule))
+        setStudents((prev) => prev.filter((s) => s.id !== targetId))
         showSuccess('Student record removed successfully.')
       } else {
         showError(json.error || 'Failed to remove student. Please try again.')
@@ -631,17 +652,18 @@ export default function StudentsPage() {
     setSubmitting(true)
 
     try {
-      let successCount = 0
-      for (const mat of idsToRemove) {
-        const res = await fetch(`/api/dean/students?matricule=${encodeURIComponent(mat)}`, {
-          method: 'DELETE',
-        })
-        if (res.ok) successCount++
-      }
+      const res = await fetch(`/api/dean/students?ids=${encodeURIComponent(idsToRemove.join(','))}`, {
+        method: 'DELETE',
+      })
+      const json = await res.json()
 
-      setStudents((prev) => prev.filter((s) => !idsToRemove.includes(s.matricule)))
-      clearSelection()
-      showSuccess(`Removed ${successCount} student record(s) successfully.`)
+      if (res.ok && json.success) {
+        setStudents((prev) => prev.filter((s) => !idsToRemove.includes(s.id)))
+        clearSelection()
+        showSuccess(json.message || `Removed ${idsToRemove.length} student record(s) successfully.`)
+      } else {
+        showError(json.error || 'Failed to remove selected student records.')
+      }
     } catch {
       showError('Failed to remove selected student records. Please try again.')
     } finally {
@@ -649,7 +671,9 @@ export default function StudentsPage() {
     }
   }
 
-  const renderSortIcon = (key: 'last_name' | 'first_name' | 'matricule' | 'section_name' | 'group_name') => {
+  const renderSortIcon = (
+    key: 'import_index' | 'last_name' | 'first_name' | 'matricule' | 'section_name' | 'group_name'
+  ) => {
     if (sortKey !== key) return <ArrowUpDown className="size-3.5 opacity-40 group-hover:opacity-100 transition-opacity inline ml-1" />
     return sortOrder === 'asc' ? (
       <ArrowUp className="size-3.5 text-blue-600 dark:text-blue-400 inline ml-1" />
@@ -758,15 +782,23 @@ export default function StudentsPage() {
                 <th className="px-4 py-4 w-12 text-center">
                   <button
                     type="button"
-                    onClick={() => toggleSelectAll(filteredMatricules)}
+                    onClick={() => toggleSelectAll(filteredIds)}
                     className="p-1 rounded-lg text-slate-400 hover:text-blue-600 transition-colors"
                   >
-                    {isAllSelected(filteredMatricules) ? (
+                    {isAllSelected(filteredIds) ? (
                       <CheckSquare className="size-4 text-blue-600" />
                     ) : (
                       <Square className="size-4" />
                     )}
                   </button>
+                </th>
+                <th
+                  onClick={() => toggleSort('import_index')}
+                  className="px-3 py-4 cursor-pointer select-none group hover:text-blue-600 dark:hover:text-blue-400 transition-colors w-12 text-center"
+                  title="Sort by uploaded sequence"
+                >
+                  <span>#</span>
+                  {renderSortIcon('import_index')}
                 </th>
                 <th
                   onClick={() => toggleSort('matricule')}
@@ -808,19 +840,41 @@ export default function StudentsPage() {
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
-                    <Loader2 className="size-6 animate-spin mx-auto mb-2 text-blue-500" />
-                    Loading student cohort roster...
-                  </td>
-                </tr>
+                Array.from({ length: 6 }).map((_, idx) => (
+                  <tr key={`skeleton-${idx}`} className="animate-pulse border-b border-slate-100 dark:border-slate-800">
+                    <td className="px-4 py-4 w-12 text-center">
+                      <div className="size-4 bg-slate-200 dark:bg-slate-800 rounded mx-auto" />
+                    </td>
+                    <td className="px-3 py-4 w-12 text-center">
+                      <div className="h-4 w-6 bg-slate-200 dark:bg-slate-800 rounded mx-auto" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-4 w-28 bg-slate-200 dark:bg-slate-800 rounded" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-4 w-36 bg-slate-200 dark:bg-slate-800 rounded" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-4 w-32 bg-slate-200 dark:bg-slate-800 rounded" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-6 w-20 bg-slate-200 dark:bg-slate-800 rounded-full" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-6 w-32 bg-slate-200 dark:bg-slate-800 rounded-full" />
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="h-7 w-16 bg-slate-200 dark:bg-slate-800 rounded-lg ml-auto" />
+                    </td>
+                  </tr>
+                ))
               ) : filteredAndSortedStudents.length > 0 ? (
                 filteredAndSortedStudents.map((st) => {
-                  const selected = isSelected(st.matricule)
-                  const isDeleting = deletingId === st.matricule
+                  const selected = isSelected(st.id)
+                  const isDeleting = deletingId === st.id
                   return (
                     <tr
-                      key={st.matricule}
+                      key={st.id}
                       className={`transition-all duration-200 ${
                         isDeleting
                           ? 'opacity-50 pointer-events-none bg-slate-100/50 dark:bg-slate-800/50'
@@ -832,7 +886,7 @@ export default function StudentsPage() {
                       <td className="px-4 py-4 w-12 text-center">
                         <button
                           type="button"
-                          onClick={() => toggleSelect(st.matricule)}
+                          onClick={() => toggleSelect(st.id)}
                           disabled={isDeleting}
                           className="p-1 rounded-lg text-slate-400 hover:text-blue-600 transition-colors disabled:opacity-50"
                         >
@@ -842,6 +896,9 @@ export default function StudentsPage() {
                             <Square className="size-4" />
                           )}
                         </button>
+                      </td>
+                      <td className="px-3 py-4 text-center font-mono text-[11px] font-medium text-slate-400 dark:text-slate-500">
+                        {typeof st.import_index === 'number' ? st.import_index + 1 : '-'}
                       </td>
                       <td className="px-6 py-4 font-mono font-bold text-blue-600 dark:text-blue-400">
                         {st.matricule}
@@ -892,7 +949,7 @@ export default function StudentsPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan={8} className="px-6 py-12 text-center text-slate-400">
                     No enrolled students matching the selected filters.
                   </td>
                 </tr>
@@ -1333,6 +1390,44 @@ export default function StudentsPage() {
                 className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-600/25 flex items-center gap-2 disabled:opacity-50"
               >
                 <span>Remove Student</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BATCH DELETE CONFIRMATION MODAL */}
+      {isBatchDeleteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-5">
+            <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
+              <div className="size-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 flex items-center justify-center shrink-0">
+                <AlertTriangle className="size-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Delete Selected Candidates?</h3>
+                <p className="text-xs text-slate-500">Batch removal confirmation.</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              Are you sure you want to remove <strong className="text-slate-900 dark:text-white">{selectedIds.length}</strong> selected candidate(s)? This action cannot be undone.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => setIsBatchDeleteOpen(false)}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBatchDelete}
+                disabled={submitting}
+                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-600/25 flex items-center gap-2 disabled:opacity-50"
+              >
+                {submitting ? <Loader2 className="size-4 animate-spin" /> : null}
+                <span>Remove ({selectedIds.length}) Students</span>
               </button>
             </div>
           </div>

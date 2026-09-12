@@ -8,6 +8,7 @@ import {
   ArrowRight,
   BookOpen,
   Calendar,
+  CalendarOff,
   Check,
   CheckCircle2,
   ChevronRight,
@@ -33,6 +34,7 @@ import {
   X,
 } from 'lucide-react'
 import { Select } from '@/components/ui/Select'
+import { StationStatusBadge, UnscheduledStationNotice } from '@/components/stations/station-status-badge'
 import { useAcademicYear } from '@/context/AcademicYearContext'
 import { useToast } from '@/context/ToastContext'
 
@@ -49,7 +51,19 @@ export interface StationCardItem {
   academic_year_id?: string
   academic_year_label?: string
   exam_count: number
+  question_count?: number
+  status?: string
+  status_label?: string
   created_at?: string
+  linked_exam?: {
+    id: string
+    module_name: string
+    level_name: string
+    section_name: string
+    group_name: string
+    session_type: string
+    exam_date: string
+  } | null
 }
 
 export interface AssignedModuleOption {
@@ -499,6 +513,19 @@ export default function ProfessorStationsPage() {
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/50">
                         {station.level_name}
                       </span>
+                      <StationStatusBadge
+                        status={
+                          station.status ||
+                          (station.question_count && station.question_count > 0
+                            ? station.exam_count > 0
+                              ? 'ready'
+                              : 'rubric_ready'
+                            : 'incomplete')
+                        }
+                        questionCount={station.question_count}
+                        examCount={station.exam_count}
+                        hasLinkedExam={station.exam_count > 0}
+                      />
                     </div>
 
                     {/* Card Actions: Edit & Delete */}
@@ -523,22 +550,34 @@ export default function ProfessorStationsPage() {
                     </div>
                   </div>
 
-                  {/* Title & Module */}
+                  {/* Title & Metadata */}
                   <div>
                     <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors leading-snug">
                       {station.title}
                     </h3>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mt-2">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/40 font-semibold text-xs">
+                    
+                    {/* Clean Metadata Subtitle: Module, Created Date, Weightage */}
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400 mt-2">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/40 font-semibold text-xs">
                         <BookOpen className="size-3.5 text-blue-500 shrink-0" />
                         {station.module_name}
                       </span>
+                      {station.created_at && (
+                        <span className="text-[11px] text-slate-400">
+                          Created {new Date(station.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </span>
+                      )}
                       {station.weightage_percentage > 0 && (
                         <span className="text-emerald-600 dark:text-emerald-400 font-bold text-xs">
                           {station.weightage_percentage}% Weight
                         </span>
                       )}
                     </div>
+
+                    {/* Actionable Unscheduled Notice if no exam session allocated */}
+                    {station.exam_count === 0 && (
+                      <UnscheduledStationNotice helperText="Assign an exam session to activate." />
+                    )}
                   </div>
 
                   {/* PIN Container */}
@@ -583,9 +622,17 @@ export default function ProfessorStationsPage() {
 
                 {/* Footer Action */}
                 <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
-                  <span className="font-semibold text-slate-500 dark:text-slate-400">
-                    {station.exam_count} Exam Session{station.exam_count !== 1 ? 's' : ''}
-                  </span>
+                  {station.exam_count > 0 ? (
+                    <span className="font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                      <Calendar className="size-3.5 text-emerald-500" />
+                      <span>{station.exam_count} Exam Session{station.exam_count !== 1 ? 's' : ''}</span>
+                    </span>
+                  ) : (
+                    <span className="font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                      <CalendarOff className="size-3.5 text-amber-500" />
+                      <span>Exam Date Not Set</span>
+                    </span>
+                  )}
                   <div className="flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400 group-hover:translate-x-0.5 transition-transform">
                     <span>Manage Station</span>
                     <ChevronRight className="size-4" />

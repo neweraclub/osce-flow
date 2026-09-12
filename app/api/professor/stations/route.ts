@@ -99,16 +99,35 @@ export async function GET(req: NextRequest) {
 
     const stationIds = (rawStations || []).map((s) => s.id)
 
-    // 5. Fetch count of exams scheduled per station
+    // 5. Fetch count of exams and questions scheduled per station
     const examsCountMap = new Map<string, number>()
+    const examIds: string[] = []
+    const examsByStation = new Map<string, any[]>()
     if (stationIds.length > 0) {
       const { data: stationExams } = await supabaseAdmin
         .from('exams')
-        .select('id, station_id')
+        .select('*')
         .in('station_id', stationIds)
+        .order('exam_date', { ascending: true })
 
       ;(stationExams || []).forEach((e) => {
         examsCountMap.set(e.station_id, (examsCountMap.get(e.station_id) || 0) + 1)
+        examIds.push(e.id)
+        const list = examsByStation.get(e.station_id) || []
+        list.push(e)
+        examsByStation.set(e.station_id, list)
+      })
+    }
+
+    const questionsCountMap = new Map<string, number>()
+    if (examIds.length > 0) {
+      const { data: qData } = await supabaseAdmin
+        .from('questions')
+        .select('id, exam_id')
+        .in('exam_id', examIds)
+
+      ;(qData || []).forEach((q) => {
+        questionsCountMap.set(q.exam_id, (questionsCountMap.get(q.exam_id) || 0) + 1)
       })
     }
 
@@ -116,6 +135,13 @@ export async function GET(req: NextRequest) {
       const mod = moduleMap.get(st.module_id)
       const lvl = mod ? levelMap.get(mod.level_id) : null
       const yrLabel = lvl ? yearLabelMap.get(lvl.academic_year_id) : activeYear?.name
+      const stExams = examsByStation.get(st.id) || []
+      const totalQuestions = stExams.reduce(
+        (sum, e) => sum + (questionsCountMap.get(e.id) || 0),
+        0
+      )
+      const isReady = totalQuestions > 0
+      const firstExam = stExams[0] || null
 
       return {
         id: st.id,
@@ -130,7 +156,21 @@ export async function GET(req: NextRequest) {
         academic_year_id: lvl?.academic_year_id || activeYearId,
         academic_year_label: yrLabel || '',
         exam_count: examsCountMap.get(st.id) || 0,
+        question_count: totalQuestions,
+        status: isReady ? 'ready' : 'incomplete',
+        status_label: isReady ? 'Rubric Ready' : 'Incomplete Rubric',
         created_at: st.created_at,
+        linked_exam: firstExam
+          ? {
+              id: firstExam.id,
+              module_name: mod ? mod.module_name : 'General Module',
+              level_name: lvl ? lvl.level_name : 'General Level',
+              section_name: firstExam.section_name || 'All Sections',
+              group_name: firstExam.group_name || 'All Groups',
+              session_type: firstExam.session_type || 'regular',
+              exam_date: firstExam.exam_date,
+            }
+          : null,
       }
     })
 

@@ -33,6 +33,7 @@ import {
   X,
 } from 'lucide-react'
 import { Select } from '@/components/ui/Select'
+import { StationStatusBadge, UnscheduledStationNotice } from '@/components/stations/station-status-badge'
 import { useAcademicYear } from '@/context/AcademicYearContext'
 import { useToast } from '@/context/ToastContext'
 
@@ -62,9 +63,11 @@ export interface AssignedStation {
   access_pin: string
   exam_id: string | null
   question_count: number
-  status: 'ready' | 'needs_setup'
+  status: 'ready' | 'needs_setup' | 'incomplete'
   status_label: string
   created_at?: string
+  module_name?: string
+  level_name?: string
   linked_exam?: {
     id: string
     module_name: string
@@ -535,34 +538,46 @@ export default function ProfessorDashboardPage() {
                             Station #{st.station_number}
                           </span>
 
-                          <span
-                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border ${
-                              st.status === 'ready'
-                                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-800'
-                                : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200/60 dark:border-amber-800'
-                            }`}
-                          >
-                            {st.status === 'ready' ? (
-                              <>
-                                <CheckCircle2 className="size-3 text-emerald-500" />
-                                <span>{st.question_count} Rubric Criteria</span>
-                              </>
-                            ) : (
-                              <>
-                                <AlertTriangle className="size-3 text-amber-500" />
-                                <span>Needs Checklist Setup</span>
-                              </>
-                            )}
-                          </span>
+                          <StationStatusBadge
+                            status={st.question_count > 0 ? (st.linked_exam ? 'ready' : 'rubric_ready') : 'incomplete'}
+                            questionCount={st.question_count}
+                            hasLinkedExam={!!st.linked_exam}
+                          />
                         </div>
 
-                        {/* Title & Linked Exam */}
+                        {/* Title & Metadata Subtitle */}
                         <div>
                           <h3 className="text-base font-bold text-slate-900 dark:text-white leading-snug">
                             {st.title}
                           </h3>
+
+                          {/* Clean Metadata Subtitle: Module, Level, Created Date */}
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+                            {st.module_name && (
+                              <span className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                                <BookOpen className="size-3 text-blue-500 shrink-0" />
+                                <span>{st.module_name}</span>
+                              </span>
+                            )}
+                            {st.level_name && (
+                              <>
+                                <span>•</span>
+                                <span>{st.level_name}</span>
+                              </>
+                            )}
+                            {st.created_at && (
+                              <>
+                                <span>•</span>
+                                <span className="text-[11px] text-slate-400">
+                                  Created {new Date(st.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </span>
+                              </>
+                            )}
+                          </div>
+
+                          {/* Linked Exam or Action-Oriented Unscheduled Notice */}
                           {st.linked_exam ? (
-                            <div className="mt-2 p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 space-y-1">
+                            <div className="mt-2.5 p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 space-y-1">
                               <div className="flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200">
                                 <span>{st.linked_exam.module_name}</span>
                                 <span className="text-[10px] text-slate-400 capitalize">
@@ -576,9 +591,7 @@ export default function ProfessorDashboardPage() {
                               </div>
                             </div>
                           ) : (
-                            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 font-semibold italic">
-                              Station blueprint pending exam date allocation
-                            </p>
+                            <UnscheduledStationNotice />
                           )}
                         </div>
 

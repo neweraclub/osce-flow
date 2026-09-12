@@ -149,6 +149,18 @@ export async function GET(req: NextRequest) {
         0
       )
       const isReady = totalQuestions > 0
+      const firstExam = stExams[0]
+      const linked_exam = firstExam
+        ? {
+            id: firstExam.id,
+            module_name: mod ? mod.module_name : 'General Module',
+            level_name: lvl ? lvl.level_name : 'General Level',
+            section_name: firstExam.section_name || 'All Sections',
+            group_name: firstExam.group_name || 'All Groups',
+            session_type: firstExam.session_type || 'regular',
+            exam_date: firstExam.exam_date,
+          }
+        : null
 
       return {
         id: st.id,
@@ -160,8 +172,9 @@ export async function GET(req: NextRequest) {
         created_at: st.created_at,
         question_count: totalQuestions,
         exam_count: stExams.length,
-        status: isReady ? 'ready' : 'needs_setup',
-        status_label: isReady ? 'Ready' : 'Needs Checklist Setup',
+        status: isReady ? 'ready' : 'incomplete',
+        status_label: isReady ? 'Rubric Ready' : 'Incomplete Rubric',
+        linked_exam,
         module_name: mod ? mod.module_name : 'General Module',
         level_id: mod?.level_id || null,
         level_name: lvl ? lvl.level_name : 'General Level',
@@ -208,7 +221,7 @@ export async function GET(req: NextRequest) {
         assignedStationsCount: assignedStations.length,
         upcomingSessionsCount: formattedUpcomingExams.length,
         readyStationsCount: assignedStations.filter((s) => s.status === 'ready').length,
-        pendingStationsCount: assignedStations.filter((s) => s.status === 'needs_setup').length,
+        pendingStationsCount: assignedStations.filter((s) => s.status === 'incomplete' || s.status === 'needs_setup').length,
       },
       modules: assignedModules,
       stations: assignedStations,

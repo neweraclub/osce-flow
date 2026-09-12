@@ -2,7 +2,45 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Activity, ArrowRight, BarChart3, Bell, Check, ChevronDown, ClipboardCheck, FileText, KeyRound, LayoutDashboard, Lock, LockKeyhole, Menu, Search, Settings, ShieldCheck, Stethoscope, UserRound, Users, X, Mail, Phone, BookOpen, TrendingUp, Upload, Download, Eye, EyeOff, Layers, LogIn, UserPlus, Sparkles, Zap } from 'lucide-react'
+import { motion } from 'framer-motion'
+import {
+  Activity,
+  ArrowRight,
+  BarChart3,
+  Bell,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  ClipboardCheck,
+  Clock,
+  FileText,
+  KeyRound,
+  LayoutDashboard,
+  Lock,
+  LockKeyhole,
+  Menu,
+  Radio,
+  Search,
+  Settings,
+  ShieldCheck,
+  Stethoscope,
+  UserRound,
+  Users,
+  X,
+  Mail,
+  Phone,
+  BookOpen,
+  TrendingUp,
+  Upload,
+  Download,
+  Eye,
+  EyeOff,
+  Layers,
+  LogIn,
+  UserPlus,
+  Sparkles,
+  Zap,
+} from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { SiteFooter } from '@/components/footer'
@@ -214,7 +252,7 @@ function Landing({ navigate, openWorkspace }: any) {
               </span>
             </div>
           </div>
-          <HeroInteractiveStationCard />
+          <HeroShowcaseCard />
         </div>
       </section>
       <section className="mx-auto max-w-7xl px-5 py-20 lg:px-8">
@@ -242,196 +280,254 @@ function Landing({ navigate, openWorkspace }: any) {
   )
 }
 
-function HeroInteractiveStationCard() {
-  const [rubricScore, setRubricScore] = useState<number>(4)
-  const [consentChecked, setConsentChecked] = useState<boolean>(true)
-
-  const scoreOptions = [
-    { value: 0, label: '0', desc: 'Inadequate' },
-    { value: 1, label: '1', desc: 'Emerging' },
-    { value: 2, label: '2', desc: 'Developing' },
-    { value: 3, label: '3', desc: 'Competent' },
-    { value: 4, label: '4', desc: 'Proficient' },
-    { value: 5, label: '5', desc: 'Mastery' },
+function HeroShowcaseCard() {
+  const criteriaList = [
+    {
+      id: 1,
+      category: 'CLINICAL TECHNIQUE',
+      title: 'Apical impulse palpation & landmark localization',
+      score: '5.0 / 5.0 pts',
+      highlight: 'from-blue-500/10 to-indigo-500/10',
+      border: 'border-blue-500/20 dark:border-blue-500/30',
+      badgeColor: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60',
+    },
+    {
+      id: 2,
+      category: 'PHYSICAL EXAMINATION',
+      title: 'Four-valve auscultation (bell & diaphragm systematic sequence)',
+      score: '5.0 / 5.0 pts',
+      highlight: 'from-amber-500/10 to-orange-500/10',
+      border: 'border-amber-500/20 dark:border-amber-500/30',
+      badgeColor: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60',
+    },
+    {
+      id: 3,
+      category: 'BEDSIDE MANNER',
+      title: 'Patient consent verification & aseptic protocol adherence',
+      score: '4.5 / 5.0 pts',
+      highlight: 'from-emerald-500/10 to-teal-500/10',
+      border: 'border-emerald-500/20 dark:border-emerald-500/30',
+      badgeColor: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60',
+    },
   ]
 
-  const totalPoints = rubricScore + (consentChecked ? 2 : 0)
-
   return (
-    <div className="rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl p-5 sm:p-6 shadow-2xl relative overflow-hidden transition-all">
-      {/* Decorative Gradient Glow */}
-      <div className="absolute -top-12 -right-12 size-40 bg-amber-500/10 dark:bg-amber-500/15 rounded-full blur-2xl pointer-events-none" />
+    <div className="relative w-full max-w-xl mx-auto lg:max-w-none select-none">
+      {/* 1. Multi-Layered Glow & Gradient Backdrops */}
+      <div className="absolute -top-10 -left-10 size-72 rounded-full bg-gradient-to-tr from-blue-500/25 via-indigo-500/20 to-transparent blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-10 -right-10 size-80 rounded-full bg-gradient-to-bl from-amber-500/20 via-orange-500/15 to-transparent blur-3xl pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 via-transparent to-amber-500/10 rounded-3xl blur-2xl pointer-events-none" />
 
-      {/* Top Station Header & PIN Unlock Status */}
-      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3.5">
-        <div className="flex items-center gap-2.5">
-          <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-tr from-amber-500 to-orange-600 text-white font-black text-xs shadow-md shadow-orange-500/20">
-            03
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-900 dark:text-white">
-                Station 03 · Cardiovascular Exam
+      {/* 2. Decorative Floating Glassmorphism Badges */}
+      {/* Floating Badge 1: Real-time Sync */}
+      <motion.div
+        animate={{ y: [-5, 5, -5] }}
+        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+        className="absolute -top-5 -left-3 sm:-left-6 z-20 hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full backdrop-blur-md bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-700/80 shadow-lg text-xs font-bold text-slate-800 dark:text-slate-200 pointer-events-none"
+      >
+        <span className="flex size-2 rounded-full bg-amber-500 animate-pulse" />
+        <span className="text-amber-500">⚡</span>
+        <span>Real-time Sync</span>
+        <span className="font-mono text-[10px] text-slate-400 font-normal">12ms</span>
+      </motion.div>
+
+      {/* Floating Badge 2: Encrypted Marks */}
+      <motion.div
+        animate={{ y: [6, -6, 6] }}
+        transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut', delay: 0.6 }}
+        className="absolute -bottom-4 -right-2 sm:-right-5 z-20 hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full backdrop-blur-md bg-white/90 dark:bg-slate-900/90 border border-emerald-500/40 dark:border-emerald-500/40 shadow-xl text-xs font-bold text-emerald-700 dark:text-emerald-300 pointer-events-none"
+      >
+        <Lock className="size-3.5 text-emerald-500" />
+        <span>Encrypted Marks</span>
+        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-300">
+          AES-256
+        </span>
+      </motion.div>
+
+      {/* Floating Badge 3: Station Clock */}
+      <motion.div
+        animate={{ y: [-4, 4, -4] }}
+        transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut', delay: 1.2 }}
+        className="absolute -top-4 -right-2 sm:-right-4 z-20 hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full backdrop-blur-md bg-white/90 dark:bg-slate-900/90 border border-blue-500/30 dark:border-blue-500/30 shadow-md text-[11px] font-mono font-bold text-blue-600 dark:text-blue-400 pointer-events-none"
+      >
+        <Clock className="size-3 text-blue-500" />
+        <span>06:42 Active</span>
+      </motion.div>
+
+      {/* 3. Main 3D-esque Showcase Card */}
+      <motion.div
+        animate={{ y: [-3, 3, -3] }}
+        transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+        className="relative rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl p-5 sm:p-6 shadow-2xl shadow-slate-900/10 dark:shadow-black/60 overflow-hidden space-y-4"
+      >
+        {/* Subtle Ambient Radial Highlight */}
+        <div className="absolute top-0 right-0 w-56 h-56 bg-gradient-to-bl from-amber-500/10 via-transparent to-transparent rounded-full pointer-events-none" />
+
+        {/* Header: Station Live Pulse & Meta */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/80 shadow-xs">
+              <span className="relative flex size-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full size-2 bg-emerald-500" />
               </span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60">
-                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Live Terminal
-              </span>
+              <span>LIVE TERMINAL · STATION 03</span>
             </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              Module: Clinical Cardiology · Level 3
+            <h3 className="text-sm font-black text-slate-900 dark:text-white tracking-tight">
+              Cardiovascular Examination & Auscultation
+            </h3>
+            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+              Internal Medicine OSCE · Level 3 · Examination Room 4B
             </p>
           </div>
-        </div>
 
-        <Link
-          href="/examiner"
-          className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-xs font-bold transition-all"
-          title="Direct link to station PIN unlock"
-        >
-          <KeyRound className="size-3.5 text-amber-600 dark:text-amber-400" />
-          <span>Enter PIN</span>
-        </Link>
-      </div>
-
-      {/* Station Ready Indicator / PIN Demo Snippet */}
-      <div className="p-3 my-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-800/80 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="size-6 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-            <Lock className="size-3.5" />
+          <div className="flex items-center gap-1.5 self-start sm:self-center px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 font-mono text-[11px] font-bold text-slate-700 dark:text-slate-300">
+            <Radio className="size-3 text-emerald-500 animate-pulse" />
+            <span>EXM-TERM-SYNC</span>
           </div>
-          <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-            Station Ready · Enter PIN to Unlock
-          </span>
         </div>
 
-        <div className="flex items-center gap-1 font-mono text-xs font-bold">
-          {['4', '8', '2', '1'].map((digit, idx) => (
-            <span
-              key={idx}
-              className="size-6 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 flex items-center justify-center shadow-xs"
-            >
-              {digit}
+        {/* Active Candidate Strip */}
+        <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-800/80 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <div className="size-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white font-black text-xs flex items-center justify-center shadow-md">
+                AO
+              </div>
+              <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-900 dark:text-white">Amara Okafor</span>
+                <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60 font-semibold">
+                  Cohort A
+                </span>
+              </div>
+              <p className="text-[11px] font-mono text-slate-400">MED-2026-0087 · Station Slot 02</p>
+            </div>
+          </div>
+
+          <div className="text-right">
+            <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+              Status
             </span>
+            <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400">
+              <span className="size-1.5 rounded-full bg-amber-500 animate-ping" />
+              Scoring Active
+            </span>
+          </div>
+        </div>
+
+        {/* Abstract Assessment Flow: Criteria Rows with Checkmark Pop Animations */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+              Live Clinical Rubric Stream
+            </span>
+            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+              3 / 3 Criteria Recorded
+            </span>
+          </div>
+
+          {criteriaList.map((item, idx) => (
+            <div
+              key={item.id}
+              className={`p-3 rounded-2xl border ${item.border} bg-gradient-to-r ${item.highlight} to-transparent backdrop-blur-xs flex items-center justify-between gap-3`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <motion.div
+                  initial={{ scale: 0.8 }}
+                  animate={{ scale: [1, 1.18, 1] }}
+                  transition={{
+                    duration: 2.2,
+                    repeat: Infinity,
+                    delay: idx * 0.4,
+                    ease: 'easeInOut',
+                  }}
+                  className="flex size-7 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-sm shadow-emerald-500/30 shrink-0"
+                >
+                  <Check className="size-4 stroke-[3]" />
+                </motion.div>
+
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded ${item.badgeColor}`}
+                    >
+                      {item.category}
+                    </span>
+                  </div>
+                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate mt-0.5">
+                    {item.title}
+                  </p>
+                </div>
+              </div>
+
+              <span className="shrink-0 font-mono text-xs font-bold text-slate-700 dark:text-slate-300 px-2 py-1 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 shadow-xs">
+                {item.score}
+              </span>
+            </div>
           ))}
         </div>
-      </div>
 
-      {/* Active Candidate Strip */}
-      <div className="flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-xs mb-3">
-        <div className="flex items-center gap-3">
-          <div className="size-9 rounded-full bg-gradient-to-tr from-blue-600 to-sky-500 text-white font-bold text-xs flex items-center justify-center shadow-sm">
-            AO
+        {/* Animated Score Gauge & Real-Time Sync Indicator */}
+        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-4">
+          {/* Circular Progress Gauge */}
+          <div className="flex items-center gap-3">
+            <div className="relative size-12 flex items-center justify-center">
+              <svg className="size-12 -rotate-90" viewBox="0 0 48 48">
+                <circle
+                  cx="24"
+                  cy="24"
+                  r="20"
+                  className="stroke-slate-200 dark:stroke-slate-800"
+                  strokeWidth="4"
+                  fill="none"
+                />
+                <motion.circle
+                  cx="24"
+                  cy="24"
+                  r="20"
+                  className="stroke-amber-500"
+                  strokeWidth="4"
+                  strokeDasharray="125.6"
+                  initial={{ strokeDashoffset: 125.6 }}
+                  animate={{ strokeDashoffset: 4.2 }}
+                  transition={{ duration: 1.5, ease: 'easeOut' }}
+                  strokeLinecap="round"
+                  fill="none"
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-[11px] font-black font-mono text-slate-900 dark:text-white">
+                  96%
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 block">
+                Total Station Score
+              </span>
+              <span className="text-sm font-black font-mono text-amber-600 dark:text-amber-400">
+                14.5{' '}
+                <span className="text-[11px] font-normal text-slate-400">/ 15.0 pts</span>
+              </span>
+            </div>
           </div>
-          <div>
-            <h4 className="text-xs font-bold text-slate-900 dark:text-white">Amara Okafor</h4>
-            <p className="text-[11px] font-mono text-slate-400">MED-2026-0087 · Sec 01 (Group 02)</p>
-          </div>
-        </div>
 
-        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60">
-          Assessing Live
-        </span>
-      </div>
-
-      {/* Interactive Rubric Criterion (0-5 Scale Demonstration) */}
-      <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800/70 space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-            CRITERION 02 · PHYSICAL EXAMINATION
-          </span>
-          <span className="text-xs font-mono font-bold text-slate-600 dark:text-slate-300">
-            Max 5.0 pts
-          </span>
-        </div>
-
-        <p className="text-xs font-medium text-slate-800 dark:text-slate-200 leading-relaxed">
-          Palpates apical impulse, identifies anatomical landmarks, and performs systematic four-valve cardiac auscultation with bell and diaphragm.
-        </p>
-
-        {/* 0-5 Scoring Scale Buttons */}
-        <div className="space-y-1.5 pt-1">
-          <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 dark:text-slate-400">
-            <span>Score Awarded:</span>
-            <span className="font-mono text-amber-600 dark:text-amber-400 font-bold">
-              {rubricScore} / 5 pts ({scoreOptions[rubricScore]?.desc})
+          {/* Sync Status Badge */}
+          <div className="flex flex-col items-end">
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="size-3.5" />
+              <span>Marksheet Locked</span>
+            </span>
+            <span className="text-[10px] font-mono text-slate-400 mt-0.5">
+              Synced to Central Cloud
             </span>
           </div>
-
-          <div className="grid grid-cols-6 gap-1.5">
-            {scoreOptions.map((opt) => {
-              const isSelected = rubricScore === opt.value
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setRubricScore(opt.value)}
-                  className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
-                    isSelected
-                      ? 'bg-amber-500 text-white shadow-md shadow-amber-500/30 scale-105 ring-2 ring-amber-400/40'
-                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 border border-slate-200 dark:border-slate-700'
-                  }`}
-                >
-                  <span>{opt.label}</span>
-                </button>
-              )
-            })}
-          </div>
-
-          <div className="flex justify-between text-[9px] font-medium text-slate-400 pt-0.5">
-            <span>0 (Inadequate)</span>
-            <span>3 (Competent)</span>
-            <span>5 (Mastery)</span>
-          </div>
         </div>
-
-        {/* Checkbox item */}
-        <button
-          type="button"
-          onClick={() => setConsentChecked((prev) => !prev)}
-          className={`w-full p-2.5 rounded-xl border text-left text-xs font-medium transition-all flex items-center justify-between cursor-pointer ${
-            consentChecked
-              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-300'
-              : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <div
-              className={`size-4 rounded flex items-center justify-center border transition-colors ${
-                consentChecked
-                  ? 'bg-emerald-600 border-emerald-600 text-white'
-                  : 'border-slate-300 dark:border-slate-600'
-              }`}
-            >
-              {consentChecked && <Check className="size-3 stroke-[3]" />}
-            </div>
-            <span>Explains procedure & adheres to aseptic protocol</span>
-          </div>
-          <span className="text-[10px] font-mono font-bold">+2 pts</span>
-        </button>
-      </div>
-
-      {/* Bottom Live Submission Card Footer */}
-      <div className="pt-2 flex items-center justify-between">
-        <div>
-          <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 block">
-            Live Station Total
-          </span>
-          <span className="text-lg font-black font-mono text-amber-600 dark:text-amber-400">
-            {totalPoints}{' '}
-            <span className="text-xs font-normal text-slate-400">/ 7.0 pts</span>
-          </span>
-        </div>
-
-        <Link
-          href="/examiner"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-700 shadow-md shadow-amber-500/20 active:scale-95 transition-all cursor-pointer"
-        >
-          <KeyRound className="size-3.5" />
-          <span>Open Terminal</span>
-          <ArrowRight className="size-3.5" />
-        </Link>
-      </div>
+      </motion.div>
     </div>
   )
 }

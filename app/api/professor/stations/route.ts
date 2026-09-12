@@ -53,25 +53,42 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    // 3. Fetch study levels for these modules
-    const levelIds = Array.from(new Set((profModules || []).map((m) => m.level_id).filter(Boolean)))
-    const levelMap = new Map<string, string>()
-    if (levelIds.length > 0) {
-      const { data: levels } = await supabaseAdmin
-        .from('study_levels')
-        .select('id, level_name')
-        .in('id', levelIds)
+    // 3. Fetch study levels for these modules (scoped by active academic year)
+    const rawLevelIds = Array.from(new Set((profModules || []).map((m) => m.level_id).filter(Boolean)))
+    let levelQuery = supabaseAdmin
+      .from('study_levels')
+      .select('id, level_name, academic_year_id')
+      .in('id', rawLevelIds)
 
-      ;(levels || []).forEach((l) => levelMap.set(l.id, l.level_name))
+    if (activeYearId) {
+      levelQuery = levelQuery.eq('academic_year_id', activeYearId)
     }
 
-    const moduleMap = new Map((profModules || []).map((m) => [m.id, m]))
+    const { data: levels } = await levelQuery
+    const validLevelIds = new Set((levels || []).map((l) => l.id))
+    const levelMap = new Map((levels || []).map((l) => [l.id, l]))
+    const yearLabelMap = new Map(academicYears.map((y) => [y.id, y.name || y.year_label]))
 
-    // 4. Query ONLY stations where module_id is in professor's assigned modules
+    // Filter modules to only those matching the active study levels (scoped by academic year)
+    const activeModules = (profModules || []).filter((m) => validLevelIds.has(m.level_id))
+    const activeModuleIds = activeModules.map((m) => m.id)
+
+    if (activeModuleIds.length === 0) {
+      return NextResponse.json({
+        success: true,
+        stations: [],
+        academicYears,
+        activeYearId,
+      })
+    }
+
+    const moduleMap = new Map(activeModules.map((m) => [m.id, m]))
+
+    // 4. Query ONLY stations where module_id is in professor's active modules
     const { data: rawStations, error: stationsErr } = await supabaseAdmin
       .from('stations')
       .select('*')
-      .in('module_id', moduleIds)
+      .in('module_id', activeModuleIds)
       .order('station_number', { ascending: true })
 
     if (stationsErr) throw stationsErr
@@ -93,6 +110,9 @@ export async function GET(req: NextRequest) {
 
     const formattedStations = (rawStations || []).map((st) => {
       const mod = moduleMap.get(st.module_id)
+      const lvl = mod ? levelMap.get(mod.level_id) : null
+      const yrLabel = lvl ? yearLabelMap.get(lvl.academic_year_id) : activeYear?.name
+
       return {
         id: st.id,
         module_id: st.module_id,
@@ -101,7 +121,10 @@ export async function GET(req: NextRequest) {
         access_pin: st.access_pin,
         weightage_percentage: Number(st.weightage_percentage || 0),
         module_name: mod ? mod.module_name : 'General Module',
-        level_name: mod ? levelMap.get(mod.level_id) || 'General Level' : 'General Level',
+        level_id: mod?.level_id || null,
+        level_name: lvl ? lvl.level_name : 'General Level',
+        academic_year_id: lvl?.academic_year_id || activeYearId,
+        academic_year_label: yrLabel || '',
         exam_count: examsCountMap.get(st.id) || 0,
         created_at: st.created_at,
       }

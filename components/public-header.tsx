@@ -4,7 +4,7 @@ import React from 'react'
 import Link from 'next/link'
 import { Activity, Layers, LogIn, Mail, UserPlus } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
-import { ExaminerLaunchButton } from '@/components/evaluator/ExaminerLaunchButton'
+import { ExaminerLaunchButton } from '@/components/examiner/ExaminerLaunchButton'
 
 export function PublicHeader() {
   return (

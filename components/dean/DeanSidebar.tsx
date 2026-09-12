@@ -11,6 +11,7 @@ import {
   ClipboardCheck,
   Layers,
   LayoutDashboard,
+  ShieldCheck,
   Stethoscope,
   Users,
   X,
@@ -61,6 +62,7 @@ export function DeanSidebar({
     { label: 'Stations', href: '/dean/exams', icon: ClipboardCheck },
     { label: 'Professors', href: '/dean/professors', icon: Stethoscope },
     { label: 'Students', href: '/dean/students', icon: Users },
+    { label: 'Examiner Mode', href: '/examiner', icon: ShieldCheck },
   ]
 
   return (

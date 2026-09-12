@@ -42,7 +42,10 @@ export interface StationCardItem {
   access_pin: string
   weightage_percentage: number
   module_name: string
+  level_id?: string
   level_name: string
+  academic_year_id?: string
+  academic_year_label?: string
   exam_count: number
   created_at?: string
 }
@@ -462,10 +465,16 @@ export default function ProfessorStationsPage() {
                 <div className="space-y-3">
                   {/* Top Badges & Actions */}
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-600 text-white text-xs font-black shadow-xs">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-600 text-white text-xs font-black shadow-xs">
                         Station #{station.station_number}
                       </span>
+                      {station.academic_year_label && (
+                        <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700">
+                          <Calendar className="size-3 text-blue-500" />
+                          {station.academic_year_label}
+                        </span>
+                      )}
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/50">
                         {station.level_name}
                       </span>
@@ -498,18 +507,15 @@ export default function ProfessorStationsPage() {
                     <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors leading-snug">
                       {station.title}
                     </h3>
-                    <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      <BookOpen className="size-3.5 text-blue-500 shrink-0" />
-                      <span className="font-semibold text-slate-700 dark:text-slate-300 truncate">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mt-2">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/40 font-semibold text-xs">
+                        <BookOpen className="size-3.5 text-blue-500 shrink-0" />
                         {station.module_name}
                       </span>
                       {station.weightage_percentage > 0 && (
-                        <>
-                          <span>•</span>
-                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                            {station.weightage_percentage}% Weight
-                          </span>
-                        </>
+                        <span className="text-emerald-600 dark:text-emerald-400 font-bold text-xs">
+                          {station.weightage_percentage}% Weight
+                        </span>
                       )}
                     </div>
                   </div>

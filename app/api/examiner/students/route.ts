@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // 1. Fetch station and module details
+    // 1. Fetch station details
     const { data: station, error: stErr } = await supabaseAdmin
       .from('stations')
       .select('*')
@@ -23,11 +23,12 @@ export async function GET(req: NextRequest) {
 
     if (stErr || !station) {
       return NextResponse.json(
-        { success: false, error: 'Station not found.' },
+        { success: false, error: 'Clinical station not found.' },
         { status: 404 }
       )
     }
 
+    // 2. Fetch module and level details
     const { data: mod } = await supabaseAdmin
       .from('modules')
       .select('id, module_name, level_id')
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
 
     const levelId = mod?.level_id
 
-    // Fetch study level and academic year details
+    // Fetch study level and bound academic year
     let studyLevel: any = null
     let academicYear: any = null
 
@@ -60,7 +61,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 2. Fetch exams for this station
+    // 3. Fetch exams for this station
     const { data: exams, error: exErr } = await supabaseAdmin
       .from('exams')
       .select('*')
@@ -75,7 +76,7 @@ export async function GET(req: NextRequest) {
       ? (exams || []).find((e) => e.id === examIdParam) || exams?.[0]
       : exams?.[0]
 
-    // 3. If there is an active exam, fetch its questions
+    // 4. Fetch exam questions if active exam exists
     let questions: any[] = []
     if (activeExam) {
       const { data: qData, error: qErr } = await supabaseAdmin
@@ -89,7 +90,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 4. Fetch sections & groups strictly for this level
+    // 5. Strictly scope sections & groups to this station's study level
     let rawSections: any[] = []
     let rawGroups: any[] = []
     let groupIds: string[] = []
@@ -126,7 +127,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 5. Fetch students strictly enrolled in those scoped groups
+    // 6. Fetch students strictly enrolled in these scoped groups, preserving Excel import order
     let studentList: any[] = []
     if (groupIds.length > 0) {
       const { data: rawStudents, error: stuErr } = await supabaseAdmin
@@ -142,7 +143,7 @@ export async function GET(req: NextRequest) {
       studentList = rawStudents || []
     }
 
-    // 6. Fetch existing exam_attempts for these students on the active exam
+    // 7. Fetch existing exam_attempts for these candidates
     const attemptMap = new Map<string, any>()
     if (activeExam && studentList.length > 0) {
       const studentIds = studentList.map((s) => s.id)
@@ -157,7 +158,7 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    // 7. Format students with status, section, group, study level, and academic year info
+    // 8. Format candidate roster
     const formattedStudents = studentList.map((st) => {
       const grp = groupMap.get(st.group_id)
       const sec = grp ? sectionMap.get(grp.section_id) : null
@@ -228,9 +229,9 @@ export async function GET(req: NextRequest) {
       students: formattedStudents,
     })
   } catch (error: any) {
-    console.error('evaluator/students error:', error)
+    console.error('examiner/students error:', error)
     return NextResponse.json(
-      { success: false, error: error?.message || 'Failed to fetch evaluator students.' },
+      { success: false, error: error?.message || 'Failed to fetch examiner candidates.' },
       { status: 500 }
     )
   }

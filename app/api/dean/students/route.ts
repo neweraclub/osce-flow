@@ -12,71 +12,103 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url)
     const reqYearId = searchParams.get('academic_year_id')
+    const reqLevelId = searchParams.get('level_id')
+    const reqSectionId = searchParams.get('section_id')
+    const reqGroupId = searchParams.get('group_id')
 
     // 1. Get academic years for faculty
-    const { data: years } = await supabaseAdmin
+    const { data: rawYears } = await supabaseAdmin
       .from('academic_years')
-      .select('id')
+      .select('id, year_label')
       .eq('faculty_id', dean.facultyId)
 
-    const facultyYearIds = (years || []).map((y) => y.id)
-    if (facultyYearIds.length === 0) {
-      return NextResponse.json({ success: true, students: [], groups: [], sections: [] })
+    const years = rawYears || []
+    if (years.length === 0) {
+      return NextResponse.json({ success: true, students: [], groups: [], sections: [], studyLevels: [] })
     }
 
-    const targetYearIds = reqYearId && facultyYearIds.includes(reqYearId) ? [reqYearId] : facultyYearIds
+    const yearMap = new Map(years.map((y) => [y.id, y.year_label]))
+    const facultyYearIds = years.map((y) => y.id)
 
-    // 2. Get study levels for target academic years
-    const { data: studyLevels } = await supabaseAdmin
+    // Resolve target year: explicitly requested OR default to current/first year (NEVER all years simultaneously)
+    let targetYearId: string | null = null
+    if (reqYearId && facultyYearIds.includes(reqYearId)) {
+      targetYearId = reqYearId
+    } else {
+      targetYearId = facultyYearIds[0]
+    }
+
+    // 2. Get study levels for the target academic year
+    let levelQuery = supabaseAdmin
       .from('study_levels')
       .select('*')
-      .in('academic_year_id', targetYearIds)
+      .eq('academic_year_id', targetYearId)
 
-    const levelIds = (studyLevels || []).map((l) => l.id)
+    if (reqLevelId) {
+      levelQuery = levelQuery.eq('id', reqLevelId)
+    }
+
+    const { data: studyLevels } = await levelQuery
+    const levelList = studyLevels || []
+    const levelIds = levelList.map((l) => l.id)
     if (levelIds.length === 0) {
-      return NextResponse.json({ success: true, students: [], groups: [], sections: [] })
+      return NextResponse.json({ success: true, students: [], groups: [], sections: [], studyLevels: [] })
     }
 
     // 3. Get sections for these study levels
-    const { data: sections } = await supabaseAdmin
+    let sectionQuery = supabaseAdmin
       .from('sections')
       .select('id, section_name, level_id')
       .in('level_id', levelIds)
 
-    const sectionIds = (sections || []).map((s) => s.id)
-    if (sectionIds.length === 0) {
-      return NextResponse.json({ success: true, students: [], groups: [], sections: [] })
+    if (reqSectionId) {
+      sectionQuery = sectionQuery.eq('id', reqSectionId)
     }
 
-    // 4. Get groups
-    const { data: groups } = await supabaseAdmin
+    const { data: sections } = await sectionQuery
+    const sectionList = sections || []
+    const sectionIds = sectionList.map((s) => s.id)
+    if (sectionIds.length === 0) {
+      return NextResponse.json({ success: true, students: [], groups: [], sections: [], studyLevels: levelList })
+    }
+
+    // 4. Get groups for these sections
+    let groupQuery = supabaseAdmin
       .from('groups')
       .select('id, group_name, section_id')
       .in('section_id', sectionIds)
 
-    const groupIds = (groups || []).map((g) => g.id)
-
-    const levelMap = new Map((studyLevels || []).map((l) => [l.id, l.level_name]))
-    const sectionMap = new Map((sections || []).map((s) => [s.id, s]))
-    const groupMap = new Map((groups || []).map((g) => [g.id, g]))
-
-    // 5. Get students sorted by import_index ascending by default
-    let studentsList: any[] = []
-    if (groupIds.length > 0) {
-      const { data: stData, error: stErr } = await supabaseAdmin
-        .from('students')
-        .select('id, matricule, first_name, last_name, group_id, import_index, created_at')
-        .in('group_id', groupIds)
-        .order('import_index', { ascending: true })
-
-      if (stErr) throw stErr
-      studentsList = stData || []
+    if (reqGroupId) {
+      groupQuery = groupQuery.eq('id', reqGroupId)
     }
+
+    const { data: groups } = await groupQuery
+    const groupList = groups || []
+    const groupIds = groupList.map((g) => g.id)
+    if (groupIds.length === 0) {
+      return NextResponse.json({ success: true, students: [], groups: [], sections: sectionList, studyLevels: levelList })
+    }
+
+    const levelMap = new Map(levelList.map((l) => [l.id, l]))
+    const sectionMap = new Map(sectionList.map((s) => [s.id, s]))
+    const groupMap = new Map(groupList.map((g) => [g.id, g]))
+
+    // 5. Get students strictly in those scoped groups, ordered by import_index ASC, created_at ASC
+    const { data: stData, error: stErr } = await supabaseAdmin
+      .from('students')
+      .select('id, matricule, first_name, last_name, group_id, import_index, created_at')
+      .in('group_id', groupIds)
+      .order('import_index', { ascending: true })
+      .order('created_at', { ascending: true })
+
+    if (stErr) throw stErr
+    const studentsList = stData || []
 
     const formattedStudents = studentsList.map((st) => {
       const grp = groupMap.get(st.group_id)
       const sec = grp ? sectionMap.get(grp.section_id) : null
-      const lvlName = sec ? levelMap.get(sec.level_id) : 'Unassigned'
+      const lvl = sec ? levelMap.get(sec.level_id) : null
+      const yearLabel = lvl ? yearMap.get(lvl.academic_year_id) : null
 
       return {
         id: st.id,
@@ -85,8 +117,12 @@ export async function GET(req: NextRequest) {
         last_name: st.last_name,
         group_id: st.group_id,
         group_name: grp ? grp.group_name : 'Unassigned',
+        section_id: sec?.id || null,
         section_name: sec ? sec.section_name : 'Unassigned',
-        level_name: lvlName || 'Unassigned',
+        level_id: lvl?.id || null,
+        level_name: lvl ? lvl.level_name : 'Unassigned',
+        academic_year_id: targetYearId,
+        academic_year_label: yearLabel || 'N/A',
         import_index: typeof st.import_index === 'number' ? st.import_index : 0,
         created_at: st.created_at ? new Date(st.created_at).toLocaleDateString() : 'N/A',
       }
@@ -95,7 +131,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       students: formattedStudents,
-      groups: groups || [],
+      groups: groupList,
+      sections: sectionList,
+      studyLevels: levelList,
+      academic_year_id: targetYearId,
     })
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error?.message || 'Failed to fetch students.' }, { status: 500 })

@@ -17,7 +17,7 @@ import {
 import { ThemeToggle } from '@/components/theme-toggle'
 import { useToast } from '@/context/ToastContext'
 import { NavbarYearSelector } from '@/components/dean/NavbarYearSelector'
-import { ExaminerLaunchButton } from '@/components/evaluator/ExaminerLaunchButton'
+import { ExaminerLaunchButton } from '@/components/examiner/ExaminerLaunchButton'
 
 export function DeanTopbar({
   setSidebarOpen,

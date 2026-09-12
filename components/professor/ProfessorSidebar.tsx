@@ -11,6 +11,7 @@ import {
   Layers,
   LayoutDashboard,
   LogOut,
+  ShieldCheck,
   Stethoscope,
   X,
 } from 'lucide-react'
@@ -54,6 +55,7 @@ export function ProfessorSidebar({
   const navItems = [
     { label: 'Overview Dashboard', href: '/professor/dashboard', icon: LayoutDashboard },
     { label: 'Stations', href: '/professor/stations', icon: Layers },
+    { label: 'Examiner Mode', href: '/examiner', icon: ShieldCheck },
   ]
 
   return (

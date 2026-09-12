@@ -182,12 +182,26 @@ export default function StudentsPage() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  const fetchStudents = async (isManual = false) => {
-    if (isManual) setRefreshing(true)
+  const fetchStudents = async (
+    yearIdOrManual?: string | null | boolean,
+    isManual = false
+  ) => {
+    let targetYear: string | null | undefined = globalYearId
+    let manual = isManual
+
+    if (typeof yearIdOrManual === 'boolean') {
+      manual = yearIdOrManual
+    } else if (yearIdOrManual !== undefined) {
+      targetYear = yearIdOrManual
+    }
+
+    if (manual) setRefreshing(true)
     else setLoading(true)
 
+    const query = targetYear ? `?academic_year_id=${encodeURIComponent(targetYear)}` : ''
+
     try {
-      const res = await fetch('/api/dean/students')
+      const res = await fetch(`/api/dean/students${query}`)
       const json = await res.json()
 
       if (res.ok && json.success) {
@@ -204,21 +218,24 @@ export default function StudentsPage() {
     }
   }
 
-  const fetchStructureMetadata = async () => {
+  const fetchStructureMetadata = async (yearId?: string | null) => {
+    const targetYear = yearId !== undefined ? yearId : globalYearId
+    const query = targetYear ? `?academic_year_id=${encodeURIComponent(targetYear)}` : ''
+
     try {
-      const res = await fetch('/api/dean/structure')
+      const res = await fetch(`/api/dean/structure${query}`)
       const json = await res.json()
 
       if (res.ok && json.success) {
         setStudyLevels(json.studyLevels || [])
         setAcademicYears(json.academicYears || [])
         setSectionsWithGroups(json.sections || [])
-        if (globalYearId) {
-          setSelectedYearId(globalYearId)
-        } else if (json.activeYearId && !selectedYearId) {
+        if (targetYear) {
+          setSelectedYearId(targetYear)
+        } else if (json.activeYearId) {
           setSelectedYearId(json.activeYearId)
         }
-        if (json.studyLevels && json.studyLevels.length > 0 && !selectedLevelId) {
+        if (json.studyLevels && json.studyLevels.length > 0) {
           setSelectedLevelId(json.studyLevels[0].id)
         }
       }
@@ -228,25 +245,33 @@ export default function StudentsPage() {
   }
 
   useEffect(() => {
-    fetchStudents()
-    fetchStructureMetadata()
-  }, [])
+    fetchStudents(globalYearId)
+    fetchStructureMetadata(globalYearId)
+    clearSelection()
+    setLevelFilter('')
+    setSectionFilter('')
+    setGroupFilter('')
+  }, [globalYearId])
 
-  // Extract filter options dynamically
+  // Extract filter options dynamically with clean cascade
   const levelOptions = useMemo(() => {
     const unique = Array.from(new Set(students.map((s) => s.level_name).filter(Boolean)))
     return unique.map((l) => ({ label: l, value: l }))
   }, [students])
 
   const sectionOptions = useMemo(() => {
-    const unique = Array.from(new Set(students.map((s) => s.section_name).filter(Boolean)))
+    const pool = levelFilter ? students.filter((s) => s.level_name === levelFilter) : students
+    const unique = Array.from(new Set(pool.map((s) => s.section_name).filter(Boolean)))
     return unique.map((sec) => ({ label: sec, value: sec }))
-  }, [students])
+  }, [students, levelFilter])
 
   const groupFilterOptions = useMemo(() => {
-    const unique = Array.from(new Set(students.map((s) => s.group_name).filter(Boolean)))
+    let pool = students
+    if (levelFilter) pool = pool.filter((s) => s.level_name === levelFilter)
+    if (sectionFilter) pool = pool.filter((s) => s.section_name === sectionFilter)
+    const unique = Array.from(new Set(pool.map((s) => s.group_name).filter(Boolean)))
     return unique.map((g) => ({ label: g, value: g }))
-  }, [students])
+  }, [students, levelFilter, sectionFilter])
 
   const sortOptions = [
     { label: 'Default Excel Order', value: 'import_index_asc' },

@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { Activity, Layers, LogIn, Mail, UserPlus } from 'lucide-react'
+import { Activity, KeyRound, Layers, LogIn, Mail, UserPlus } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
 export function PublicHeader() {
   return (
@@ -30,7 +30,14 @@ export function PublicHeader() {
             Contact
           </Link>
         </nav>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <Link
+            href="/examiner"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 dark:border-amber-500/40 transition-all shadow-xs active:scale-95 cursor-pointer"
+          >
+            <KeyRound className="size-4 text-amber-600 dark:text-amber-400" />
+            <span>Access Station</span>
+          </Link>
           <ThemeToggle />
           <Link
             href="/login"

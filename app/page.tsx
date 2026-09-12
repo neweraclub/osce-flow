@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Activity, ArrowRight, BarChart3, Bell, Check, ChevronDown, ClipboardCheck, FileText, LayoutDashboard, Lock, LockKeyhole, Menu, Search, Settings, ShieldCheck, Stethoscope, UserRound, Users, X, Mail, Phone, BookOpen, TrendingUp, Upload, Download, Eye, EyeOff, Layers, LogIn, UserPlus, Sparkles, Zap } from 'lucide-react'
+import { Activity, ArrowRight, BarChart3, Bell, Check, ChevronDown, ClipboardCheck, FileText, KeyRound, LayoutDashboard, Lock, LockKeyhole, Menu, Search, Settings, ShieldCheck, Stethoscope, UserRound, Users, X, Mail, Phone, BookOpen, TrendingUp, Upload, Download, Eye, EyeOff, Layers, LogIn, UserPlus, Sparkles, Zap } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { SiteFooter } from '@/components/footer'
@@ -105,7 +105,14 @@ function MarketingHeader({ navigate }: { navigate: (v: View) => void }) {
             Contact
           </button>
         </nav>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <Link
+            href="/examiner"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 dark:border-amber-500/40 transition-all shadow-xs active:scale-95 cursor-pointer"
+          >
+            <KeyRound className="size-4 text-amber-600 dark:text-amber-400" />
+            <span>Access Station</span>
+          </Link>
           <ThemeToggle />
           <Link
             href="/login"
@@ -207,30 +214,7 @@ function Landing({ navigate, openWorkspace }: any) {
               </span>
             </div>
           </div>
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-800/60 backdrop-blur-md p-4 shadow-2xl">
-            <div className="rounded-xl bg-white dark:bg-slate-900 p-5 text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-slate-800">
-              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-widest text-slate-500 dark:text-slate-400">Live assessment</p>
-                  <h2 className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">Station 04 · Cardiology</h2>
-                </div>
-                <span className="rounded-full bg-blue-100 dark:bg-blue-900/50 px-2.5 py-1 text-xs font-medium text-blue-700 dark:text-blue-300">In progress</span>
-              </div>
-              <div className="flex items-center gap-3 py-5">
-                <span className="flex size-11 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-sm font-semibold">AO</span>
-                <div>
-                  <p className="font-medium text-slate-900 dark:text-white">Amara Okafor</p>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">MED-2024-0087</p>
-                </div>
-              </div>
-              {['Communication & rapport', 'Clinical examination', 'Clinical reasoning'].map((x, i) => (
-                <div key={x} className="flex items-center justify-between border-t border-slate-200 dark:border-slate-800 py-3 text-sm">
-                  <span className="text-slate-600 dark:text-slate-300">{x}</span>
-                  <span className="font-semibold text-blue-600 dark:text-blue-400">{[86, 74, 71][i]}%</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <HeroInteractiveStationCard />
         </div>
       </section>
       <section className="mx-auto max-w-7xl px-5 py-20 lg:px-8">
@@ -255,6 +239,200 @@ function Landing({ navigate, openWorkspace }: any) {
         </div>
       </section>
     </main>
+  )
+}
+
+function HeroInteractiveStationCard() {
+  const [rubricScore, setRubricScore] = useState<number>(4)
+  const [consentChecked, setConsentChecked] = useState<boolean>(true)
+
+  const scoreOptions = [
+    { value: 0, label: '0', desc: 'Inadequate' },
+    { value: 1, label: '1', desc: 'Emerging' },
+    { value: 2, label: '2', desc: 'Developing' },
+    { value: 3, label: '3', desc: 'Competent' },
+    { value: 4, label: '4', desc: 'Proficient' },
+    { value: 5, label: '5', desc: 'Mastery' },
+  ]
+
+  const totalPoints = rubricScore + (consentChecked ? 2 : 0)
+
+  return (
+    <div className="rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl p-5 sm:p-6 shadow-2xl relative overflow-hidden transition-all">
+      {/* Decorative Gradient Glow */}
+      <div className="absolute -top-12 -right-12 size-40 bg-amber-500/10 dark:bg-amber-500/15 rounded-full blur-2xl pointer-events-none" />
+
+      {/* Top Station Header & PIN Unlock Status */}
+      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3.5">
+        <div className="flex items-center gap-2.5">
+          <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-tr from-amber-500 to-orange-600 text-white font-black text-xs shadow-md shadow-orange-500/20">
+            03
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-900 dark:text-white">
+                Station 03 · Cardiovascular Exam
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60">
+                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Live Terminal
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              Module: Clinical Cardiology · Level 3
+            </p>
+          </div>
+        </div>
+
+        <Link
+          href="/examiner"
+          className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-xs font-bold transition-all"
+          title="Direct link to station PIN unlock"
+        >
+          <KeyRound className="size-3.5 text-amber-600 dark:text-amber-400" />
+          <span>Enter PIN</span>
+        </Link>
+      </div>
+
+      {/* Station Ready Indicator / PIN Demo Snippet */}
+      <div className="p-3 my-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-800/80 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="size-6 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+            <Lock className="size-3.5" />
+          </div>
+          <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+            Station Ready · Enter PIN to Unlock
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1 font-mono text-xs font-bold">
+          {['4', '8', '2', '1'].map((digit, idx) => (
+            <span
+              key={idx}
+              className="size-6 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 flex items-center justify-center shadow-xs"
+            >
+              {digit}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Active Candidate Strip */}
+      <div className="flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-xs mb-3">
+        <div className="flex items-center gap-3">
+          <div className="size-9 rounded-full bg-gradient-to-tr from-blue-600 to-sky-500 text-white font-bold text-xs flex items-center justify-center shadow-sm">
+            AO
+          </div>
+          <div>
+            <h4 className="text-xs font-bold text-slate-900 dark:text-white">Amara Okafor</h4>
+            <p className="text-[11px] font-mono text-slate-400">MED-2026-0087 · Sec 01 (Group 02)</p>
+          </div>
+        </div>
+
+        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60">
+          Assessing Live
+        </span>
+      </div>
+
+      {/* Interactive Rubric Criterion (0-5 Scale Demonstration) */}
+      <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800/70 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+            CRITERION 02 · PHYSICAL EXAMINATION
+          </span>
+          <span className="text-xs font-mono font-bold text-slate-600 dark:text-slate-300">
+            Max 5.0 pts
+          </span>
+        </div>
+
+        <p className="text-xs font-medium text-slate-800 dark:text-slate-200 leading-relaxed">
+          Palpates apical impulse, identifies anatomical landmarks, and performs systematic four-valve cardiac auscultation with bell and diaphragm.
+        </p>
+
+        {/* 0-5 Scoring Scale Buttons */}
+        <div className="space-y-1.5 pt-1">
+          <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 dark:text-slate-400">
+            <span>Score Awarded:</span>
+            <span className="font-mono text-amber-600 dark:text-amber-400 font-bold">
+              {rubricScore} / 5 pts ({scoreOptions[rubricScore]?.desc})
+            </span>
+          </div>
+
+          <div className="grid grid-cols-6 gap-1.5">
+            {scoreOptions.map((opt) => {
+              const isSelected = rubricScore === opt.value
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setRubricScore(opt.value)}
+                  className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
+                    isSelected
+                      ? 'bg-amber-500 text-white shadow-md shadow-amber-500/30 scale-105 ring-2 ring-amber-400/40'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 border border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  <span>{opt.label}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="flex justify-between text-[9px] font-medium text-slate-400 pt-0.5">
+            <span>0 (Inadequate)</span>
+            <span>3 (Competent)</span>
+            <span>5 (Mastery)</span>
+          </div>
+        </div>
+
+        {/* Checkbox item */}
+        <button
+          type="button"
+          onClick={() => setConsentChecked((prev) => !prev)}
+          className={`w-full p-2.5 rounded-xl border text-left text-xs font-medium transition-all flex items-center justify-between cursor-pointer ${
+            consentChecked
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-300'
+              : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <div
+              className={`size-4 rounded flex items-center justify-center border transition-colors ${
+                consentChecked
+                  ? 'bg-emerald-600 border-emerald-600 text-white'
+                  : 'border-slate-300 dark:border-slate-600'
+              }`}
+            >
+              {consentChecked && <Check className="size-3 stroke-[3]" />}
+            </div>
+            <span>Explains procedure & adheres to aseptic protocol</span>
+          </div>
+          <span className="text-[10px] font-mono font-bold">+2 pts</span>
+        </button>
+      </div>
+
+      {/* Bottom Live Submission Card Footer */}
+      <div className="pt-2 flex items-center justify-between">
+        <div>
+          <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 block">
+            Live Station Total
+          </span>
+          <span className="text-lg font-black font-mono text-amber-600 dark:text-amber-400">
+            {totalPoints}{' '}
+            <span className="text-xs font-normal text-slate-400">/ 7.0 pts</span>
+          </span>
+        </div>
+
+        <Link
+          href="/examiner"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-700 shadow-md shadow-amber-500/20 active:scale-95 transition-all cursor-pointer"
+        >
+          <KeyRound className="size-3.5" />
+          <span>Open Terminal</span>
+          <ArrowRight className="size-3.5" />
+        </Link>
+      </div>
+    </div>
   )
 }
 

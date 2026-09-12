@@ -26,6 +26,8 @@ import {
   Lock,
   LogOut,
   Menu,
+  PanelLeft,
+  PanelLeftClose,
   RotateCcw,
   Search,
   Send,
@@ -142,7 +144,46 @@ function ExaminerWorkspaceContent() {
 
   // Examiner Sidebar & Tab Navigation States
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false)
   const [activeTab, setActiveTab] = useState<ExaminerNavTab>('roster')
+
+  // Load persisted collapse state on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('examiner_sidebar_collapsed')
+      if (saved === 'true') {
+        setSidebarCollapsed(true)
+      }
+    }
+  }, [])
+
+  const handleSetSidebarCollapsed = (
+    value: boolean | ((prev: boolean) => boolean)
+  ) => {
+    setSidebarCollapsed((prev) => {
+      const next = typeof value === 'function' ? value(prev) : value
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('examiner_sidebar_collapsed', String(next))
+      }
+      return next
+    })
+  }
+
+  const toggleSidebarCollapsed = () => {
+    handleSetSidebarCollapsed((prev) => !prev)
+  }
+
+  // Ctrl+B shortcut to toggle sidebar collapse
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault()
+        toggleSidebarCollapsed()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   // Filter & Search States
   const [searchQuery, setSearchQuery] = useState('')
@@ -634,16 +675,18 @@ function ExaminerWorkspaceContent() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onLockStation={handleLockStation}
+        collapsed={sidebarCollapsed}
+        setCollapsed={handleSetSidebarCollapsed}
       />
 
       {/* Main Content Workspace */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden transition-all duration-300 ease-in-out">
         {/* ========================================================================= */}
         {/* 1. TOP DOCK / EXAMINER TERMINAL HEADER                                   */}
         {/* ========================================================================= */}
         <header className="sticky top-0 z-30 h-16 px-4 sm:px-6 border-b border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md flex items-center justify-between transition-colors shrink-0">
-          {/* Left Station Metadata + Mobile Hamburger */}
-          <div className="flex items-center gap-3 min-w-0">
+          {/* Left Station Metadata + Mobile Hamburger + Desktop Collapse Button */}
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
@@ -651,6 +694,20 @@ function ExaminerWorkspaceContent() {
               aria-label="Open sidebar"
             >
               <Menu className="size-5" />
+            </button>
+
+            <button
+              type="button"
+              onClick={toggleSidebarCollapsed}
+              title={sidebarCollapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}
+              className="hidden md:flex items-center justify-center size-9 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {sidebarCollapsed ? (
+                <PanelLeft className="size-4 text-slate-600 dark:text-slate-300" />
+              ) : (
+                <PanelLeftClose className="size-4 text-slate-600 dark:text-slate-300" />
+              )}
             </button>
 
             <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-tr from-amber-500 to-orange-600 text-white font-black text-sm shadow-md shadow-orange-500/20 shrink-0">

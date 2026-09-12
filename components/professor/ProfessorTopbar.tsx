@@ -128,11 +128,9 @@ export function ProfessorTopbar({
         </div>
       </div>
 
-      {/* Right Controls: Academic Year Selector + Evaluator Mode + Theme + User Menu */}
+      {/* Right Controls: Academic Year Selector + Theme + User Menu */}
       <div className="flex items-center gap-3">
         <NavbarYearSelector />
-
-        <ExaminerLaunchButton variant="topbar" />
 
         <ThemeToggle />
 

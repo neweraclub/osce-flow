@@ -23,6 +23,7 @@ export interface SelectProps {
   label?: string
   disabled?: boolean
   searchable?: boolean
+  size?: 'sm' | 'md'
   error?: string
   className?: string
 }
@@ -34,7 +35,8 @@ export function Select({
   placeholder = 'Select option...',
   label,
   disabled = false,
-  searchable = true,
+  searchable,
+  size = 'md',
   error,
   className = '',
 }: SelectProps) {
@@ -46,11 +48,13 @@ export function Select({
   const searchInputRef = useRef<HTMLInputElement>(null)
   const listboxId = useId()
 
+  const shouldSearch = searchable ?? (options.length > 7)
   const selectedOption = options.find((opt) => opt.value === value)
 
-  const filteredOptions = options.filter((opt) =>
-    opt.label.toLowerCase().includes(search.toLowerCase()) ||
-    (opt.subLabel && opt.subLabel.toLowerCase().includes(search.toLowerCase()))
+  const filteredOptions = options.filter(
+    (opt) =>
+      opt.label.toLowerCase().includes(search.toLowerCase()) ||
+      (opt.subLabel && opt.subLabel.toLowerCase().includes(search.toLowerCase()))
   )
 
   // Intelligent Direction Positioning: check space below trigger
@@ -79,13 +83,13 @@ export function Select({
 
   // Focus search input on open
   useEffect(() => {
-    if (isOpen && searchable && searchInputRef.current) {
+    if (isOpen && shouldSearch && searchInputRef.current) {
       searchInputRef.current.focus()
     }
     if (isOpen) {
       setHighlightedIndex(0)
     }
-  }, [isOpen, searchable])
+  }, [isOpen, shouldSearch])
 
   // Global Keyboard Handlers: Escape, ArrowUp, ArrowDown, Enter
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -140,8 +144,10 @@ export function Select({
     setSearch('')
   }
 
+  const isSmall = size === 'sm'
+
   return (
-    <div className={`relative w-full ${className}`} ref={containerRef} onKeyDown={handleKeyDown}>
+    <div className={`relative ${className}`} ref={containerRef} onKeyDown={handleKeyDown}>
       {label && (
         <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
           {label}
@@ -156,26 +162,26 @@ export function Select({
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-controls={listboxId}
-        className={`w-full flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border ${
+        className={`w-full flex items-center justify-between border rounded-xl text-left transition-all ${
+          isSmall
+            ? 'px-3 py-1.5 text-xs font-semibold'
+            : 'px-3.5 py-2.5 text-xs font-medium'
+        } ${
           error
-            ? 'border-rose-500 ring-1 ring-rose-500'
+            ? 'border-rose-500 ring-1 ring-rose-500 bg-white dark:bg-slate-900'
             : isOpen
-            ? 'border-sky-500 ring-2 ring-sky-500/20 dark:ring-sky-400/20'
-            : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-        } rounded-xl text-xs text-left transition-all ${
-          disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-        }`}
+            ? 'border-slate-300 dark:border-slate-700 ring-2 ring-slate-400/20 dark:ring-slate-600/20 bg-white dark:bg-slate-900 text-slate-900 dark:text-white'
+            : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200'
+        } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
       >
-        <div className="flex items-center gap-2.5 min-w-0 pr-2">
+        <div className="flex items-center gap-2 min-w-0 pr-2">
           {selectedOption ? (
             <>
               {selectedOption.icon && (
-                <selectedOption.icon className="size-4 text-sky-600 dark:text-sky-400 shrink-0" />
+                <selectedOption.icon className="size-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
               )}
               <div className="flex flex-col min-w-0">
-                <span className="font-semibold text-slate-900 dark:text-white truncate">
-                  {selectedOption.label}
-                </span>
+                <span className="truncate">{selectedOption.label}</span>
                 {selectedOption.subLabel && (
                   <span className="text-[10px] text-slate-400 truncate">
                     {selectedOption.subLabel}
@@ -184,13 +190,13 @@ export function Select({
               </div>
             </>
           ) : (
-            <span className="text-slate-400">{placeholder}</span>
+            <span className="text-slate-400 truncate">{placeholder}</span>
           )}
         </div>
 
         <ChevronDown
-          className={`size-4 text-slate-400 shrink-0 transition-transform duration-200 ${
-            isOpen ? 'rotate-180 text-sky-500' : ''
+          className={`size-3.5 text-slate-400 shrink-0 transition-transform duration-200 ${
+            isOpen ? 'rotate-180 text-slate-600 dark:text-slate-200' : ''
           }`}
         />
       </button>
@@ -202,29 +208,29 @@ export function Select({
         <div
           id={listboxId}
           role="listbox"
-          className={`absolute left-0 right-0 z-50 rounded-2xl bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 shadow-2xl backdrop-blur-md p-2 animate-in fade-in zoom-in-95 flex flex-col ${
-            dropUp ? 'bottom-full mb-2' : 'top-full mt-2'
+          className={`absolute left-0 z-50 min-w-full w-max max-w-xs sm:max-w-sm rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-slate-950/50 p-1.5 animate-in fade-in zoom-in-95 duration-150 flex flex-col ${
+            dropUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
           }`}
         >
           {/* Search Filter Box */}
-          {searchable && (
+          {shouldSearch && (
             <div className="p-1.5 border-b border-slate-100 dark:border-slate-800 mb-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3 text-slate-400" />
                 <input
                   ref={searchInputRef}
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Filter options..."
-                  className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                  className="w-full pl-8 pr-2.5 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
                 />
               </div>
             </div>
           )}
 
-          {/* Options List with max-h-52 */}
-          <div className="max-h-52 overflow-y-auto space-y-1">
+          {/* Options List */}
+          <div className="max-h-56 overflow-y-auto space-y-0.5 custom-scrollbar">
             {filteredOptions.length > 0 ? (
               filteredOptions.map((opt, idx) => {
                 const isSelected = opt.value === value
@@ -239,19 +245,19 @@ export function Select({
                     aria-disabled={opt.disabled}
                     onClick={() => handleSelectOption(opt)}
                     onMouseEnter={() => !opt.disabled && setHighlightedIndex(idx)}
-                    className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs transition-all ${
+                    className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-all ${
                       opt.disabled
-                        ? 'opacity-40 cursor-not-allowed bg-slate-50/50 dark:bg-slate-800/20'
+                        ? 'opacity-40 cursor-not-allowed'
                         : isSelected
-                        ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300 font-semibold'
+                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-bold'
                         : isHighlighted
-                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white cursor-pointer'
-                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 cursor-pointer'
+                        ? 'bg-slate-50 dark:bg-slate-800/60 text-slate-900 dark:text-white cursor-pointer'
+                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer'
                     }`}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0 pr-2">
                       {IconComponent && (
-                        <IconComponent className={`size-4 ${isSelected ? 'text-sky-500' : 'text-slate-400'}`} />
+                        <IconComponent className={`size-3.5 shrink-0 ${isSelected ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`} />
                       )}
                       <div className="flex flex-col min-w-0">
                         <span className="truncate">{opt.label}</span>
@@ -261,10 +267,10 @@ export function Select({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       {opt.badge && (
                         <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                          className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${
                             opt.badge.variant === 'success'
                               ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-900/50'
                               : opt.badge.variant === 'warning'
@@ -275,13 +281,13 @@ export function Select({
                           {opt.badge.text}
                         </span>
                       )}
-                      {isSelected && <Check className="size-4 text-sky-500" />}
+                      {isSelected && <Check className="size-3.5 text-slate-900 dark:text-white stroke-[2.5]" />}
                     </div>
                   </div>
                 )
               })
             ) : (
-              <div className="p-4 text-center text-xs text-slate-400">No options found.</div>
+              <div className="p-3 text-center text-xs text-slate-400">No options found.</div>
             )}
           </div>
         </div>

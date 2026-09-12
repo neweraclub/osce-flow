@@ -10,7 +10,6 @@ import {
   Layers,
   Lock,
   ShieldCheck,
-  UserX,
   Users,
   X,
 } from 'lucide-react'
@@ -42,7 +41,6 @@ interface ExaminerSidebarProps {
   activeExam: ExamMeta | null
   completedCount: number
   pendingCount: number
-  absentCount: number
   totalCount: number
   sidebarOpen: boolean
   setSidebarOpen: (open: boolean) => void
@@ -56,7 +54,6 @@ export function ExaminerSidebar({
   activeExam,
   completedCount,
   pendingCount,
-  absentCount,
   totalCount,
   sidebarOpen,
   setSidebarOpen,
@@ -180,25 +177,15 @@ export function ExaminerSidebar({
                 }}
                 className="h-full bg-emerald-500 transition-all duration-300"
               />
-              <div
-                style={{
-                  width: `${totalCount > 0 ? (absentCount / totalCount) * 100 : 0}%`,
-                }}
-                className="h-full bg-rose-500 transition-all duration-300"
-              />
             </div>
-            <div className="grid grid-cols-3 gap-1 text-[10px] text-center pt-0.5">
-              <div className="rounded-lg py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-semibold border border-emerald-200/40 dark:border-emerald-800/40">
-                <div className="font-bold font-mono">{completedCount}</div>
-                <div className="text-[9px] opacity-75">Done</div>
+            <div className="grid grid-cols-2 gap-2 text-[10px] text-center pt-0.5">
+              <div className="rounded-lg py-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-semibold border border-emerald-200/40 dark:border-emerald-800/40">
+                <div className="font-bold font-mono text-xs">{completedCount}</div>
+                <div className="text-[9px] opacity-75">Completed</div>
               </div>
-              <div className="rounded-lg py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-semibold border border-amber-200/40 dark:border-amber-800/40">
-                <div className="font-bold font-mono">{pendingCount}</div>
+              <div className="rounded-lg py-1.5 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-semibold border border-amber-200/40 dark:border-amber-800/40">
+                <div className="font-bold font-mono text-xs">{pendingCount}</div>
                 <div className="text-[9px] opacity-75">Pending</div>
-              </div>
-              <div className="rounded-lg py-1 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 font-semibold border border-rose-200/40 dark:border-rose-800/40">
-                <div className="font-bold font-mono">{absentCount}</div>
-                <div className="text-[9px] opacity-75">Absent</div>
               </div>
             </div>
           </div>

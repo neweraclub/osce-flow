@@ -143,8 +143,10 @@ export async function GET(req: NextRequest) {
       studentList = rawStudents || []
     }
 
-    // 7. Fetch existing exam_attempts for these candidates
+    // 7. Fetch existing exam_attempts and saved student_answers for these candidates
     const attemptMap = new Map<string, any>()
+    const answersMap = new Map<string, any[]>()
+
     if (activeExam && studentList.length > 0) {
       const studentIds = studentList.map((s) => s.id)
       const { data: attempts } = await supabaseAdmin
@@ -153,28 +155,35 @@ export async function GET(req: NextRequest) {
         .eq('exam_id', activeExam.id)
         .in('student_id', studentIds)
 
+      const attemptIds = (attempts || []).map((a) => a.id)
+
+      if (attemptIds.length > 0) {
+        const { data: savedAnswers } = await supabaseAdmin
+          .from('student_answers')
+          .select('id, attempt_id, station_id, question_id, evaluation_score, points_awarded, selected_options')
+          .in('attempt_id', attemptIds)
+          .eq('station_id', stationId)
+
+        ;(savedAnswers || []).forEach((ans) => {
+          if (!answersMap.has(ans.attempt_id)) {
+            answersMap.set(ans.attempt_id, [])
+          }
+          answersMap.get(ans.attempt_id)!.push(ans)
+        })
+      }
+
       ;(attempts || []).forEach((att) => {
         attemptMap.set(att.student_id, att)
       })
     }
 
-    // 8. Format candidate roster
+    // 8. Format candidate roster (Strictly Pending or Completed)
     const formattedStudents = studentList.map((st) => {
       const grp = groupMap.get(st.group_id)
       const sec = grp ? sectionMap.get(grp.section_id) : null
       const attempt = attemptMap.get(st.id)
-
-      let status: 'pending' | 'present' | 'in_progress' | 'completed' | 'absent' = 'pending'
-      let finalScore = null
-
-      if (attempt) {
-        finalScore = Number(attempt.final_score ?? 0)
-        if (attempt.status === 'absent') {
-          status = 'absent'
-        } else {
-          status = 'completed'
-        }
-      }
+      const savedAnswers = attempt ? answersMap.get(attempt.id) || [] : []
+      const isCompleted = !!attempt && attempt.final_score !== null
 
       return {
         id: st.id,
@@ -190,8 +199,14 @@ export async function GET(req: NextRequest) {
         academic_year_label: academicYear?.year_label || '',
         import_index: typeof st.import_index === 'number' ? st.import_index : 0,
         attempt_id: attempt?.id || null,
-        status: status,
-        final_score: finalScore,
+        status: isCompleted ? 'completed' : 'pending',
+        final_score: isCompleted ? Number(attempt.final_score) : null,
+        saved_answers: savedAnswers.map((ans) => ({
+          question_id: ans.question_id,
+          selected_options: Array.isArray(ans.selected_options) ? ans.selected_options : [],
+          evaluation_score: ans.evaluation_score !== null ? Number(ans.evaluation_score) : 0,
+          points_awarded: Number(ans.points_awarded || 0),
+        })),
       }
     })
 

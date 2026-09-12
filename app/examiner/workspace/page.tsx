@@ -38,12 +38,20 @@ import {
   User,
   UserCheck,
   UserMinus,
-  UserX,
   Users,
+  FileEdit,
 } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { useToast } from '@/context/ToastContext'
 import { ExaminerSidebar, ExaminerNavTab } from '@/components/examiner/ExaminerSidebar'
+import { Select } from '@/components/ui/Select'
+
+interface StudentAnswerItem {
+  question_id: string
+  selected_options: string[]
+  evaluation_score?: number
+  points_awarded?: number
+}
 
 interface StudentItem {
   id?: string
@@ -59,8 +67,9 @@ interface StudentItem {
   academic_year_label?: string
   import_index?: number
   attempt_id: string | null
-  status: 'pending' | 'present' | 'in_progress' | 'completed' | 'absent'
+  status: 'pending' | 'present' | 'in_progress' | 'completed'
   final_score: number | null
+  saved_answers?: StudentAnswerItem[]
 }
 
 interface SectionItem {
@@ -154,7 +163,6 @@ function ExaminerWorkspaceContent() {
     >
   >({})
   const [submittingAttempt, setSubmittingAttempt] = useState(false)
-  const [markingAbsentMatricule, setMarkingAbsentMatricule] = useState<string | null>(null)
 
   // Active Exam Session
   const activeExam = useMemo(
@@ -315,9 +323,8 @@ function ExaminerWorkspaceContent() {
       const statusWeight: Record<string, number> = {
         in_progress: 0,
         pending: 1,
-        present: 2,
-        completed: 3,
-        absent: 4,
+        present: 1,
+        completed: 2,
       }
       list.sort((a, b) => (statusWeight[a.status] ?? 99) - (statusWeight[b.status] ?? 99))
     } else {
@@ -328,31 +335,82 @@ function ExaminerWorkspaceContent() {
     return list
   }, [students, searchQuery, selectedSection, selectedGroupName, sortField])
 
-  // Aggregate Counts
+  // Aggregate Counts (Strictly Completed & Pending)
   const completedCount = useMemo(
     () => students.filter((s) => s.status === 'completed').length,
     [students]
   )
-  const absentCount = useMemo(
-    () => students.filter((s) => s.status === 'absent').length,
-    [students]
-  )
   const pendingCount = useMemo(
-    () => students.length - completedCount - absentCount,
-    [students.length, completedCount, absentCount]
+    () => students.length - completedCount,
+    [students.length, completedCount]
   )
 
-  // Start Evaluation on Candidate
+  // Memoized Dropdown Options for Custom Select UI
+  const examOptions = useMemo(
+    () =>
+      exams.map((ex) => ({
+        value: ex.id,
+        label: `${ex.session_type ? ex.session_type.toUpperCase() + ' Session' : 'Regular'} · ${ex.exam_date}`,
+      })),
+    [exams]
+  )
+
+  const sectionOptions = useMemo(
+    () => [
+      { value: 'ALL', label: 'All Sections' },
+      ...sections.map((sec) => ({
+        value: sec.id,
+        label: `Section ${sec.section_name}`,
+      })),
+    ],
+    [sections]
+  )
+
+  const groupOptions = useMemo(
+    () => [
+      { value: 'ALL', label: 'All Groups' },
+      ...deduplicatedGroupNames.map((gName) => ({
+        value: gName,
+        label: gName.startsWith('Group') ? gName : `Group ${gName}`,
+      })),
+    ],
+    [deduplicatedGroupNames]
+  )
+
+  const sortOptions = useMemo(
+    () => [
+      { value: 'default', label: 'Default (Excel)' },
+      { value: 'name_asc', label: 'Name (A-Z)' },
+      { value: 'name_desc', label: 'Name (Z-A)' },
+      { value: 'status', label: 'By Status' },
+    ],
+    []
+  )
+
+  // Start or Re-evaluate Examination on Candidate (Populates previously saved answers)
   const handleStartExamination = (student: StudentItem) => {
     setActiveStudent(student)
     setActiveTab('roster')
 
-    // Initialize answer state
+    // Initialize answer state, populating with existing answers if available
     const initialAnswers: typeof answersState = {}
     questions.forEach((q) => {
-      initialAnswers[q.id] = {
-        selected_option_ids: [],
-        evaluation_score: q.question_type === 'Q&A' ? 0 : undefined,
+      const existing = student.saved_answers?.find((a) => a.question_id === q.id)
+      if (existing) {
+        initialAnswers[q.id] = {
+          selected_option_ids: existing.selected_options || [],
+          evaluation_score:
+            typeof existing.evaluation_score === 'number'
+              ? existing.evaluation_score
+              : typeof existing.points_awarded === 'number'
+              ? existing.points_awarded
+              : q.question_type === 'Q&A' ? 0 : undefined,
+        }
+      } else {
+        initialAnswers[q.id] = {
+          selected_option_ids: [],
+          evaluation_score: q.question_type === 'Q&A' ? 0 : undefined,
+        }
       }
     })
     setAnswersState(initialAnswers)
@@ -366,51 +424,6 @@ function ExaminerWorkspaceContent() {
             : s
         )
       )
-    }
-  }
-
-  // Mark Candidate Absent
-  const handleMarkAbsent = async (student: StudentItem) => {
-    if (markingAbsentMatricule || !activeExamId) return
-    setMarkingAbsentMatricule(student.matricule)
-
-    try {
-      const res = await fetch('/api/examiner/mark-absent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          student_id: student.id,
-          matricule: student.matricule,
-          exam_id: activeExamId,
-          station_id: station?.id,
-        }),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok || !data.success) {
-        showError(data.error || 'Failed to mark candidate as absent.')
-        return
-      }
-
-      // Optimistically update list
-      setStudents((prev) =>
-        prev.map((s) =>
-          (student.id ? s.id === student.id : s.matricule === student.matricule)
-            ? { ...s, status: 'absent', final_score: 0 }
-            : s
-        )
-      )
-
-      if ((activeStudent?.id && activeStudent.id === student.id) || activeStudent?.matricule === student.matricule) {
-        setActiveStudent(null)
-      }
-
-      showSuccess(`${student.full_name} marked as Absent.`)
-    } catch (err: any) {
-      showError(err?.message || 'Network error while logging absence.')
-    } finally {
-      setMarkingAbsentMatricule(null)
     }
   }
 
@@ -544,27 +557,49 @@ function ExaminerWorkspaceContent() {
         return
       }
 
-      showSuccess(`Score recorded for ${activeStudent.full_name}: ${data.final_score} pts`)
+      const updatedSavedAnswers = answersPayload.map((ans) => ({
+        question_id: ans.question_id,
+        selected_options: ans.selected_options,
+        evaluation_score: ans.points_awarded,
+        points_awarded: ans.points_awarded,
+      }))
+
+      const wasAlreadyCompleted = activeStudent.status === 'completed'
+
+      if (wasAlreadyCompleted) {
+        showSuccess(`Marksheet successfully updated for ${activeStudent.full_name}: ${data.final_score} pts`)
+      } else {
+        showSuccess(`Score recorded for ${activeStudent.full_name}: ${data.final_score} pts`)
+      }
 
       const currentStudentId = activeStudent.id
       const currentMatricule = activeStudent.matricule
       setStudents((prev) =>
         prev.map((s) =>
           (currentStudentId ? s.id === currentStudentId : s.matricule === currentMatricule)
-            ? { ...s, status: 'completed', final_score: data.final_score }
+            ? { ...s, status: 'completed', final_score: data.final_score, saved_answers: updatedSavedAnswers }
             : s
         )
       )
 
-      // Auto-advance to the next pending candidate
+      // Auto-advance to next pending candidate only if not re-evaluating
       const remainingPending = filteredStudents.filter(
         (s) => s.matricule !== currentMatricule && (s.status === 'pending' || s.status === 'present')
       )
 
-      if (remainingPending.length > 0) {
+      if (!wasAlreadyCompleted && remainingPending.length > 0) {
         handleStartExamination(remainingPending[0])
       } else {
-        setActiveStudent(null)
+        setActiveStudent((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: 'completed',
+                final_score: data.final_score,
+                saved_answers: updatedSavedAnswers,
+              }
+            : null
+        )
       }
     } catch (err: any) {
       showError(err?.message || 'Network error submitting candidate assessment.')
@@ -593,7 +628,6 @@ function ExaminerWorkspaceContent() {
         activeExam={activeExam}
         completedCount={completedCount}
         pendingCount={pendingCount}
-        absentCount={absentCount}
         totalCount={students.length}
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
@@ -658,28 +692,19 @@ function ExaminerWorkspaceContent() {
               <Clock className="size-3.5" />
               <span>{pendingCount} Pending</span>
             </div>
-            <span className="text-slate-300 dark:text-slate-700">|</span>
-            <div className="flex items-center gap-1.5 text-rose-500 dark:text-rose-400">
-              <UserX className="size-3.5" />
-              <span>{absentCount} Absent</span>
-            </div>
           </div>
 
           {/* Right Controls: Session Selector + Theme + Lock */}
           <div className="flex items-center gap-2.5">
             {exams.length > 0 && (
-              <div className="relative">
-                <select
+              <div className="w-[170px] sm:w-[220px]">
+                <Select
+                  size="sm"
                   value={activeExamId}
-                  onChange={(e) => handleExamChange(e.target.value)}
-                  className="text-xs font-semibold bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 pr-7 focus:outline-none focus:ring-2 focus:ring-amber-500/20 truncate max-w-[140px] sm:max-w-[200px]"
-                >
-                  {exams.map((ex) => (
-                    <option key={ex.id} value={ex.id}>
-                      {ex.session_type ? `${ex.session_type.toUpperCase()} Session` : 'Regular'} · {ex.exam_date}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => handleExamChange(val)}
+                  options={examOptions}
+                  placeholder="Select Session"
+                />
               </div>
             )}
 
@@ -810,7 +835,7 @@ function ExaminerWorkspaceContent() {
               </div>
 
               {/* Metric Cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-1">
                   <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Enrolled</span>
                   <div className="text-2xl font-black text-slate-900 dark:text-white font-mono">{students.length}</div>
@@ -829,12 +854,6 @@ function ExaminerWorkspaceContent() {
                   <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Pending</span>
                   <div className="text-2xl font-black text-amber-600 dark:text-amber-400 font-mono">{pendingCount}</div>
                   <span className="text-[10px] text-slate-500">Awaiting evaluation</span>
-                </div>
-
-                <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-1">
-                  <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Absent</span>
-                  <div className="text-2xl font-black text-rose-600 dark:text-rose-400 font-mono">{absentCount}</div>
-                  <span className="text-[10px] text-slate-500">Flagged non-attendees</span>
                 </div>
               </div>
 
@@ -855,6 +874,7 @@ function ExaminerWorkspaceContent() {
                         <th className="py-3 px-4">Section / Group</th>
                         <th className="py-3 px-4">Status</th>
                         <th className="py-3 px-4 text-right">Awarded Score</th>
+                        <th className="py-3 px-4 text-right">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -873,17 +893,11 @@ function ExaminerWorkspaceContent() {
                             {st.section_name} · {st.group_name}
                           </td>
                           <td className="py-3 px-4">
-                            {st.status === 'completed' && (
+                            {st.status === 'completed' ? (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                                 Completed
                               </span>
-                            )}
-                            {st.status === 'absent' && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
-                                Absent
-                              </span>
-                            )}
-                            {(st.status === 'pending' || st.status === 'present' || st.status === 'in_progress') && (
+                            ) : (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                                 Pending
                               </span>
@@ -895,6 +909,16 @@ function ExaminerWorkspaceContent() {
                             ) : (
                               <span className="text-slate-400 font-normal">—</span>
                             )}
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleStartExamination(st)}
+                              className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-slate-100 hover:bg-amber-500 hover:text-white dark:bg-slate-800 dark:hover:bg-amber-500 transition-all text-slate-700 dark:text-slate-200 inline-flex items-center gap-1.5 cursor-pointer shadow-sm"
+                            >
+                              <FileEdit className="size-3" />
+                              <span>{st.status === 'completed' ? 'Edit Marksheet' : 'Evaluate'}</span>
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -926,49 +950,33 @@ function ExaminerWorkspaceContent() {
                 </div>
 
                 {/* Filter Bar: Section + Deduplicated Group + Sort */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                  {/* Section Filter */}
-                  <select
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+                  <Select
+                    size="sm"
                     value={selectedSection}
-                    onChange={(e) => {
-                      setSelectedSection(e.target.value)
+                    onChange={(val) => {
+                      setSelectedSection(val)
                       setSelectedGroupName('ALL')
                     }}
-                    className="text-[11px] font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-500/20 truncate"
-                  >
-                    <option value="ALL">All Sections</option>
-                    {sections.map((sec) => (
-                      <option key={sec.id} value={sec.id}>
-                        Section {sec.section_name}
-                      </option>
-                    ))}
-                  </select>
+                    options={sectionOptions}
+                    placeholder="Section"
+                  />
 
-                  {/* Deduplicated Group Filter */}
-                  <select
+                  <Select
+                    size="sm"
                     value={selectedGroupName}
-                    onChange={(e) => setSelectedGroupName(e.target.value)}
-                    className="text-[11px] font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-500/20 truncate"
-                  >
-                    <option value="ALL">All Groups</option>
-                    {deduplicatedGroupNames.map((gName) => (
-                      <option key={gName} value={gName}>
-                        {gName.startsWith('Group') ? gName : `Group ${gName}`}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setSelectedGroupName(val)}
+                    options={groupOptions}
+                    placeholder="Group"
+                  />
 
-                  {/* Sort Order Selector */}
-                  <select
+                  <Select
+                    size="sm"
                     value={sortField}
-                    onChange={(e) => setSortField(e.target.value as SortField)}
-                    className="col-span-2 sm:col-span-1 text-[11px] font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-500/20 truncate"
-                  >
-                    <option value="default">Default (Excel)</option>
-                    <option value="name_asc">Name (A-Z)</option>
-                    <option value="name_desc">Name (Z-A)</option>
-                    <option value="status">By Status</option>
-                  </select>
+                    onChange={(val) => setSortField(val as SortField)}
+                    options={sortOptions}
+                    placeholder="Sort By"
+                  />
                 </div>
               </div>
 
@@ -983,7 +991,6 @@ function ExaminerWorkspaceContent() {
                 ) : (
                   filteredStudents.map((st) => {
                     const isSelected = activeStudent?.id ? activeStudent.id === st.id : activeStudent?.matricule === st.matricule
-                    const isAbsent = st.status === 'absent'
                     const isCompleted = st.status === 'completed'
                     const isEvaluating = st.status === 'in_progress'
 
@@ -996,8 +1003,6 @@ function ExaminerWorkspaceContent() {
                             ? 'bg-amber-500/10 border-amber-500 dark:bg-amber-500/15'
                             : isCompleted
                             ? 'border-emerald-500/60 hover:bg-slate-50 dark:hover:bg-slate-800/40'
-                            : isAbsent
-                            ? 'border-rose-500/60 opacity-60 hover:opacity-100 hover:bg-slate-50 dark:hover:bg-slate-800/40'
                             : isEvaluating
                             ? 'border-amber-400 hover:bg-slate-50 dark:hover:bg-slate-800/40'
                             : 'border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/40'
@@ -1012,15 +1017,11 @@ function ExaminerWorkspaceContent() {
                                   ? 'bg-amber-500 text-white shadow-sm'
                                   : isCompleted
                                   ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300'
-                                  : isAbsent
-                                  ? 'bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300'
                                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                               }`}
                             >
                               {isCompleted ? (
                                 <Check className="size-4 stroke-[3]" />
-                              ) : isAbsent ? (
-                                <UserX className="size-4" />
                               ) : (
                                 st.first_name[0] || 'C'
                               )}
@@ -1057,19 +1058,18 @@ function ExaminerWorkspaceContent() {
 
                           {/* Status Badge */}
                           <div className="shrink-0 flex flex-col items-end gap-1">
-                            {isCompleted && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60">
-                                {st.final_score !== null ? `${st.final_score} pts` : 'Scored'}
+                            {isCompleted ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60 flex items-center gap-1">
+                                <CheckCircle2 className="size-3 text-emerald-600 dark:text-emerald-400" />
+                                <span>Submitted - Click to Edit</span>
                               </span>
-                            )}
-                            {isAbsent && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200/60 dark:border-rose-900/60">
-                                Absent
-                              </span>
-                            )}
-                            {isEvaluating && (
+                            ) : isEvaluating ? (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60 animate-pulse">
                                 Assessing
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                                Pending
                               </span>
                             )}
                           </div>
@@ -1077,34 +1077,43 @@ function ExaminerWorkspaceContent() {
 
                         {/* Quick Card Action Buttons */}
                         <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleMarkAbsent(st)
-                            }}
-                            disabled={markingAbsentMatricule === st.matricule || isAbsent}
-                            className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-400 hover:underline flex items-center gap-1 disabled:opacity-40 disabled:no-underline"
-                          >
-                            {markingAbsentMatricule === st.matricule ? (
-                              <Loader2 className="size-3 animate-spin" />
-                            ) : (
-                              <UserX className="size-3" />
-                            )}
-                            <span>{isAbsent ? 'Logged Absent' : 'Mark Absent'}</span>
-                          </button>
+                          {isCompleted ? (
+                            <span className="text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                              Score: {st.final_score !== null ? `${st.final_score} pts` : 'Scored'}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] font-medium text-slate-400">
+                              {isEvaluating ? 'In Progress' : 'Pending Evaluation'}
+                            </span>
+                          )}
 
                           <button
                             type="button"
                             onClick={() => handleStartExamination(st)}
-                            className={`text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 ${
+                            className={`text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
                               isSelected
-                                ? 'bg-amber-600 text-white'
+                                ? 'bg-amber-600 text-white shadow-sm'
+                                : isCompleted
+                                ? 'bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60'
                                 : 'bg-slate-100 dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-slate-700 dark:text-slate-300 hover:text-amber-700 dark:hover:text-amber-300'
                             }`}
                           >
-                            <span>{isCompleted ? 'Review' : 'Assess'}</span>
-                            <ArrowRight className="size-3" />
+                            {isCompleted ? (
+                              <>
+                                <FileEdit className="size-3" />
+                                <span>Edit Marksheet</span>
+                              </>
+                            ) : isEvaluating ? (
+                              <>
+                                <span>Resume</span>
+                                <ArrowRight className="size-3" />
+                              </>
+                            ) : (
+                              <>
+                                <span>Assess</span>
+                                <ArrowRight className="size-3" />
+                              </>
+                            )}
                           </button>
                         </div>
                       </div>
@@ -1143,38 +1152,56 @@ function ExaminerWorkspaceContent() {
               ) : (
                 <div className="max-w-4xl w-full mx-auto space-y-6 pb-24">
                   {/* Active Candidate Header */}
-                  <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="size-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-600 text-white font-black text-lg flex items-center justify-center shadow-md shadow-orange-500/20">
-                        {activeStudent.first_name[0] || 'C'}
+                  <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="size-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-600 text-white font-black text-lg flex items-center justify-center shadow-md shadow-orange-500/20">
+                          {activeStudent.first_name[0] || 'C'}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                              {activeStudent.full_name}
+                            </h2>
+                            <span className="font-mono text-xs text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
+                              {activeStudent.matricule}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                            Section: {activeStudent.section_name} · Group: {activeStudent.group_name}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
-                            {activeStudent.full_name}
-                          </h2>
-                          <span className="font-mono text-xs text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
-                            {activeStudent.matricule}
+
+                      {/* Live Score Counter */}
+                      <div className="flex items-center gap-3 self-end sm:self-auto bg-slate-50 dark:bg-slate-800/80 p-3 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
+                        <div className="text-right">
+                          <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 block">
+                            Current Score
+                          </span>
+                          <span className="text-xl font-black font-mono text-amber-600 dark:text-amber-400">
+                            {calculatedPoints.earned}{' '}
+                            <span className="text-xs font-normal text-slate-400">/ {calculatedPoints.max}</span>
                           </span>
                         </div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                          Section: {activeStudent.section_name} · Group: {activeStudent.group_name}
-                        </p>
                       </div>
                     </div>
 
-                    {/* Live Score Counter */}
-                    <div className="flex items-center gap-3 self-end sm:self-auto bg-slate-50 dark:bg-slate-800/80 p-3 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
-                      <div className="text-right">
-                        <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 block">
-                          Current Score
-                        </span>
-                        <span className="text-xl font-black font-mono text-amber-600 dark:text-amber-400">
-                          {calculatedPoints.earned}{' '}
-                          <span className="text-xs font-normal text-slate-400">/ {calculatedPoints.max}</span>
+                    {/* Edit Mode Notice Banner for Completed Marksheet */}
+                    {activeStudent.status === 'completed' && (
+                      <div className="flex items-center justify-between p-3 px-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-800 dark:text-emerald-300">
+                        <div className="flex items-center gap-2 text-xs font-bold">
+                          <FileEdit className="size-4 text-emerald-600 dark:text-emerald-400" />
+                          <span>Submitted Marksheet (Editing Mode)</span>
+                          <span className="hidden sm:inline text-[11px] font-normal text-emerald-700/80 dark:text-emerald-400/80">
+                            — Previously recorded: {activeStudent.final_score ?? 0} pts. Modifying rubrics will update the existing record.
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 shrink-0">
+                          Re-evaluating
                         </span>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   {/* Rubric Criteria Items */}
@@ -1323,12 +1350,21 @@ function ExaminerWorkspaceContent() {
                       {submittingAttempt ? (
                         <>
                           <Loader2 className="size-4 animate-spin" />
-                          <span>Submitting Assessment...</span>
+                          <span>{activeStudent.status === 'completed' ? 'Updating Marksheet...' : 'Submitting Assessment...'}</span>
                         </>
                       ) : (
                         <>
-                          <Send className="size-4" />
-                          <span>Submit & Next Candidate</span>
+                          {activeStudent.status === 'completed' ? (
+                            <>
+                              <FileEdit className="size-4" />
+                              <span>Update Marksheet</span>
+                            </>
+                          ) : (
+                            <>
+                              <Send className="size-4" />
+                              <span>Submit & Next Candidate</span>
+                            </>
+                          )}
                         </>
                       )}
                     </button>

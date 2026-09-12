@@ -163,17 +163,8 @@ export async function GET(req: NextRequest) {
       const sec = grp ? sectionMap.get(grp.section_id) : null
       const attempt = attemptMap.get(st.id)
 
-      let status: 'pending' | 'present' | 'in_progress' | 'completed' | 'absent' = 'pending'
-      let finalScore = null
-
-      if (attempt) {
-        finalScore = Number(attempt.final_score ?? 0)
-        if (attempt.status === 'absent') {
-          status = 'absent'
-        } else {
-          status = 'completed'
-        }
-      }
+      const status: 'pending' | 'completed' = attempt ? 'completed' : 'pending'
+      const finalScore = attempt ? Number(attempt.final_score ?? 0) : null
 
       return {
         id: st.id,

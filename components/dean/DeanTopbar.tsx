@@ -129,8 +129,6 @@ export function DeanTopbar({
         {/* Custom Accessible Academic Year Selector */}
         <NavbarYearSelector />
 
-        <ExaminerLaunchButton variant="topbar" />
-
         <ThemeToggle />
 
         {/* User Profile Menu with Outside Click Hook */}

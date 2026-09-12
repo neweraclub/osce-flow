@@ -106,7 +106,6 @@ function MarketingHeader({ navigate }: { navigate: (v: View) => void }) {
           </button>
         </nav>
         <div className="flex items-center gap-3">
-          <ExaminerLaunchButton variant="topbar" />
           <ThemeToggle />
           <Link
             href="/login"

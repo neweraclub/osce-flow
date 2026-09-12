@@ -29,8 +29,10 @@ import {
   Sparkles,
   Stethoscope,
   Trash2,
+  Users,
   X,
 } from 'lucide-react'
+import { Select } from '@/components/ui/Select'
 import { useAcademicYear } from '@/context/AcademicYearContext'
 import { useToast } from '@/context/ToastContext'
 
@@ -403,18 +405,16 @@ export default function ProfessorStationsPage() {
 
         {uniqueModules.length > 0 && (
           <div className="w-full md:w-56">
-            <select
+            <Select
+              size="sm"
               value={filterModule}
-              onChange={(e) => setFilterModule(e.target.value)}
-              className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
-            >
-              <option value="ALL">All Clinical Modules</option>
-              {uniqueModules.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setFilterModule(val)}
+              options={[
+                { value: 'ALL', label: 'All Clinical Modules' },
+                ...uniqueModules.map((m) => ({ value: m, label: m })),
+              ]}
+              placeholder="Filter Module"
+            />
           </div>
         )}
       </div>
@@ -623,18 +623,16 @@ export default function ProfessorStationsPage() {
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                   Clinical Module * (Only your assigned modules)
                 </label>
-                <select
+                <Select
+                  size="md"
                   value={formModuleId}
-                  onChange={(e) => setFormModuleId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  required
-                >
-                  {assignedModules.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.module_name} ({m.level_name})
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setFormModuleId(val)}
+                  options={assignedModules.map((m) => ({
+                    value: m.id,
+                    label: `${m.module_name} (${m.level_name})`,
+                  }))}
+                  placeholder="Select Clinical Module"
+                />
               </div>
 
               {/* Station Number & Title */}

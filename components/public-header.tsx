@@ -4,8 +4,6 @@ import React from 'react'
 import Link from 'next/link'
 import { Activity, Layers, LogIn, Mail, UserPlus } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
-import { ExaminerLaunchButton } from '@/components/examiner/ExaminerLaunchButton'
-
 export function PublicHeader() {
   return (
     <header className="sticky top-0 z-30 backdrop-blur-md bg-white/80 dark:bg-slate-900/80 border-b border-slate-200/80 dark:border-slate-800 transition-colors duration-200">
@@ -33,7 +31,6 @@ export function PublicHeader() {
           </Link>
         </nav>
         <div className="flex items-center gap-3">
-          <ExaminerLaunchButton variant="topbar" />
           <ThemeToggle />
           <Link
             href="/login"

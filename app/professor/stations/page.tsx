@@ -146,8 +146,10 @@ export default function ProfessorStationsPage() {
   useEffect(() => {
     if (selectedYearId) {
       fetchData(selectedYearId)
+    } else if (!isYearLoading) {
+      fetchData(null)
     }
-  }, [selectedYearId])
+  }, [selectedYearId, isYearLoading])
 
   const togglePinReveal = (e: React.MouseEvent, stationId: string) => {
     e.stopPropagation()
@@ -324,12 +326,15 @@ export default function ProfessorStationsPage() {
     return stations.filter((st) => {
       if (filterModule !== 'ALL' && st.module_name !== filterModule) return false
       if (search.trim()) {
-        const q = search.toLowerCase()
-        const matchTitle = st.title.toLowerCase().includes(q)
-        const matchModule = st.module_name.toLowerCase().includes(q)
-        const matchLevel = st.level_name.toLowerCase().includes(q)
-        const matchNumber = st.station_number.toString().includes(q)
-        if (!matchTitle && !matchModule && !matchLevel && !matchNumber) return false
+        const q = search.trim().toLowerCase()
+        const matchTitle = (st.title || '').toLowerCase().includes(q)
+        const matchModule = (st.module_name || '').toLowerCase().includes(q)
+        const matchLevel = (st.level_name || '').toLowerCase().includes(q)
+        const matchNumber =
+          (st.station_number !== undefined ? `station ${st.station_number}` : '').toLowerCase().includes(q) ||
+          (st.station_number !== undefined && st.station_number.toString().includes(q))
+        const matchPin = (st.access_pin || '').toLowerCase().includes(q)
+        if (!matchTitle && !matchModule && !matchLevel && !matchNumber && !matchPin) return false
       }
       return true
     })
@@ -345,10 +350,18 @@ export default function ProfessorStationsPage() {
               <Layers className="size-5" />
             </div>
             <div>
-              <h1 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-                Clinical Stations
-              </h1>
-              <p className="text-xs font-semibold text-slate-400">
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+                  Clinical Stations
+                </h1>
+                {selectedYear?.name && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60">
+                    <Calendar className="size-3 text-emerald-600 dark:text-emerald-400" />
+                    <span>{selectedYear.name}</span>
+                  </span>
+                )}
+              </div>
+              <p className="text-xs font-semibold text-slate-400 mt-0.5">
                 Manage your clinical station blueprints, PIN credentials, and exam question rubrics
               </p>
             </div>
@@ -390,7 +403,7 @@ export default function ProfessorStationsPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search station title, number, or module..."
+            placeholder="Search station title, number, or module in real-time..."
             className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
           />
           {search && (
@@ -403,20 +416,28 @@ export default function ProfessorStationsPage() {
           )}
         </div>
 
-        {uniqueModules.length > 0 && (
-          <div className="w-full md:w-56">
-            <Select
-              size="sm"
-              value={filterModule}
-              onChange={(val) => setFilterModule(val)}
-              options={[
-                { value: 'ALL', label: 'All Clinical Modules' },
-                ...uniqueModules.map((m) => ({ value: m, label: m })),
-              ]}
-              placeholder="Filter Module"
-            />
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {stations.length > 0 && (
+            <span className="text-[11px] font-mono font-bold text-slate-400 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 whitespace-nowrap">
+              {filteredStations.length} / {stations.length} stations
+            </span>
+          )}
+
+          {uniqueModules.length > 0 && (
+            <div className="w-full md:w-56">
+              <Select
+                size="sm"
+                value={filterModule}
+                onChange={(val) => setFilterModule(val)}
+                options={[
+                  { value: 'ALL', label: 'All Clinical Modules' },
+                  ...uniqueModules.map((m) => ({ value: m, label: m })),
+                ]}
+                placeholder="Filter Module"
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Stations Grid */}

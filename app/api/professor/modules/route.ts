@@ -49,41 +49,22 @@ export async function GET(req: NextRequest) {
     const levelIds = studyLevels.map((l) => l.id)
     const levelMap = new Map(studyLevels.map((l) => [l.id, l.level_name]))
 
-    // 3. Query ONLY modules where responsible_prof_id matches current professor
-    let modulesQuery = supabaseAdmin
+    // 3. Query ONLY modules where responsible_prof_id matches current professor (by professorId or userId)
+    const { data: rawModules, error: modErr } = await supabaseAdmin
       .from('modules')
       .select('id, module_name, level_id, responsible_prof_id, created_at')
-      .eq('responsible_prof_id', prof.professorId)
+      .or(`responsible_prof_id.eq.${prof.professorId},responsible_prof_id.eq.${prof.userId}`)
       .order('module_name', { ascending: true })
 
-    if (levelIds.length > 0) {
-      modulesQuery = modulesQuery.in('level_id', levelIds)
-    }
-
-    const { data: rawModules, error: modErr } = await modulesQuery
     if (modErr) throw modErr
 
-    // If level-scoped returned empty, also check if professor has assigned modules in any level
-    let finalModules = rawModules || []
-    if (finalModules.length === 0 && levelIds.length > 0) {
-      const { data: anyModules } = await supabaseAdmin
-        .from('modules')
-        .select('id, module_name, level_id, responsible_prof_id, created_at')
-        .eq('responsible_prof_id', prof.professorId)
-        .order('module_name', { ascending: true })
-
-      if (anyModules && anyModules.length > 0) {
-        // Fetch level names for these modules
-        const extraLevelIds = anyModules.map((m) => m.level_id)
-        const { data: extraLevels } = await supabaseAdmin
-          .from('study_levels')
-          .select('id, level_name')
-          .in('id', extraLevelIds)
-
-        ;(extraLevels || []).forEach((el) => levelMap.set(el.id, el.level_name))
-        finalModules = anyModules
+    // Scope to active levels if activeYearId was provided and levels exist
+    const finalModules = (rawModules || []).filter((m) => {
+      if (activeYearId && levelIds.length > 0) {
+        return levelIds.includes(m.level_id)
       }
-    }
+      return true
+    })
 
     const formattedModules = finalModules.map((m) => ({
       id: m.id,

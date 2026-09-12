@@ -35,44 +35,48 @@ export async function GET(req: NextRequest) {
 
     const activeYearId = activeYear ? activeYear.id : null
 
-    // 2. Query ONLY modules where responsible_prof_id matches current professor
-    const { data: profModules, error: modErr } = await supabaseAdmin
+    // 2. Fetch study levels scoped by active year
+    let studyLevels: any[] = []
+    if (activeYearId) {
+      const { data: levels } = await supabaseAdmin
+        .from('study_levels')
+        .select('id, level_name, academic_year_id')
+        .eq('academic_year_id', activeYearId)
+        .order('level_name', { ascending: true })
+
+      studyLevels = levels || []
+    } else {
+      const { data: levels } = await supabaseAdmin
+        .from('study_levels')
+        .select('id, level_name, academic_year_id')
+        .order('level_name', { ascending: true })
+
+      studyLevels = levels || []
+    }
+
+    const levelIds = studyLevels.map((l) => l.id)
+    const levelMap = new Map(studyLevels.map((l) => [l.id, l.level_name]))
+    const levelObjectMap = new Map(studyLevels.map((l) => [l.id, l]))
+    const yearLabelMap = new Map(academicYears.map((y) => [y.id, y.name || y.year_label]))
+
+    // 3. Query ONLY modules assigned to this professor (by professorId or userId)
+    const { data: rawProfModules, error: modErr } = await supabaseAdmin
       .from('modules')
-      .select('id, module_name, level_id, responsible_prof_id')
-      .eq('responsible_prof_id', prof.professorId)
+      .select('id, module_name, level_id, responsible_prof_id, created_at')
+      .or(`responsible_prof_id.eq.${prof.professorId},responsible_prof_id.eq.${prof.userId}`)
+      .order('module_name', { ascending: true })
 
     if (modErr) throw modErr
 
-    const moduleIds = (profModules || []).map((m) => m.id)
-    if (moduleIds.length === 0) {
-      return NextResponse.json({
-        success: true,
-        stations: [],
-        academicYears,
-        activeYearId,
-      })
-    }
+    // Scope strictly to active study levels if activeYearId was provided and levels exist
+    const activeModules = (rawProfModules || []).filter((m) => {
+      if (activeYearId && levelIds.length > 0) {
+        return levelIds.includes(m.level_id)
+      }
+      return true
+    })
 
-    // 3. Fetch study levels for these modules (scoped by active academic year)
-    const rawLevelIds = Array.from(new Set((profModules || []).map((m) => m.level_id).filter(Boolean)))
-    let levelQuery = supabaseAdmin
-      .from('study_levels')
-      .select('id, level_name, academic_year_id')
-      .in('id', rawLevelIds)
-
-    if (activeYearId) {
-      levelQuery = levelQuery.eq('academic_year_id', activeYearId)
-    }
-
-    const { data: levels } = await levelQuery
-    const validLevelIds = new Set((levels || []).map((l) => l.id))
-    const levelMap = new Map((levels || []).map((l) => [l.id, l]))
-    const yearLabelMap = new Map(academicYears.map((y) => [y.id, y.name || y.year_label]))
-
-    // Filter modules to only those matching the active study levels (scoped by academic year)
-    const activeModules = (profModules || []).filter((m) => validLevelIds.has(m.level_id))
     const activeModuleIds = activeModules.map((m) => m.id)
-
     if (activeModuleIds.length === 0) {
       return NextResponse.json({
         success: true,
@@ -185,7 +189,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Selected module not found.' }, { status: 404 })
     }
 
-    if (moduleCheck.responsible_prof_id !== prof.professorId) {
+    if (
+      moduleCheck.responsible_prof_id !== prof.professorId &&
+      moduleCheck.responsible_prof_id !== prof.userId
+    ) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized: You are not assigned as the lead professor for this module.' },
         { status: 403 }

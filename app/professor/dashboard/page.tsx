@@ -193,8 +193,10 @@ export default function ProfessorDashboardPage() {
   useEffect(() => {
     if (selectedYearId) {
       fetchOverview(selectedYearId)
+    } else if (!isYearLoading) {
+      fetchOverview(null)
     }
-  }, [selectedYearId])
+  }, [selectedYearId, isYearLoading])
 
   const togglePinReveal = (stationId: string) => {
     setRevealedPins((prev) => ({

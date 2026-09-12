@@ -48,53 +48,47 @@ export async function GET(req: NextRequest) {
         .order('level_name', { ascending: true })
 
       studyLevels = levels || []
+    } else {
+      const { data: levels } = await supabaseAdmin
+        .from('study_levels')
+        .select('id, level_name, academic_year_id')
+        .order('level_name', { ascending: true })
+
+      studyLevels = levels || []
     }
 
     const levelIds = studyLevels.map((l) => l.id)
     const levelMap = new Map(studyLevels.map((l) => [l.id, l.level_name]))
+    const levelObjectMap = new Map(studyLevels.map((l) => [l.id, l]))
+    const yearLabelMap = new Map(academicYears.map((y) => [y.id, y.name || y.year_label]))
 
-    // 3. Fetch modules where professor is the responsible lead (or all faculty modules in active year)
-    let assignedModules: any[] = []
-    let allModulesList: any[] = []
+    // 3. Query ONLY modules assigned to this professor (by professorId or userId)
+    const { data: rawProfModules, error: modErr } = await supabaseAdmin
+      .from('modules')
+      .select('id, module_name, level_id, responsible_prof_id, created_at')
+      .or(`responsible_prof_id.eq.${prof.professorId},responsible_prof_id.eq.${prof.userId}`)
+      .order('module_name', { ascending: true })
 
-    if (levelIds.length > 0) {
-      const { data: rawModules, error: modErr } = await supabaseAdmin
-        .from('modules')
-        .select('id, module_name, level_id, responsible_prof_id, created_at')
-        .in('level_id', levelIds)
-        .order('module_name', { ascending: true })
+    if (modErr) throw modErr
 
-      if (modErr) throw modErr
+    // Scope strictly to active study levels if activeYearId was provided and levels exist
+    const assignedModules = (rawProfModules || []).filter((m) => {
+      if (activeYearId && levelIds.length > 0) {
+        return levelIds.includes(m.level_id)
+      }
+      return true
+    })
 
-      allModulesList = rawModules || []
+    const assignedModuleIds = assignedModules.map((m) => m.id)
+    const assignedModuleMap = new Map(assignedModules.map((m) => [m.id, m]))
 
-      // Filter assigned modules
-      const filteredLeadModules = allModulesList.filter(
-        (m) => m.responsible_prof_id === prof.professorId
-      )
-
-      const targetModules = filteredLeadModules.length > 0 ? filteredLeadModules : allModulesList
-
-      assignedModules = targetModules.map((m) => ({
-        id: m.id,
-        module_name: m.module_name,
-        level_id: m.level_id,
-        level_name: levelMap.get(m.level_id) || 'Unassigned',
-        total_exams: 0,
-        created_at: m.created_at,
-      }))
-    }
-
-    const allModuleIds = allModulesList.map((m) => m.id)
-    const allModuleMap = new Map(allModulesList.map((m) => [m.id, m]))
-
-    // 4. Fetch stations for these modules
+    // 4. Query ONLY stations belonging to these assigned modules
     let stationsList: any[] = []
-    if (allModuleIds.length > 0) {
+    if (assignedModuleIds.length > 0) {
       const { data: rawStations, error: stationsErr } = await supabaseAdmin
         .from('stations')
         .select('*')
-        .in('module_id', allModuleIds)
+        .in('module_id', assignedModuleIds)
         .order('station_number', { ascending: true })
 
       if (stationsErr) throw stationsErr
@@ -136,9 +130,19 @@ export async function GET(req: NextRequest) {
       })
     }
 
+    const formattedModules = assignedModules.map((m) => ({
+      id: m.id,
+      module_name: m.module_name,
+      level_id: m.level_id,
+      level_name: levelMap.get(m.level_id) || 'General Level',
+      total_exams: 0,
+      created_at: m.created_at,
+    }))
+
     // Format stations list
     const assignedStations = stationsList.map((st) => {
-      const mod = allModuleMap.get(st.module_id)
+      const mod = assignedModuleMap.get(st.module_id)
+      const lvl = mod ? levelObjectMap.get(mod.level_id) : null
       const stExams = examsByStation.get(st.id) || []
       const totalQuestions = stExams.reduce(
         (sum, e) => sum + (questionsCountMap.get(e.id) || 0),
@@ -159,14 +163,18 @@ export async function GET(req: NextRequest) {
         status: isReady ? 'ready' : 'needs_setup',
         status_label: isReady ? 'Ready' : 'Needs Checklist Setup',
         module_name: mod ? mod.module_name : 'General Module',
-        level_name: mod ? levelMap.get(mod.level_id) || 'Level' : 'Level',
+        level_id: mod?.level_id || null,
+        level_name: lvl ? lvl.level_name : 'General Level',
+        academic_year_id: lvl?.academic_year_id || activeYearId || '',
+        academic_year_label: (lvl && yearLabelMap.get(lvl.academic_year_id)) || activeYear?.name || '',
       }
     })
 
     // Format upcoming exams list
     const formattedUpcomingExams = linkedExamsList.map((e) => {
       const st = stationsList.find((s) => s.id === e.station_id)
-      const mod = st ? allModuleMap.get(st.module_id) : null
+      const mod = st ? assignedModuleMap.get(st.module_id) : null
+      const lvl = mod ? levelObjectMap.get(mod.level_id) : null
 
       return {
         id: e.id,
@@ -174,7 +182,7 @@ export async function GET(req: NextRequest) {
         station_title: st ? st.title : 'Station',
         station_number: st ? st.station_number : 1,
         module_name: mod ? mod.module_name : 'Clinical Exam',
-        level_name: mod ? levelMap.get(mod.level_id) || '' : '',
+        level_name: lvl ? lvl.level_name : '',
         session_type: e.session_type || 'regular',
         exam_date: e.exam_date,
         question_count: questionsCountMap.get(e.id) || 0,

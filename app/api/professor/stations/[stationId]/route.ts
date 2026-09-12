@@ -35,7 +35,11 @@ export async function GET(
       .eq('id', station.module_id)
       .single()
 
-    if (mod && mod.responsible_prof_id !== prof.professorId) {
+    if (
+      mod &&
+      mod.responsible_prof_id !== prof.professorId &&
+      mod.responsible_prof_id !== prof.userId
+    ) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized to view this station.' },
         { status: 403 }
@@ -144,7 +148,11 @@ export async function PUT(
       .eq('id', currentStation.module_id)
       .single()
 
-    if (currentModule && currentModule.responsible_prof_id !== prof.professorId) {
+    if (
+      currentModule &&
+      currentModule.responsible_prof_id !== prof.professorId &&
+      currentModule.responsible_prof_id !== prof.userId
+    ) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized: You are not assigned to manage this station.' },
         { status: 403 }
@@ -188,7 +196,11 @@ export async function PUT(
         .eq('id', module_id)
         .single()
 
-      if (!targetMod || targetMod.responsible_prof_id !== prof.professorId) {
+      if (
+        !targetMod ||
+        (targetMod.responsible_prof_id !== prof.professorId &&
+          targetMod.responsible_prof_id !== prof.userId)
+      ) {
         return NextResponse.json(
           { success: false, error: 'Target module is not assigned to you.' },
           { status: 403 }
@@ -256,7 +268,11 @@ export async function DELETE(
       .eq('id', currentStation.module_id)
       .single()
 
-    if (currentModule && currentModule.responsible_prof_id !== prof.professorId) {
+    if (
+      currentModule &&
+      currentModule.responsible_prof_id !== prof.professorId &&
+      currentModule.responsible_prof_id !== prof.userId
+    ) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized: You are not assigned to delete this station.' },
         { status: 403 }

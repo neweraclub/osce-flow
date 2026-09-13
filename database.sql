@@ -92,7 +92,8 @@ CREATE TABLE public.exams (
   created_at timestamp with time zone NOT NULL DEFAULT clock_timestamp(),
   station_id uuid NOT NULL,
   CONSTRAINT exams_pkey PRIMARY KEY (id),
-  CONSTRAINT exams_station_id_fkey FOREIGN KEY (station_id) REFERENCES public.stations(id)
+  CONSTRAINT exams_station_id_fkey FOREIGN KEY (station_id) REFERENCES public.stations(id),
+  CONSTRAINT exams_station_session_unique UNIQUE (station_id, session_type)
 );
 CREATE TABLE public.stations (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

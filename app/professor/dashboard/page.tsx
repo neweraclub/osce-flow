@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   AlertCircle,
   AlertTriangle,
@@ -36,6 +37,7 @@ import { Select } from '@/components/ui/Select'
 import { StationStatusBadge, UnscheduledStationNotice } from '@/components/stations/station-status-badge'
 import { useAcademicYear } from '@/context/AcademicYearContext'
 import { useToast } from '@/context/ToastContext'
+import { getStationSlug } from '@/lib/stationSlug'
 
 export interface ProfessorProfile {
   id: string
@@ -58,6 +60,7 @@ export interface AssignedModule {
 
 export interface AssignedStation {
   id: string
+  slug?: string
   station_number: number
   title: string
   access_pin: string
@@ -101,6 +104,7 @@ export interface QuestionItem {
 }
 
 export default function ProfessorDashboardPage() {
+  const router = useRouter()
   const { showSuccess, showError } = useToast()
   const {
     selectedYearId,
@@ -339,7 +343,7 @@ export default function ProfessorDashboardPage() {
               {professor ? `Welcome back, ${professor.full_name}` : 'Welcome back, Professor'}
             </h1>
             <p className="text-xs md:text-sm font-medium text-slate-300 max-w-2xl leading-relaxed">
-              Manage your clinical modules, author rubric checklists for assigned OSCE station blueprints, and review upcoming evaluation sessions.
+              Manage your clinical modules, author scoring checklists for assigned OSCE stations, and review upcoming evaluation sessions.
             </p>
           </div>
 
@@ -500,10 +504,10 @@ export default function ProfessorDashboardPage() {
               <div>
                 <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
                   <ClipboardCheck className="size-5 text-emerald-600 dark:text-emerald-400" />
-                  <span>My Clinical Stations & Station Rubrics</span>
+                  <span>My Clinical Stations</span>
                 </h2>
                 <p className="text-xs font-medium text-slate-400">
-                  Assigned clinical station containers where you author questions, checklists, and score criteria
+                  Manage and configure your assigned clinical stations.
                 </p>
               </div>
             </div>
@@ -514,10 +518,10 @@ export default function ProfessorDashboardPage() {
                   <ClipboardCheck className="size-6" />
                 </div>
                 <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                  No station invigilation duties assigned yet
+                  No clinical stations assigned yet
                 </h3>
                 <p className="text-xs text-slate-400 max-w-md mx-auto">
-                  When the Dean assigns you as an invigilator for clinical stations, they will appear here with access PINs and rubric builders.
+                  When you are assigned clinical stations, they will appear here with access PINs and scoring checklists.
                 </p>
               </div>
             ) : (
@@ -525,11 +529,19 @@ export default function ProfessorDashboardPage() {
                 {stations.map((st) => {
                   const isPinRevealed = !!revealedPins[st.id]
                   const isCopied = copiedPinId === st.id
+                  const stationSlug =
+                    st.slug ||
+                    getStationSlug({
+                      station_number: st.station_number,
+                      module_name: st.module_name,
+                      id: st.id,
+                    })
 
                   return (
                     <div
                       key={st.id}
-                      className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4 flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-all"
+                      onClick={() => router.push(`/professor/stations/${stationSlug}`)}
+                      className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4 flex flex-col justify-between hover:shadow-md hover:border-emerald-500/40 dark:hover:border-emerald-500/40 transition-all cursor-pointer group"
                     >
                       <div className="space-y-3.5">
                         {/* Header: Station # & Status badge */}
@@ -611,14 +623,20 @@ export default function ProfessorDashboardPage() {
 
                           <div className="flex items-center gap-1">
                             <button
-                              onClick={() => togglePinReveal(st.id)}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                togglePinReveal(st.id)
+                              }}
                               className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
                               aria-label="Toggle PIN Visibility"
                             >
                               {isPinRevealed ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
                             </button>
                             <button
-                              onClick={() => handleCopyPin(st.id, st.access_pin)}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleCopyPin(st.id, st.access_pin)
+                              }}
                               className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 transition-colors"
                               aria-label="Copy Access PIN"
                             >
@@ -632,17 +650,16 @@ export default function ProfessorDashboardPage() {
                         </div>
                       </div>
 
-                      {/* Manage Questions & Rubrics Action */}
+                      {/* Direct Navigation Action */}
                       <button
-                        onClick={() => handleOpenQuestionsModal(st)}
-                        className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
-                          st.status === 'ready'
-                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20'
-                            : 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-500/20'
-                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          router.push(`/professor/stations/${stationSlug}`)
+                        }}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20 group-hover:bg-emerald-700 active:scale-[0.99]"
                       >
-                        <ListPlus className="size-4" />
-                        <span>Manage Questions & Rubrics</span>
+                        <span>Open Station</span>
+                        <ArrowRight className="size-4 group-hover:translate-x-0.5 transition-transform" />
                       </button>
                     </div>
                   )
@@ -813,7 +830,7 @@ export default function ProfessorDashboardPage() {
               {/* Questions List */}
               <div className="space-y-2">
                 <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                  Configured Rubric Criteria ({stationQuestions.length})
+                  Scoring Criteria ({stationQuestions.length})
                 </h4>
 
                 {loadingQuestions ? (

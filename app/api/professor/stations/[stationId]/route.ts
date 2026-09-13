@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedProfessor } from '@/lib/professorAuth'
 import { supabaseAdmin } from '@/lib/auth'
+import { resolveStationRecord } from '@/lib/stationResolver'
+import { getStationSlug } from '@/lib/stationSlug'
 
 export async function GET(
   req: NextRequest,
@@ -14,60 +16,35 @@ export async function GET(
 
     const { stationId } = await params
     if (!stationId) {
-      return NextResponse.json({ success: false, error: 'Station ID is required.' }, { status: 400 })
+      return NextResponse.json({ success: false, error: 'Station identifier is required.' }, { status: 400 })
     }
 
-    // 1. Fetch Station
-    const { data: station, error: stErr } = await supabaseAdmin
-      .from('stations')
-      .select('*')
-      .eq('id', stationId)
-      .single()
-
-    if (stErr || !station) {
-      return NextResponse.json({ success: false, error: 'Station not found.' }, { status: 404 })
-    }
-
-    // 2. Fetch Module Details & verify ownership
-    const { data: mod } = await supabaseAdmin
-      .from('modules')
-      .select('id, module_name, level_id, responsible_prof_id')
-      .eq('id', station.module_id)
-      .single()
-
-    if (
-      mod &&
-      mod.responsible_prof_id !== prof.professorId &&
-      mod.responsible_prof_id !== prof.userId
-    ) {
+    // Resolve station by human-readable slug or raw UUID
+    const resolved = await resolveStationRecord(stationId, prof)
+    if (resolved.unauthorized) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized to view this station.' },
         { status: 403 }
       )
     }
-
-    let levelName = 'General Level'
-    if (mod?.level_id) {
-      const { data: lvl } = await supabaseAdmin
-        .from('study_levels')
-        .select('level_name')
-        .eq('id', mod.level_id)
-        .single()
-      if (lvl?.level_name) levelName = lvl.level_name
+    if (!resolved.station) {
+      return NextResponse.json({ success: false, error: 'Station not found.' }, { status: 404 })
     }
 
-    // 3. Fetch Exams for this Station
+    const { station, module: mod, levelName, slug } = resolved
+
+    // Fetch Exams for this Station (always using internal UUID)
     const { data: exams, error: exErr } = await supabaseAdmin
       .from('exams')
       .select('*')
-      .eq('station_id', stationId)
+      .eq('station_id', station.id)
       .order('exam_date', { ascending: false })
 
     if (exErr) throw exErr
 
     const examIds = (exams || []).map((e) => e.id)
 
-    // 4. Fetch Question counts for each exam
+    // Fetch Question counts for each exam
     const questionsCountMap = new Map<string, number>()
     if (examIds.length > 0) {
       const { data: qData } = await supabaseAdmin
@@ -93,13 +70,14 @@ export async function GET(
       success: true,
       station: {
         id: station.id,
+        slug,
         module_id: station.module_id,
         station_number: station.station_number,
         title: station.title,
         access_pin: station.access_pin,
         weightage_percentage: Number(station.weightage_percentage || 0),
         module_name: mod ? mod.module_name : 'General Module',
-        level_name: levelName,
+        level_name: levelName || 'General Level',
         created_at: station.created_at,
       },
       exams: formattedExams,
@@ -124,40 +102,23 @@ export async function PUT(
 
     const { stationId } = await params
     if (!stationId) {
-      return NextResponse.json({ success: false, error: 'Station ID is required.' }, { status: 400 })
+      return NextResponse.json({ success: false, error: 'Station identifier is required.' }, { status: 400 })
     }
 
-    const body = await req.json()
-    const { module_id, title, station_number, access_pin, weightage_percentage } = body
-
-    // 1. Fetch current station
-    const { data: currentStation, error: fetchErr } = await supabaseAdmin
-      .from('stations')
-      .select('id, module_id')
-      .eq('id', stationId)
-      .single()
-
-    if (fetchErr || !currentStation) {
-      return NextResponse.json({ success: false, error: 'Station not found.' }, { status: 404 })
-    }
-
-    // 2. Verify current station's module belongs to this professor
-    const { data: currentModule } = await supabaseAdmin
-      .from('modules')
-      .select('id, responsible_prof_id')
-      .eq('id', currentStation.module_id)
-      .single()
-
-    if (
-      currentModule &&
-      currentModule.responsible_prof_id !== prof.professorId &&
-      currentModule.responsible_prof_id !== prof.userId
-    ) {
+    const resolved = await resolveStationRecord(stationId, prof)
+    if (resolved.unauthorized) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized: You are not assigned to manage this station.' },
         { status: 403 }
       )
     }
+    if (!resolved.station) {
+      return NextResponse.json({ success: false, error: 'Station not found.' }, { status: 404 })
+    }
+
+    const currentStation = resolved.station
+    const body = await req.json()
+    const { module_id, title, station_number, access_pin, weightage_percentage } = body
 
     const updatePayload: any = {}
 
@@ -212,7 +173,7 @@ export async function PUT(
     const { data: updatedStation, error: updateErr } = await supabaseAdmin
       .from('stations')
       .update(updatePayload)
-      .eq('id', stationId)
+      .eq('id', currentStation.id)
       .select()
       .single()
 
@@ -226,7 +187,16 @@ export async function PUT(
       throw updateErr
     }
 
-    return NextResponse.json({ success: true, station: updatedStation })
+    const updatedSlug = getStationSlug({
+      station_number: updatedStation.station_number,
+      module_name: resolved.module?.module_name,
+      id: updatedStation.id,
+    })
+
+    return NextResponse.json({
+      success: true,
+      station: { ...updatedStation, slug: updatedSlug },
+    })
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: error?.message || 'Failed to update station.' },
@@ -247,55 +217,39 @@ export async function DELETE(
 
     const { stationId } = await params
     if (!stationId) {
-      return NextResponse.json({ success: false, error: 'Station ID is required.' }, { status: 400 })
+      return NextResponse.json({ success: false, error: 'Station identifier is required.' }, { status: 400 })
     }
 
-    // 1. Fetch current station and module
-    const { data: currentStation, error: fetchErr } = await supabaseAdmin
-      .from('stations')
-      .select('id, module_id')
-      .eq('id', stationId)
-      .single()
-
-    if (fetchErr || !currentStation) {
-      return NextResponse.json({ success: false, error: 'Station not found.' }, { status: 404 })
-    }
-
-    // 2. Verify ownership
-    const { data: currentModule } = await supabaseAdmin
-      .from('modules')
-      .select('id, responsible_prof_id')
-      .eq('id', currentStation.module_id)
-      .single()
-
-    if (
-      currentModule &&
-      currentModule.responsible_prof_id !== prof.professorId &&
-      currentModule.responsible_prof_id !== prof.userId
-    ) {
+    const resolved = await resolveStationRecord(stationId, prof)
+    if (resolved.unauthorized) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized: You are not assigned to delete this station.' },
         { status: 403 }
       )
     }
+    if (!resolved.station) {
+      return NextResponse.json({ success: false, error: 'Station not found.' }, { status: 404 })
+    }
 
-    // 3. Find child exams to delete child questions if needed
+    const currentStation = resolved.station
+
+    // 1. Find child exams to delete child questions if needed
     const { data: childExams } = await supabaseAdmin
       .from('exams')
       .select('id')
-      .eq('station_id', stationId)
+      .eq('station_id', currentStation.id)
 
     const examIds = (childExams || []).map((e) => e.id)
     if (examIds.length > 0) {
       await supabaseAdmin.from('questions').delete().in('exam_id', examIds)
-      await supabaseAdmin.from('exams').delete().eq('station_id', stationId)
+      await supabaseAdmin.from('exams').delete().eq('station_id', currentStation.id)
     }
 
-    // 4. Delete station
+    // 2. Delete station
     const { error: delErr } = await supabaseAdmin
       .from('stations')
       .delete()
-      .eq('id', stationId)
+      .eq('id', currentStation.id)
 
     if (delErr) throw delErr
 

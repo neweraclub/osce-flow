@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedProfessor } from '@/lib/professorAuth'
 import { supabaseAdmin } from '@/lib/auth'
+import { getStationSlug } from '@/lib/stationSlug'
 
 export async function GET(
   req: NextRequest,
@@ -77,6 +78,11 @@ export async function GET(
       station: station
         ? {
             id: station.id,
+            slug: getStationSlug({
+              station_number: station.station_number,
+              module_name: moduleName,
+              id: station.id,
+            }),
             module_id: station.module_id,
             station_number: station.station_number,
             title: station.title,

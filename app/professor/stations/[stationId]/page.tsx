@@ -24,6 +24,7 @@ import {
   Loader2,
   Plus,
   RefreshCw,
+  ShieldCheck,
   Sparkles,
   Stethoscope,
   Trash2,
@@ -31,9 +32,11 @@ import {
 } from 'lucide-react'
 import { useToast } from '@/context/ToastContext'
 import { DatePicker } from '@/components/ui/date-picker'
+import { UUID_REGEX } from '@/lib/stationSlug'
 
 export interface StationDetail {
   id: string
+  slug?: string
   module_id: string
   station_number: number
   title: string
@@ -78,8 +81,27 @@ export default function ProfessorStationDetailPage({
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState('')
 
+  // Session Limits & Availability Constraints
+  const hasRegularSession = exams.some((e) => e.session_type === 'regular')
+  const hasMakeupSession = exams.some((e) => e.session_type === 'makeup')
+  const isMaxSessionsReached = hasRegularSession && hasMakeupSession
+
+  const handleOpenCreateSession = () => {
+    if (isMaxSessionsReached) return
+    // Auto pre-select whichever session type is still missing
+    if (!hasRegularSession) {
+      setSessionType('regular')
+    } else {
+      setSessionType('makeup')
+    }
+    setExamDate(new Date().toISOString().split('T')[0])
+    setFormError('')
+    setIsCreateOpen(true)
+  }
+
   // Delete Exam Modal
   const [deletingExam, setDeletingExam] = useState<ExamSessionItem | null>(null)
+  const [exitingExamIds, setExitingExamIds] = useState<Set<string>>(new Set())
 
   // Global ESC key listener
   useEffect(() => {
@@ -121,6 +143,13 @@ export default function ProfessorStationDetailPage({
     }
   }, [stationId])
 
+  // Gracefully replace legacy UUID with clean slug in browser address bar without reloading
+  useEffect(() => {
+    if (station?.slug && UUID_REGEX.test(stationId)) {
+      window.history.replaceState(null, '', `/professor/stations/${station.slug}`)
+    }
+  }, [station?.slug, stationId])
+
   const handleCopyPin = () => {
     if (!station?.access_pin) return
     navigator.clipboard.writeText(station.access_pin)
@@ -136,6 +165,15 @@ export default function ProfessorStationDetailPage({
       return
     }
 
+    if (sessionType === 'regular' && hasRegularSession) {
+      setFormError('A Regular Session already exists for this station.')
+      return
+    }
+    if (sessionType === 'makeup' && hasMakeupSession) {
+      setFormError('A Makeup Session already exists for this station.')
+      return
+    }
+
     setSubmitting(true)
     setFormError('')
 
@@ -144,7 +182,7 @@ export default function ProfessorStationDetailPage({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          station_id: stationId,
+          station_id: station?.id || stationId,
           session_type: sessionType,
           exam_date: examDate,
         }),
@@ -167,25 +205,62 @@ export default function ProfessorStationDetailPage({
 
   const handleDeleteExam = async () => {
     if (!deletingExam) return
-    setSubmitting(true)
 
+    const target = deletingExam
+    const targetIndex = exams.findIndex((e) => e.id === target.id)
+
+    // 1. Immediately dismiss modal so interface is instantly responsive
+    setDeletingExam(null)
+
+    // 2. Trigger smooth exit transition on card
+    setExitingExamIds((prev) => new Set(prev).add(target.id))
+
+    // 3. Remove from active state after exit animation completes
+    setTimeout(() => {
+      setExams((current) => current.filter((e) => e.id !== target.id))
+      setExitingExamIds((prev) => {
+        const next = new Set(prev)
+        next.delete(target.id)
+        return next
+      })
+    }, 200)
+
+    // 4. Background asynchronous database deletion
     try {
-      const res = await fetch(`/api/professor/exams?id=${deletingExam.id}`, {
+      const res = await fetch(`/api/professor/exams?id=${target.id}`, {
         method: 'DELETE',
       })
       const json = await res.json()
 
       if (res.ok && json.success) {
         showSuccess('Exam session deleted.')
-        setDeletingExam(null)
-        fetchStationData(true)
       } else {
-        showError(json.error || 'Failed to delete exam session.')
+        // Rollback: restore item to original position
+        setExams((current) => {
+          if (current.some((e) => e.id === target.id)) return current
+          const restored = [...current]
+          if (targetIndex >= 0 && targetIndex <= restored.length) {
+            restored.splice(targetIndex, 0, target)
+          } else {
+            restored.push(target)
+          }
+          return restored
+        })
+        showError(json.error || 'Failed to delete exam session. Changes restored.')
       }
     } catch {
-      showError('Network error deleting exam.')
-    } finally {
-      setSubmitting(false)
+      // Rollback on network/connection failure
+      setExams((current) => {
+        if (current.some((e) => e.id === target.id)) return current
+        const restored = [...current]
+        if (targetIndex >= 0 && targetIndex <= restored.length) {
+          restored.splice(targetIndex, 0, target)
+        } else {
+          restored.push(target)
+        }
+        return restored
+      })
+      showError('Network error deleting exam. Item restored.')
     }
   }
 
@@ -221,7 +296,7 @@ export default function ProfessorStationDetailPage({
         <div className="p-12 rounded-3xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 text-center space-y-3">
           <AlertCircle className="size-8 text-rose-500 mx-auto" />
           <h3 className="text-base font-bold text-slate-900 dark:text-white">Station Not Found</h3>
-          <p className="text-xs text-slate-400">The requested station blueprint could not be resolved.</p>
+          <p className="text-xs text-slate-400">The requested station could not be found or has been removed.</p>
         </div>
       ) : (
         <>
@@ -291,29 +366,31 @@ export default function ProfessorStationDetailPage({
 
           {/* Exam Sessions Management Section */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
                 <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
                   <Calendar className="size-5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Scheduled Exam Sessions ({exams.length})</span>
+                  <span>Scheduled Exam Sessions ({exams.length}/2)</span>
                 </h2>
                 <p className="text-xs font-medium text-slate-400">
-                  Select an exam session to author questions or provision new session dates
+                  Each station allows at most 1 Regular Session and 1 Makeup Session
                 </p>
               </div>
 
-              <button
-                onClick={() => {
-                  setSessionType('regular')
-                  setExamDate(new Date().toISOString().split('T')[0])
-                  setFormError('')
-                  setIsCreateOpen(true)
-                }}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold shadow-md shadow-emerald-500/25 hover:from-emerald-700 hover:to-teal-700 transition-all active:scale-[0.98]"
-              >
-                <Plus className="size-4" />
-                <span>+ Create Exam Session</span>
-              </button>
+              {isMaxSessionsReached ? (
+                <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800 text-xs font-bold text-emerald-700 dark:text-emerald-300 shadow-sm">
+                  <ShieldCheck className="size-4 text-emerald-500" />
+                  <span>Max Sessions Reached (2/2)</span>
+                </div>
+              ) : (
+                <button
+                  onClick={handleOpenCreateSession}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold shadow-md shadow-emerald-500/25 hover:from-emerald-700 hover:to-teal-700 transition-all active:scale-[0.98]"
+                >
+                  <Plus className="size-4" />
+                  <span>+ Create Exam Session</span>
+                </button>
+              )}
             </div>
 
             {exams.length === 0 ? (
@@ -325,10 +402,10 @@ export default function ProfessorStationDetailPage({
                   No Exam Sessions Scheduled
                 </h3>
                 <p className="text-xs text-slate-400 max-w-md mx-auto">
-                  Click "+ Create Exam Session" to provision your first regular or makeup exam date and start authoring question rubrics.
+                  Click "+ Create Exam Session" to set up your first regular or makeup exam date and add scoring criteria.
                 </p>
                 <button
-                  onClick={() => setIsCreateOpen(true)}
+                  onClick={handleOpenCreateSession}
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-sm hover:bg-emerald-700 transition-all"
                 >
                   <Plus className="size-4" />
@@ -345,23 +422,31 @@ export default function ProfessorStationDetailPage({
                     year: 'numeric',
                   })
 
+                  const isExiting = exitingExamIds.has(exam.id)
+
                   return (
                     <div
                       key={exam.id}
-                      onClick={() => router.push(`/professor/stations/${stationId}/exams/${exam.id}`)}
-                      className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-emerald-500/40 dark:hover:border-emerald-500/40 transition-all cursor-pointer flex flex-col justify-between space-y-4 group"
+                      onClick={() => router.push(`/professor/stations/${station?.slug || stationId}/exams/${exam.id}`)}
+                      className={`p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-emerald-500/40 dark:hover:border-emerald-500/40 flex flex-col justify-between space-y-4 group cursor-pointer ${
+                        isExiting
+                          ? 'transition-all duration-200 opacity-0 scale-95 pointer-events-none'
+                          : 'transition-all duration-200'
+                      }`}
                     >
                       <div className="space-y-3">
                         <div className="flex items-center justify-between gap-2">
-                          <span
-                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                              exam.session_type === 'makeup'
-                                ? 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200/60 dark:border-purple-800'
-                                : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-800'
-                            }`}
-                          >
-                            {exam.session_type === 'makeup' ? 'Makeup Session' : 'Regular Session'}
-                          </span>
+                          {exam.session_type === 'makeup' ? (
+                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200/60 dark:border-purple-800 shadow-xs">
+                              <Layers className="size-3 text-purple-500" />
+                              <span>Makeup Session</span>
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-800 shadow-xs">
+                              <CheckCircle2 className="size-3 text-emerald-500" />
+                              <span>Regular Session</span>
+                            </span>
+                          )}
 
                           <button
                             onClick={(e) => {
@@ -381,7 +466,7 @@ export default function ProfessorStationDetailPage({
                             <span>{formattedDate}</span>
                           </div>
                           <p className="text-xs text-slate-400 mt-1">
-                            OSCE Assessment Circuit Date
+                            OSCE Exam Date
                           </p>
                         </div>
 
@@ -396,9 +481,9 @@ export default function ProfessorStationDetailPage({
                       </div>
 
                       <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
-                        <span className="font-semibold text-slate-400">Manage Rubrics</span>
+                        <span className="font-semibold text-slate-400">Scoring Rubric</span>
                         <div className="flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400 group-hover:translate-x-0.5 transition-transform">
-                          <span>Open Question Builder</span>
+                          <span>Open Question & Rubric Builder</span>
                           <ChevronRight className="size-4" />
                         </div>
                       </div>
@@ -445,36 +530,62 @@ export default function ProfessorStationDetailPage({
             )}
 
             <form onSubmit={handleCreateExam} className="space-y-4">
-              {/* Session Type */}
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Session Type *
-                </label>
+              {/* Session Type with Availability Enforcement */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Session Type *
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-semibold">
+                    1 Regular + 1 Makeup max
+                  </span>
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
+                    disabled={hasRegularSession}
                     onClick={() => setSessionType('regular')}
-                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-bold transition-all ${
-                      sessionType === 'regular'
+                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl border text-xs font-bold transition-all relative ${
+                      hasRegularSession
+                        ? 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60'
+                        : sessionType === 'regular'
                         ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500/20'
-                        : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                        : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
                     }`}
                   >
-                    <CheckCircle2 className="size-4 text-emerald-500" />
-                    <span>Regular Session</span>
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle2 className={`size-4 ${hasRegularSession ? 'text-slate-400' : 'text-emerald-500'}`} />
+                      <span>Regular Session</span>
+                    </div>
+                    {hasRegularSession && (
+                      <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
+                        (Already Created)
+                      </span>
+                    )}
                   </button>
 
                   <button
                     type="button"
+                    disabled={hasMakeupSession}
                     onClick={() => setSessionType('makeup')}
-                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-bold transition-all ${
-                      sessionType === 'makeup'
+                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl border text-xs font-bold transition-all relative ${
+                      hasMakeupSession
+                        ? 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60'
+                        : sessionType === 'makeup'
                         ? 'bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 ring-2 ring-purple-500/20'
-                        : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                        : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
                     }`}
                   >
-                    <Layers className="size-4 text-purple-500" />
-                    <span>Makeup Session</span>
+                    <div className="flex items-center gap-1.5">
+                      <Layers className={`size-4 ${hasMakeupSession ? 'text-slate-400' : 'text-purple-500'}`} />
+                      <span>Makeup Session</span>
+                    </div>
+                    {hasMakeupSession && (
+                      <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
+                        (Already Created)
+                      </span>
+                    )}
                   </button>
                 </div>
               </div>

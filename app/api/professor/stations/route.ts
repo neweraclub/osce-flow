@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedProfessor } from '@/lib/professorAuth'
 import { supabaseAdmin } from '@/lib/auth'
 import { isAcademicYearCurrent, sortAcademicYears } from '@/lib/academicYearUtils'
+import { getStationSlug } from '@/lib/stationSlug'
 
 export async function GET(req: NextRequest) {
   try {
@@ -159,6 +160,11 @@ export async function GET(req: NextRequest) {
         question_count: totalQuestions,
         status: isReady ? 'ready' : 'incomplete',
         status_label: isReady ? 'Rubric Ready' : 'Incomplete Rubric',
+        slug: getStationSlug({
+          station_number: st.station_number,
+          module_name: mod ? mod.module_name : undefined,
+          id: st.id,
+        }),
         created_at: st.created_at,
         linked_exam: firstExam
           ? {
@@ -263,7 +269,16 @@ export async function POST(req: NextRequest) {
       throw insertErr
     }
 
-    return NextResponse.json({ success: true, station: newStation })
+    const createdSlug = getStationSlug({
+      station_number: newStation.station_number,
+      module_name: moduleCheck.module_name,
+      id: newStation.id,
+    })
+
+    return NextResponse.json({
+      success: true,
+      station: { ...newStation, slug: createdSlug },
+    })
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: error?.message || 'Failed to create station.' },

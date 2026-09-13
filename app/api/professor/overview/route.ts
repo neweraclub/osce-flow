@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedProfessor } from '@/lib/professorAuth'
 import { supabaseAdmin } from '@/lib/auth'
 import { isAcademicYearCurrent, sortAcademicYears } from '@/lib/academicYearUtils'
+import { getStationSlug } from '@/lib/stationSlug'
 
 export async function GET(req: NextRequest) {
   try {
@@ -174,6 +175,11 @@ export async function GET(req: NextRequest) {
         exam_count: stExams.length,
         status: isReady ? 'ready' : 'incomplete',
         status_label: isReady ? 'Rubric Ready' : 'Incomplete Rubric',
+        slug: getStationSlug({
+          station_number: st.station_number,
+          module_name: mod?.module_name,
+          id: st.id,
+        }),
         linked_exam,
         module_name: mod ? mod.module_name : 'General Module',
         level_id: mod?.level_id || null,

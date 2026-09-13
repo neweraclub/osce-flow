@@ -34,6 +34,7 @@ import {
   X,
 } from 'lucide-react'
 import { useToast } from '@/context/ToastContext'
+import { UUID_REGEX } from '@/lib/stationSlug'
 
 export interface QuestionOptionItem {
   id: string
@@ -61,6 +62,7 @@ export interface ExamSessionMeta {
 
 export interface StationMeta {
   id: string
+  slug?: string
   module_id: string
   station_number: number
   title: string
@@ -122,6 +124,7 @@ export default function ProfessorExamQuestionsPage({
   const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false)
   const [editingQuestion, setEditingQuestion] = useState<QuestionRecord | null>(null)
   const [deletingQuestion, setDeletingQuestion] = useState<QuestionRecord | null>(null)
+  const [exitingQuestionIds, setExitingQuestionIds] = useState<Set<string>>(new Set())
 
   // Form Fields
   const [formText, setFormText] = useState('')
@@ -195,6 +198,17 @@ export default function ProfessorExamQuestionsPage({
       fetchExamQuestions()
     }
   }, [examId])
+
+  // Gracefully replace legacy station UUID in URL history with clean slug
+  useEffect(() => {
+    if (station?.slug && UUID_REGEX.test(stationId)) {
+      window.history.replaceState(
+        null,
+        '',
+        `/professor/stations/${station.slug}/exams/${examId}`
+      )
+    }
+  }, [station?.slug, stationId, examId])
 
   const handleCopyPin = () => {
     if (!station?.access_pin) return
@@ -349,28 +363,65 @@ export default function ProfessorExamQuestionsPage({
     }
   }
 
-  // --- Delete Question ---
+  // --- Delete Question (Optimistic with Rollback & Exit Transition) ---
   const handleConfirmDeleteQuestion = async () => {
     if (!deletingQuestion) return
-    setSubmitting(true)
 
+    const target = deletingQuestion
+    const targetIndex = questions.findIndex((q) => q.id === target.id)
+
+    // 1. Immediately dismiss modal so interface is instantly responsive
+    setDeletingQuestion(null)
+
+    // 2. Trigger smooth exit transition on card
+    setExitingQuestionIds((prev) => new Set(prev).add(target.id))
+
+    // 3. Remove from active state after exit animation completes
+    setTimeout(() => {
+      setQuestions((current) => current.filter((q) => q.id !== target.id))
+      setExitingQuestionIds((prev) => {
+        const next = new Set(prev)
+        next.delete(target.id)
+        return next
+      })
+    }, 200)
+
+    // 4. Background asynchronous database deletion
     try {
-      const res = await fetch(`/api/professor/questions?id=${deletingQuestion.id}`, {
+      const res = await fetch(`/api/professor/questions?id=${target.id}`, {
         method: 'DELETE',
       })
       const json = await res.json()
 
       if (res.ok && json.success) {
         showSuccess('Question deleted.')
-        setDeletingQuestion(null)
-        fetchExamQuestions(true)
       } else {
-        showError(json.error || 'Failed to delete question.')
+        // Rollback: restore item to original position
+        setQuestions((current) => {
+          if (current.some((q) => q.id === target.id)) return current
+          const restored = [...current]
+          if (targetIndex >= 0 && targetIndex <= restored.length) {
+            restored.splice(targetIndex, 0, target)
+          } else {
+            restored.push(target)
+          }
+          return restored
+        })
+        showError(json.error || 'Failed to delete question. Changes restored.')
       }
     } catch {
-      showError('Network error deleting question.')
-    } finally {
-      setSubmitting(false)
+      // Rollback on network/connection failure
+      setQuestions((current) => {
+        if (current.some((q) => q.id === target.id)) return current
+        const restored = [...current]
+        if (targetIndex >= 0 && targetIndex <= restored.length) {
+          restored.splice(targetIndex, 0, target)
+        } else {
+          restored.push(target)
+        }
+        return restored
+      })
+      showError('Network error deleting question. Item restored.')
     }
   }
 
@@ -387,14 +438,14 @@ export default function ProfessorExamQuestionsPage({
           </Link>
           <ChevronRight className="size-3.5 text-slate-400" />
           <Link
-            href={`/professor/stations/${stationId}`}
+            href={`/professor/stations/${station?.slug || stationId}`}
             className="hover:text-slate-800 dark:hover:text-slate-200 transition-colors truncate max-w-[160px]"
           >
             {station ? `Station #${station.station_number}` : 'Station Detail'}
           </Link>
           <ChevronRight className="size-3.5 text-slate-400" />
           <span className="text-slate-900 dark:text-white font-extrabold">
-            Exam Question Rubrics
+            Questions & Scoring Rubric
           </span>
         </div>
 
@@ -506,10 +557,10 @@ export default function ProfessorExamQuestionsPage({
               <div>
                 <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
                   <HelpCircle className="size-5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Clinical Questions & Rubrics ({questions.length})</span>
+                  <span>Questions & Scoring Criteria ({questions.length})</span>
                 </h2>
                 <p className="text-xs font-medium text-slate-400">
-                  MCQ, Single Choice (SCQ), and Clinical Q&A tasks for live tablet grading
+                  MCQ, Single Choice (SCQ), and Clinical Q&A scoring items for live evaluation
                 </p>
               </div>
 
@@ -531,7 +582,7 @@ export default function ProfessorExamQuestionsPage({
                   No Questions Authored Yet
                 </h3>
                 <p className="text-xs text-slate-400 max-w-md mx-auto">
-                  Click "+ Add Question" to create your first multiple choice question, single choice question, or clinical Q&A rubric.
+                  Click "+ Add Question" to create your first multiple choice question, single choice question, or clinical scoring task.
                 </p>
                 <button
                   onClick={handleOpenAddQuestion}
@@ -546,11 +597,16 @@ export default function ProfessorExamQuestionsPage({
                 {questions.map((q, idx) => {
                   const isMCQorSCQ = q.question_type === 'MCQ' || q.question_type === 'SCQ'
                   const parsedOptions: QuestionOptionItem[] = Array.isArray(q.options) ? q.options : []
+                  const isExiting = exitingQuestionIds.has(q.id)
 
                   return (
                     <div
                       key={q.id}
-                      className="p-5 md:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4 hover:border-slate-300 dark:hover:border-slate-700 transition-all"
+                      className={`p-5 md:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4 hover:border-slate-300 dark:hover:border-slate-700 ${
+                        isExiting
+                          ? 'transition-all duration-200 opacity-0 scale-95 pointer-events-none'
+                          : 'transition-all duration-200'
+                      }`}
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex items-start gap-3 min-w-0">
@@ -672,7 +728,7 @@ export default function ProfessorExamQuestionsPage({
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    {editingQuestion ? 'Edit Question Rubric' : 'Add Question Rubric'}
+                    {editingQuestion ? 'Edit Question & Scoring Criteria' : 'Add Question & Scoring Criteria'}
                   </h3>
                   <p className="text-[11px] font-semibold text-slate-400">
                     Station #{station?.station_number} • {station?.title}
@@ -947,7 +1003,7 @@ export default function ProfessorExamQuestionsPage({
             </div>
             <div className="space-y-1">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Delete Question Rubric?
+                Delete Question?
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Are you sure you want to remove this question? This action cannot be undone.

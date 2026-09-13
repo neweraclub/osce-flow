@@ -37,9 +37,11 @@ import { Select } from '@/components/ui/Select'
 import { StationStatusBadge, UnscheduledStationNotice } from '@/components/stations/station-status-badge'
 import { useAcademicYear } from '@/context/AcademicYearContext'
 import { useToast } from '@/context/ToastContext'
+import { getStationSlug } from '@/lib/stationSlug'
 
 export interface StationCardItem {
   id: string
+  slug?: string
   module_id: string
   station_number: number
   title: string
@@ -107,6 +109,9 @@ export default function ProfessorStationsPage() {
   const [formShowPin, setFormShowPin] = useState(true)
   const [formWeightage, setFormWeightage] = useState<number>(10)
   const [formError, setFormError] = useState('')
+
+  // Optimistic UI exit animation state
+  const [exitingStationIds, setExitingStationIds] = useState<Set<string>>(new Set())
 
   // Global ESC key listener
   useEffect(() => {
@@ -293,7 +298,7 @@ export default function ProfessorStationsPage() {
 
       const json = await res.json()
       if (res.ok && json.success) {
-        showSuccess('Station blueprint updated.')
+        showSuccess('Station updated successfully.')
         setEditingStation(null)
         fetchData(selectedYearId, true)
       } else {
@@ -306,28 +311,65 @@ export default function ProfessorStationsPage() {
     }
   }
 
-  // --- Submit Delete Station ---
+  // --- Submit Delete Station (Optimistic with Rollback & Exit Transition) ---
   const handleDeleteStation = async () => {
     if (!deletingStation) return
-    setSubmitting(true)
 
+    const target = deletingStation
+    const targetIndex = stations.findIndex((s) => s.id === target.id)
+
+    // 1. Immediately dismiss modal so interface is instantly responsive
+    setDeletingStation(null)
+
+    // 2. Trigger smooth exit transition on card
+    setExitingStationIds((prev) => new Set(prev).add(target.id))
+
+    // 3. Remove from active state after exit animation completes
+    setTimeout(() => {
+      setStations((current) => current.filter((s) => s.id !== target.id))
+      setExitingStationIds((prev) => {
+        const next = new Set(prev)
+        next.delete(target.id)
+        return next
+      })
+    }, 200)
+
+    // 4. Background asynchronous database deletion
     try {
-      const res = await fetch(`/api/professor/stations/${deletingStation.id}`, {
+      const res = await fetch(`/api/professor/stations/${target.id}`, {
         method: 'DELETE',
       })
       const json = await res.json()
 
       if (res.ok && json.success) {
-        showSuccess('Station deleted successfully.')
-        setDeletingStation(null)
-        fetchData(selectedYearId, true)
+        showSuccess(`Station #${target.station_number} deleted successfully.`)
       } else {
-        showError(json.error || 'Failed to delete station.')
+        // Rollback: restore item to original position
+        setStations((current) => {
+          if (current.some((s) => s.id === target.id)) return current
+          const restored = [...current]
+          if (targetIndex >= 0 && targetIndex <= restored.length) {
+            restored.splice(targetIndex, 0, target)
+          } else {
+            restored.push(target)
+          }
+          return restored
+        })
+        showError(json.error || 'Failed to delete station. Changes restored.')
       }
     } catch {
-      showError('Network error deleting station.')
-    } finally {
-      setSubmitting(false)
+      // Rollback on network/connection failure
+      setStations((current) => {
+        if (current.some((s) => s.id === target.id)) return current
+        const restored = [...current]
+        if (targetIndex >= 0 && targetIndex <= restored.length) {
+          restored.splice(targetIndex, 0, target)
+        } else {
+          restored.push(target)
+        }
+        return restored
+      })
+      showError('Network error deleting station. Item restored.')
     }
   }
 
@@ -376,7 +418,7 @@ export default function ProfessorStationsPage() {
                 )}
               </div>
               <p className="text-xs font-semibold text-slate-400 mt-0.5">
-                Manage your clinical station blueprints, PIN credentials, and exam question rubrics
+                Manage your clinical stations, access PINs, and scoring rubrics
               </p>
             </div>
           </div>
@@ -473,7 +515,7 @@ export default function ProfessorStationsPage() {
               ? 'You have not been assigned to any clinical modules yet. Contact the Dean to assign you as a lead professor.'
               : search || filterModule !== 'ALL'
               ? 'Try modifying your search or clearing the module filter.'
-              : 'Click "+ Create Station" to set up your first clinical station blueprint for your assigned modules.'}
+              : 'Click "+ Create Station" to set up your first clinical station and scoring rubric.'}
           </p>
           {assignedModules.length > 0 && !search && (
             <button
@@ -490,12 +532,17 @@ export default function ProfessorStationsPage() {
           {filteredStations.map((station) => {
             const isPinRevealed = !!revealedPins[station.id]
             const isCopied = copiedPinId === station.id
+            const isExiting = exitingStationIds.has(station.id)
 
             return (
               <div
                 key={station.id}
-                onClick={() => router.push(`/professor/stations/${station.id}`)}
-                className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-emerald-500/40 dark:hover:border-emerald-500/40 transition-all cursor-pointer flex flex-col justify-between space-y-4 group relative"
+                onClick={() => router.push(`/professor/stations/${station.slug || getStationSlug(station)}`)}
+                className={`p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-emerald-500/40 dark:hover:border-emerald-500/40 flex flex-col justify-between space-y-4 group relative cursor-pointer ${
+                  isExiting
+                    ? 'transition-all duration-200 opacity-0 scale-95 pointer-events-none'
+                    : 'transition-all duration-200'
+                }`}
               >
                 <div className="space-y-3">
                   {/* Top Badges & Actions */}
@@ -655,12 +702,12 @@ export default function ProfessorStationsPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    {editingStation ? 'Edit Station Blueprint' : 'Create Station Blueprint'}
+                    {editingStation ? 'Edit Station' : 'Create a New Station'}
                   </h3>
                   <p className="text-[11px] font-semibold text-slate-400">
                     {editingStation
-                      ? `Updating Station #${editingStation.station_number}`
-                      : 'Define clinical station blueprint for your assigned module'}
+                      ? `Update station details and PIN credentials`
+                      : 'Set up station checklist & rubrics'}
                   </p>
                 </div>
               </div>
@@ -769,7 +816,7 @@ export default function ProfessorStationsPage() {
                   </button>
                 </div>
                 <p className="text-[10px] text-slate-400">
-                  Used by the scoring invigilator to unlock the tablet on exam day.
+                  Used by the examiner to unlock the scoring tablet on exam day.
                 </p>
               </div>
 

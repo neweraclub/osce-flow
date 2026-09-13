@@ -326,25 +326,52 @@ export default function DeanStationsManagementPage() {
 
   const handleConfirmDelete = async () => {
     if (!deletingStation) return
-    setSubmitting(true)
 
+    const target = deletingStation
+    const targetIndex = stations.findIndex((s) => s.id === target.id)
+
+    // 1. Immediately dismiss modal so interface is instantly responsive
+    setDeletingStation(null)
+
+    // 2. Optimistically remove from state
+    setStations((current) => current.filter((s) => s.id !== target.id))
+
+    // 3. Background asynchronous deletion
     try {
-      const res = await fetch(`/api/dean/stations/${deletingStation.id}`, {
+      const res = await fetch(`/api/dean/stations/${target.id}`, {
         method: 'DELETE',
       })
       const json = await res.json()
 
       if (res.ok && json.success) {
         showSuccess('Station blueprint removed.')
-        setDeletingStation(null)
-        fetchStationsData(selectedYearId)
       } else {
-        showError(json.error || 'Failed to delete station.')
+        // Rollback: restore item to original position
+        setStations((current) => {
+          if (current.some((s) => s.id === target.id)) return current
+          const restored = [...current]
+          if (targetIndex >= 0 && targetIndex <= restored.length) {
+            restored.splice(targetIndex, 0, target)
+          } else {
+            restored.push(target)
+          }
+          return restored
+        })
+        showError(json.error || 'Failed to delete station. Changes restored.')
       }
     } catch (err: any) {
-      showError(err?.message || 'Error connecting to server.')
-    } finally {
-      setSubmitting(false)
+      // Rollback on connection failure
+      setStations((current) => {
+        if (current.some((s) => s.id === target.id)) return current
+        const restored = [...current]
+        if (targetIndex >= 0 && targetIndex <= restored.length) {
+          restored.splice(targetIndex, 0, target)
+        } else {
+          restored.push(target)
+        }
+        return restored
+      })
+      showError(err?.message || 'Error connecting to server. Item restored.')
     }
   }
 

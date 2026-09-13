@@ -30,6 +30,7 @@ import {
   X,
 } from 'lucide-react'
 import { useToast } from '@/context/ToastContext'
+import { DatePicker } from '@/components/ui/date-picker'
 
 export interface StationDetail {
   id: string
@@ -478,19 +479,17 @@ export default function ProfessorStationDetailPage({
                 </div>
               </div>
 
-              {/* Exam Date */}
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Exam Date *
-                </label>
-                <input
-                  type="date"
-                  value={examDate}
-                  onChange={(e) => setExamDate(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  required
-                />
-              </div>
+              {/* Exam Date Picker */}
+              <DatePicker
+                label="Exam Date"
+                required
+                value={examDate}
+                onChange={(newDate) => setExamDate(newDate)}
+                disablePastDates={true}
+                placeholder="Select upcoming exam date..."
+                variant="emerald"
+                format="MMM DD, YYYY"
+              />
 
               {/* Action Buttons */}
               <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">

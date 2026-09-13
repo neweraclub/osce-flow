@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { AlertTriangle, Check, ShieldAlert, X } from 'lucide-react'
+import { AlertTriangle, Check, Plus, ShieldAlert, X } from 'lucide-react'
 
 export interface StationCriterion {
   id: string
@@ -19,6 +19,7 @@ interface ClinicalPenaltiesCardProps {
   totalDeductionPoints: number
   onTogglePenalty: (criterionId: string) => void
   onClearPenalties?: () => void
+  onOpenAddModal?: () => void
   disabled?: boolean
 }
 
@@ -28,6 +29,7 @@ export function ClinicalPenaltiesCard({
   totalDeductionPoints,
   onTogglePenalty,
   onClearPenalties,
+  onOpenAddModal,
   disabled = false,
 }: ClinicalPenaltiesCardProps) {
   if (!criteria || criteria.length === 0) {
@@ -65,17 +67,31 @@ export function ClinicalPenaltiesCard({
           </div>
         </div>
 
-        {appliedCount > 0 && onClearPenalties && (
-          <button
-            type="button"
-            onClick={onClearPenalties}
-            disabled={disabled}
-            className="self-start sm:self-auto text-xs font-bold text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300 flex items-center gap-1 px-2.5 py-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors cursor-pointer disabled:opacity-50"
-          >
-            <X className="size-3.5" />
-            <span>Reset Penalties</span>
-          </button>
-        )}
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          {onOpenAddModal && (
+            <button
+              type="button"
+              onClick={onOpenAddModal}
+              disabled={disabled}
+              className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-200/90 dark:border-rose-900/70 bg-rose-50/60 dark:bg-rose-950/40 hover:bg-rose-100/70 dark:hover:bg-rose-900/60 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+            >
+              <Plus className="size-3.5 stroke-[2.5]" />
+              <span>Add Penalty Item</span>
+            </button>
+          )}
+
+          {appliedCount > 0 && onClearPenalties && (
+            <button
+              type="button"
+              onClick={onClearPenalties}
+              disabled={disabled}
+              className="text-xs font-bold text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300 flex items-center gap-1 px-2.5 py-1.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <X className="size-3.5" />
+              <span>Reset</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Grid of Penalty items */}

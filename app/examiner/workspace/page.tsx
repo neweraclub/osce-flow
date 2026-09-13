@@ -49,6 +49,7 @@ import { useToast } from '@/context/ToastContext'
 import { ExaminerSidebar, ExaminerNavTab } from '@/components/examiner/ExaminerSidebar'
 import { Select } from '@/components/ui/Select'
 import { ClinicalPenaltiesCard, StationCriterion } from '@/components/examiner/ClinicalPenaltiesCard'
+import { CreatePenaltyModal } from '@/components/examiner/CreatePenaltyModal'
 
 const DEFAULT_CLINICAL_PENALTIES: StationCriterion[] = [
   {
@@ -234,6 +235,7 @@ function ExaminerWorkspaceContent() {
     >
   >({})
   const [candidatePenalties, setCandidatePenalties] = useState<Record<string, string[]>>({})
+  const [isCreatePenaltyOpen, setIsCreatePenaltyOpen] = useState(false)
   const [submittingAttempt, setSubmittingAttempt] = useState(false)
 
   // Active Exam Session
@@ -1518,8 +1520,26 @@ function ExaminerWorkspaceContent() {
                     totalDeductionPoints={totalDeductionPoints}
                     onTogglePenalty={handleTogglePenalty}
                     onClearPenalties={handleClearPenalties}
+                    onOpenAddModal={() => setIsCreatePenaltyOpen(true)}
                     disabled={submittingAttempt}
                   />
+
+                  {/* Custom Penalty Item Creation Modal */}
+                  {station && (
+                    <CreatePenaltyModal
+                      isOpen={isCreatePenaltyOpen}
+                      onClose={() => setIsCreatePenaltyOpen(false)}
+                      stationId={station.id}
+                      stationTitle={station.title}
+                      onCreated={(newCrit) => {
+                        // Optimistically prepend newly created criterion so it immediately appears in grid
+                        setStationCriteria((prev) => [newCrit, ...prev])
+                        showSuccess(
+                          `Penalty item "${newCrit.title}" (${newCrit.points} pts) added successfully.`
+                        )
+                      }}
+                    />
+                  )}
 
                   {/* Bottom Sticky Submission Bar */}
                   <div className="sticky bottom-4 z-20 p-4 rounded-3xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800/90 shadow-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">

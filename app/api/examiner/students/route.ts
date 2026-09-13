@@ -90,22 +90,6 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 4b. Fetch station criteria (penalties/deductions)
-    let stationCriteria: any[] = []
-    try {
-      const { data: critData, error: critErr } = await supabaseAdmin
-        .from('station_criteria')
-        .select('*')
-        .eq('station_id', stationId)
-        .order('created_at', { ascending: true })
-
-      if (!critErr && critData) {
-        stationCriteria = critData
-      }
-    } catch (critErr) {
-      console.warn('Could not query station_criteria:', critErr)
-    }
-
     // 5. Strictly scope sections & groups to this station's study level
     let rawSections: any[] = []
     let rawGroups: any[] = []
@@ -159,9 +143,10 @@ export async function GET(req: NextRequest) {
       studentList = rawStudents || []
     }
 
-    // 7. Fetch existing exam_attempts and saved student_answers for these candidates
+    // 7. Fetch existing exam_attempts, saved student_answers, and candidate_penalties
     const attemptMap = new Map<string, any>()
     const answersMap = new Map<string, any[]>()
+    const penaltiesMap = new Map<string, any[]>()
 
     if (activeExam && studentList.length > 0) {
       const studentIds = studentList.map((s) => s.id)
@@ -174,6 +159,7 @@ export async function GET(req: NextRequest) {
       const attemptIds = (attempts || []).map((a) => a.id)
 
       if (attemptIds.length > 0) {
+        // Fetch student answers
         const { data: savedAnswers } = await supabaseAdmin
           .from('student_answers')
           .select('id, attempt_id, station_id, question_id, evaluation_score, points_awarded, selected_options')
@@ -186,6 +172,30 @@ export async function GET(req: NextRequest) {
           }
           answersMap.get(ans.attempt_id)!.push(ans)
         })
+
+        // Fetch per-candidate penalties strictly from candidate_penalties
+        try {
+          const { data: penaltiesData } = await supabaseAdmin
+            .from('candidate_penalties')
+            .select('id, exam_attempt_id, reason, points, created_at')
+            .in('exam_attempt_id', attemptIds)
+            .order('created_at', { ascending: true })
+
+          ;(penaltiesData || []).forEach((p) => {
+            if (!penaltiesMap.has(p.exam_attempt_id)) {
+              penaltiesMap.set(p.exam_attempt_id, [])
+            }
+            penaltiesMap.get(p.exam_attempt_id)!.push({
+              id: p.id,
+              exam_attempt_id: p.exam_attempt_id,
+              reason: p.reason,
+              points: Number(p.points),
+              created_at: p.created_at,
+            })
+          })
+        } catch (penErr) {
+          console.warn('Could not fetch candidate_penalties:', penErr)
+        }
       }
 
       ;(attempts || []).forEach((att) => {
@@ -199,6 +209,7 @@ export async function GET(req: NextRequest) {
       const sec = grp ? sectionMap.get(grp.section_id) : null
       const attempt = attemptMap.get(st.id)
       const savedAnswers = attempt ? answersMap.get(attempt.id) || [] : []
+      const candidatePenalties = attempt ? penaltiesMap.get(attempt.id) || [] : []
       const isCompleted = !!attempt && attempt.final_score !== null
 
       return {
@@ -223,6 +234,7 @@ export async function GET(req: NextRequest) {
           evaluation_score: ans.evaluation_score !== null ? Number(ans.evaluation_score) : 0,
           points_awarded: Number(ans.points_awarded || 0),
         })),
+        penalties: candidatePenalties,
       }
     })
 
@@ -255,7 +267,6 @@ export async function GET(req: NextRequest) {
       active_exam: activeExam || null,
       exams: exams || [],
       questions: questions || [],
-      station_criteria: stationCriteria,
       sections: formattedSections,
       groups: formattedGroups,
       students: formattedStudents,

@@ -48,35 +48,13 @@ import { ThemeToggle } from '@/components/theme-toggle'
 import { useToast } from '@/context/ToastContext'
 import { ExaminerSidebar, ExaminerNavTab } from '@/components/examiner/ExaminerSidebar'
 import { Select } from '@/components/ui/Select'
-import { ClinicalPenaltiesCard, StationCriterion } from '@/components/examiner/ClinicalPenaltiesCard'
-import { CreatePenaltyModal } from '@/components/examiner/CreatePenaltyModal'
-
-const DEFAULT_CLINICAL_PENALTIES: StationCriterion[] = [
-  {
-    id: 'penalty-hand-hygiene',
-    title: 'Failed Hand Hygiene / Infection Control',
-    description: 'Candidate omitted hand sanitization or breached aseptic field prior to examination.',
-    points: -1.0,
-  },
-  {
-    id: 'penalty-patient-consent',
-    title: 'Failure to Obtain Informed Consent & Verify ID',
-    description: 'Proceeded with procedure without verbal consent, identity verification, or explanation.',
-    points: -1.0,
-  },
-  {
-    id: 'penalty-safety-violation',
-    title: 'Patient Safety Hazard / Critical Breach',
-    description: 'Unsafe sharps disposal, uncontrolled maneuver, or leaving patient unattended unsafely.',
-    points: -2.0,
-  },
-  {
-    id: 'penalty-communication',
-    title: 'Unprofessional Communication or Demeanor',
-    description: 'Dismissive behavior, inappropriate language, or failure to address patient distress.',
-    points: -0.5,
-  },
-]
+import { ClinicalPenaltiesCard } from '@/components/examiner/ClinicalPenaltiesCard'
+import { CreateCandidatePenaltyModal } from '@/components/examiner/CreateCandidatePenaltyModal'
+import {
+  CandidatePenaltyItem,
+  getCandidatePenaltiesAction,
+  deleteCandidatePenaltyAction,
+} from '@/app/actions/candidatePenalties'
 
 interface StudentAnswerItem {
   question_id: string
@@ -102,6 +80,7 @@ interface StudentItem {
   status: 'pending' | 'present' | 'in_progress' | 'completed'
   final_score: number | null
   saved_answers?: StudentAnswerItem[]
+  penalties?: CandidatePenaltyItem[]
 }
 
 interface SectionItem {
@@ -170,7 +149,6 @@ function ExaminerWorkspaceContent() {
   const [students, setStudents] = useState<StudentItem[]>([])
   const [sections, setSections] = useState<SectionItem[]>([])
   const [groups, setGroups] = useState<GroupItem[]>([])
-  const [stationCriteria, setStationCriteria] = useState<StationCriterion[]>([])
   const [loading, setLoading] = useState<boolean>(true)
 
   // Examiner Sidebar & Tab Navigation States
@@ -234,7 +212,9 @@ function ExaminerWorkspaceContent() {
       }
     >
   >({})
-  const [candidatePenalties, setCandidatePenalties] = useState<Record<string, string[]>>({})
+  const [candidatePenalties, setCandidatePenalties] = useState<Record<string, CandidatePenaltyItem[]>>({})
+  const [loadingCandidatePenalties, setLoadingCandidatePenalties] = useState<boolean>(false)
+  const [deletingPenaltyId, setDeletingPenaltyId] = useState<string | null>(null)
   const [isCreatePenaltyOpen, setIsCreatePenaltyOpen] = useState(false)
   const [submittingAttempt, setSubmittingAttempt] = useState(false)
 
@@ -332,14 +312,19 @@ function ExaminerWorkspaceContent() {
         setActiveExamId(data.exams[0].id)
       }
       setQuestions(data.questions || [])
-      if (Array.isArray(data.station_criteria) && data.station_criteria.length > 0) {
-        setStationCriteria(data.station_criteria)
-      } else {
-        setStationCriteria(DEFAULT_CLINICAL_PENALTIES)
-      }
       setSections(data.sections || [])
       setGroups(data.groups || [])
       setStudents(data.students || [])
+
+      // Seed candidatePenalties cache with preloaded candidate penalties
+      const initialPenaltiesMap: Record<string, CandidatePenaltyItem[]> = {}
+      ;(data.students || []).forEach((st: any) => {
+        const key = st.id || st.matricule
+        if (st.penalties && Array.isArray(st.penalties)) {
+          initialPenaltiesMap[key] = st.penalties
+        }
+      })
+      setCandidatePenalties(initialPenaltiesMap)
     } catch (err: any) {
       showError(err?.message || 'Error fetching examiner data.')
     } finally {
@@ -472,12 +457,32 @@ function ExaminerWorkspaceContent() {
     setActiveStudent(student)
     setActiveTab('roster')
 
-    // Ensure penalty selections strictly reset to 0 when switching to a new candidate
+    // Immediate isolated feed: clear penalties for this candidate view and re-fetch if attempt exists
     const studentKey = student.id || student.matricule
-    setCandidatePenalties((prev) => ({
-      ...prev,
-      [studentKey]: prev[studentKey] && student.status === 'completed' ? prev[studentKey] : [],
-    }))
+    if (student.penalties && student.penalties.length > 0) {
+      setCandidatePenalties((prev) => ({
+        ...prev,
+        [studentKey]: student.penalties || [],
+      }))
+    } else if (student.attempt_id) {
+      setLoadingCandidatePenalties(true)
+      getCandidatePenaltiesAction(student.attempt_id)
+        .then((res) => {
+          if (res.success) {
+            setCandidatePenalties((prev) => ({
+              ...prev,
+              [studentKey]: res.penalties || [],
+            }))
+          }
+        })
+        .catch((err) => console.error('Error fetching candidate penalties:', err))
+        .finally(() => setLoadingCandidatePenalties(false))
+    } else {
+      setCandidatePenalties((prev) => ({
+        ...prev,
+        [studentKey]: [],
+      }))
+    }
 
     // Initialize answer state, populating with existing answers if available
     const initialAnswers: typeof answersState = {}
@@ -589,52 +594,79 @@ function ExaminerWorkspaceContent() {
   // Active Candidate Penalties & Net Score
   const activeCandidateKey = activeStudent ? (activeStudent.id || activeStudent.matricule) : ''
 
-  const selectedPenaltyIds = useMemo(() => {
+  // Isolated per-candidate penalty list strictly from candidate_penalties
+  const activeStudentPenalties: CandidatePenaltyItem[] = useMemo(() => {
     if (!activeCandidateKey) return []
     return candidatePenalties[activeCandidateKey] || []
   }, [activeCandidateKey, candidatePenalties])
 
-  const criteriaList = useMemo(() => {
-    return stationCriteria.length > 0 ? stationCriteria : DEFAULT_CLINICAL_PENALTIES
-  }, [stationCriteria])
-
-  // Total negative points accumulated by active candidate (strictly negative or 0)
-  const totalDeductionPoints = useMemo(() => {
-    if (!selectedPenaltyIds.length) return 0
-    return selectedPenaltyIds.reduce((sum, id) => {
-      const crit = criteriaList.find((c) => c.id === id)
-      if (!crit) return sum
-      const pts = Number(crit.points) || 0
-      return sum + (pts < 0 ? pts : -Math.abs(pts))
-    }, 0)
-  }, [selectedPenaltyIds, criteriaList])
+  // Total negative points accumulated strictly by active candidate
+  const totalCandidateDeductions = useMemo(() => {
+    return activeStudentPenalties.reduce((sum, p) => sum + (Number(p.points) || 0), 0)
+  }, [activeStudentPenalties])
 
   // Net score awarded to active candidate
   const netScore = useMemo(() => {
-    return Math.max(0, Math.round((calculatedPoints.earned + totalDeductionPoints) * 100) / 100)
-  }, [calculatedPoints.earned, totalDeductionPoints])
+    return Math.max(0, Math.round((calculatedPoints.earned + totalCandidateDeductions) * 100) / 100)
+  }, [calculatedPoints.earned, totalCandidateDeductions])
 
-  const handleTogglePenalty = (criterionId: string) => {
+  // Ad-hoc penalty added callback
+  const handlePenaltyAdded = (newPenalty: CandidatePenaltyItem, updatedAttemptId?: string | null) => {
     if (!activeCandidateKey) return
-    setCandidatePenalties((prev) => {
-      const current = prev[activeCandidateKey] || []
-      const exists = current.includes(criterionId)
-      const updated = exists
-        ? current.filter((id) => id !== criterionId)
-        : [...current, criterionId]
-      return {
-        ...prev,
-        [activeCandidateKey]: updated,
-      }
-    })
-  }
 
-  const handleClearPenalties = () => {
-    if (!activeCandidateKey) return
     setCandidatePenalties((prev) => ({
       ...prev,
-      [activeCandidateKey]: [],
+      [activeCandidateKey]: [...(prev[activeCandidateKey] || []), newPenalty],
     }))
+
+    if (updatedAttemptId && activeStudent) {
+      setActiveStudent((prev) => (prev ? { ...prev, attempt_id: updatedAttemptId } : null))
+      setStudents((prev) =>
+        prev.map((s) =>
+          (activeStudent.id ? s.id === activeStudent.id : s.matricule === activeStudent.matricule)
+            ? { ...s, attempt_id: updatedAttemptId }
+            : s
+        )
+      )
+    }
+
+    showSuccess(`Recorded deduction: "${newPenalty.reason}" (${newPenalty.points} pts)`)
+  }
+
+  // Delete candidate penalty action
+  const handleDeletePenalty = async (penaltyId: string) => {
+    if (!activeCandidateKey) return
+
+    setDeletingPenaltyId(penaltyId)
+    const prevList = candidatePenalties[activeCandidateKey] || []
+
+    // Optimistic removal
+    setCandidatePenalties((prev) => ({
+      ...prev,
+      [activeCandidateKey]: (prev[activeCandidateKey] || []).filter((p) => p.id !== penaltyId),
+    }))
+
+    try {
+      const res = await deleteCandidatePenaltyAction(penaltyId)
+      if (!res.success) {
+        // Rollback
+        setCandidatePenalties((prev) => ({
+          ...prev,
+          [activeCandidateKey]: prevList,
+        }))
+        showError(res.error || 'Failed to remove deduction.')
+      } else {
+        showSuccess('Deduction removed.')
+      }
+    } catch (err: any) {
+      setCandidatePenalties((prev) => ({
+        ...prev,
+        [activeCandidateKey]: prevList,
+      }))
+      showError(err?.message || 'Error deleting penalty.')
+    } finally {
+      setDeletingPenaltyId(null)
+    }
   }
 
   // Submit Completed Assessment
@@ -685,8 +717,7 @@ function ExaminerWorkspaceContent() {
           exam_id: activeExamId,
           station_id: station.id,
           answers: answersPayload,
-          penalty_total: Math.abs(totalDeductionPoints),
-          selected_penalties: selectedPenaltyIds,
+          penalty_total: Math.abs(totalCandidateDeductions),
         }),
       })
 
@@ -715,17 +746,19 @@ function ExaminerWorkspaceContent() {
 
       const currentStudentId = activeStudent.id
       const currentMatricule = activeStudent.matricule
-      const currentStudentKey = currentStudentId || currentMatricule
-
-      setCandidatePenalties((prev) => ({
-        ...prev,
-        [currentStudentKey]: selectedPenaltyIds,
-      }))
+      const resolvedAttemptId = data.attempt_id || activeStudent.attempt_id
 
       setStudents((prev) =>
         prev.map((s) =>
           (currentStudentId ? s.id === currentStudentId : s.matricule === currentMatricule)
-            ? { ...s, status: 'completed', final_score: finalRecordedScore, saved_answers: updatedSavedAnswers }
+            ? {
+                ...s,
+                status: 'completed',
+                final_score: finalRecordedScore,
+                attempt_id: resolvedAttemptId,
+                saved_answers: updatedSavedAnswers,
+                penalties: activeStudentPenalties,
+              }
             : s
         )
       )
@@ -1342,14 +1375,14 @@ function ExaminerWorkspaceContent() {
                         {/* Dedicated Red Penalty Badge */}
                         <div
                           className={`flex items-center gap-2 px-3 py-2 rounded-2xl border transition-all ${
-                            totalDeductionPoints < 0
+                            totalCandidateDeductions < 0
                               ? 'bg-rose-50 dark:bg-rose-950/70 border-rose-300 dark:border-rose-800/80 text-rose-700 dark:text-rose-300 shadow-sm shadow-rose-500/10 ring-1 ring-rose-400/30'
                               : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200/70 dark:border-slate-700/60 text-slate-400'
                           }`}
                         >
                           <AlertTriangle
                             className={`size-4 shrink-0 ${
-                              totalDeductionPoints < 0
+                              totalCandidateDeductions < 0
                                 ? 'text-rose-600 dark:text-rose-400 animate-pulse'
                                 : 'text-slate-400'
                             }`}
@@ -1360,12 +1393,12 @@ function ExaminerWorkspaceContent() {
                             </span>
                             <span
                               className={`text-sm font-black font-mono ${
-                                totalDeductionPoints < 0
+                                totalCandidateDeductions < 0
                                   ? 'text-rose-600 dark:text-rose-400'
                                   : 'text-slate-400'
                               }`}
                             >
-                              {totalDeductionPoints < 0 ? `${totalDeductionPoints.toFixed(1)} pts` : '0.0 pts'}
+                              {totalCandidateDeductions < 0 ? `${totalCandidateDeductions.toFixed(1)} pts` : '0.0 pts'}
                             </span>
                           </div>
                         </div>
@@ -1513,31 +1546,27 @@ function ExaminerWorkspaceContent() {
                     )}
                   </div>
 
-                  {/* Clinical Deductions & Penalties Section */}
+                  {/* Clinical Deductions & Penalties Section (Candidate-Isolated Feed) */}
                   <ClinicalPenaltiesCard
-                    criteria={criteriaList}
-                    selectedPenaltyIds={selectedPenaltyIds}
-                    totalDeductionPoints={totalDeductionPoints}
-                    onTogglePenalty={handleTogglePenalty}
-                    onClearPenalties={handleClearPenalties}
+                    penalties={activeStudentPenalties}
+                    studentName={activeStudent.full_name}
+                    totalDeductionPoints={totalCandidateDeductions}
                     onOpenAddModal={() => setIsCreatePenaltyOpen(true)}
-                    disabled={submittingAttempt}
+                    onDeletePenalty={handleDeletePenalty}
+                    deletingPenaltyId={deletingPenaltyId}
+                    isLoading={loadingCandidatePenalties}
                   />
 
-                  {/* Custom Penalty Item Creation Modal */}
+                  {/* Ad-Hoc Candidate Penalty Creation Modal */}
                   {station && (
-                    <CreatePenaltyModal
+                    <CreateCandidatePenaltyModal
                       isOpen={isCreatePenaltyOpen}
                       onClose={() => setIsCreatePenaltyOpen(false)}
-                      stationId={station.id}
-                      stationTitle={station.title}
-                      onCreated={(newCrit) => {
-                        // Optimistically prepend newly created criterion so it immediately appears in grid
-                        setStationCriteria((prev) => [newCrit, ...prev])
-                        showSuccess(
-                          `Penalty item "${newCrit.title}" (${newCrit.points} pts) added successfully.`
-                        )
-                      }}
+                      studentName={activeStudent.full_name}
+                      studentId={activeStudent.id || ''}
+                      examId={activeExamId}
+                      examAttemptId={activeStudent.attempt_id}
+                      onPenaltyAdded={handlePenaltyAdded}
                     />
                   )}
 
@@ -1552,10 +1581,9 @@ function ExaminerWorkspaceContent() {
                             resetAnswers[q.id] = { selected_option_ids: [], evaluation_score: 0 }
                           })
                           setAnswersState(resetAnswers)
-                          handleClearPenalties()
                         }}
                         className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
-                        title="Reset Checklist & Penalties"
+                        title="Reset Checklist"
                       >
                         <RotateCcw className="size-4" />
                       </button>
@@ -1571,8 +1599,8 @@ function ExaminerWorkspaceContent() {
                           <span className="text-slate-300 dark:text-slate-600">|</span>
                           <span className="text-slate-700 dark:text-slate-200">
                             Deductions:{' '}
-                            <strong className={totalDeductionPoints < 0 ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-400 font-bold'}>
-                              {totalDeductionPoints < 0 ? `${totalDeductionPoints.toFixed(1)}` : '-0.0'}
+                            <strong className={totalCandidateDeductions < 0 ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-400 font-bold'}>
+                              {totalCandidateDeductions < 0 ? `${totalCandidateDeductions.toFixed(1)}` : '-0.0'}
                             </strong>
                           </span>
                           <span className="text-slate-300 dark:text-slate-600">|</span>

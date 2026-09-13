@@ -154,3 +154,12 @@ CREATE TABLE public.station_criteria (
   CONSTRAINT station_criteria_pkey PRIMARY KEY (id),
   CONSTRAINT station_criteria_station_id_fkey FOREIGN KEY (station_id) REFERENCES public.stations(id)
 );
+CREATE TABLE public.candidate_penalties (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  exam_attempt_id uuid NOT NULL,
+  points numeric NOT NULL CHECK (points < 0::numeric),
+  reason text NOT NULL,
+  created_at timestamp with time zone DEFAULT clock_timestamp(),
+  CONSTRAINT candidate_penalties_pkey PRIMARY KEY (id),
+  CONSTRAINT candidate_penalties_attempt_fkey FOREIGN KEY (exam_attempt_id) REFERENCES public.exam_attempts(id)
+);

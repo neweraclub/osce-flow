@@ -92,7 +92,8 @@ CREATE TABLE public.exams (
   exam_date date NOT NULL DEFAULT CURRENT_DATE,
   created_at timestamp with time zone NOT NULL DEFAULT clock_timestamp(),
   CONSTRAINT exams_pkey PRIMARY KEY (id),
-  CONSTRAINT exams_module_id_fkey FOREIGN KEY (module_id) REFERENCES public.modules(id)
+  CONSTRAINT exams_module_id_fkey FOREIGN KEY (module_id) REFERENCES public.modules(id) ON DELETE CASCADE,
+  CONSTRAINT uq_module_session UNIQUE (module_id, session_type)
 );
 CREATE TABLE public.stations (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -100,10 +101,10 @@ CREATE TABLE public.stations (
   station_number integer NOT NULL CHECK (station_number >= 1),
   title text NOT NULL,
   access_pin text NOT NULL UNIQUE CHECK (length(access_pin) >= 4),
-  weightage_percentage numeric NOT NULL DEFAULT 50.00 CHECK (weightage_percentage >= 0.00 AND weightage_percentage <= 100.00),
+  weightage_percentage numeric(5, 2) NOT NULL DEFAULT 50.00 CHECK (weightage_percentage >= 0.00 AND weightage_percentage <= 100.00),
   created_at timestamp with time zone NOT NULL DEFAULT clock_timestamp(),
   CONSTRAINT stations_pkey PRIMARY KEY (id),
-  CONSTRAINT stations_exam_id_fkey FOREIGN KEY (exam_id) REFERENCES public.exams(id)
+  CONSTRAINT stations_exam_id_fkey FOREIGN KEY (exam_id) REFERENCES public.exams(id) ON DELETE CASCADE
 );
 CREATE TABLE public.questions (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

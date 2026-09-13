@@ -13,6 +13,8 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url)
     const academicYearIdParam = searchParams.get('academic_year_id')
+    const examIdParam = searchParams.get('exam_id')
+    const moduleIdParam = searchParams.get('module_id')
 
     // 1. Fetch academic years
     const { data: rawYears } = await supabaseAdmin
@@ -50,6 +52,7 @@ export async function GET(req: NextRequest) {
       const { data: levels } = await supabaseAdmin
         .from('study_levels')
         .select('id, level_name, academic_year_id')
+        .eq('academic_year_id', activeYearId)
         .order('level_name', { ascending: true })
 
       studyLevels = levels || []
@@ -78,7 +81,7 @@ export async function GET(req: NextRequest) {
     })
 
     const activeModuleIds = activeModules.map((m) => m.id)
-    if (activeModuleIds.length === 0) {
+    if (activeModuleIds.length === 0 && !examIdParam) {
       return NextResponse.json({
         success: true,
         stations: [],
@@ -89,12 +92,21 @@ export async function GET(req: NextRequest) {
 
     const moduleMap = new Map(activeModules.map((m) => [m.id, m]))
 
-    // 4. Query ONLY stations where module_id is in professor's active modules
-    const { data: rawStations, error: stationsErr } = await supabaseAdmin
+    // 4. Query stations filtered by exam_id, module_id, or active modules
+    let stationQuery = supabaseAdmin
       .from('stations')
       .select('*')
-      .in('module_id', activeModuleIds)
       .order('station_number', { ascending: true })
+
+    if (examIdParam) {
+      stationQuery = stationQuery.eq('exam_id', examIdParam)
+    } else if (moduleIdParam) {
+      stationQuery = stationQuery.eq('module_id', moduleIdParam)
+    } else if (activeModuleIds.length > 0) {
+      stationQuery = stationQuery.in('module_id', activeModuleIds)
+    }
+
+    const { data: rawStations, error: stationsErr } = await stationQuery
 
     if (stationsErr) throw stationsErr
 
@@ -146,6 +158,7 @@ export async function GET(req: NextRequest) {
 
       return {
         id: st.id,
+        exam_id: st.exam_id || null,
         module_id: st.module_id,
         station_number: st.station_number,
         title: st.title,
@@ -202,10 +215,10 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { module_id, title, station_number, access_pin, weightage_percentage } = body
+    let { exam_id, module_id, title, station_number, access_pin, weightage_percentage } = body
 
-    if (!module_id) {
-      return NextResponse.json({ success: false, error: 'Module selection is required.' }, { status: 400 })
+    if (!exam_id && !module_id) {
+      return NextResponse.json({ success: false, error: 'Exam ID or Module ID is required.' }, { status: 400 })
     }
 
     if (!title || !title.trim()) {
@@ -224,60 +237,106 @@ export async function POST(req: NextRequest) {
 
     const weightage = Math.max(0, Math.min(100, typeof weightage_percentage !== 'undefined' && weightage_percentage !== null ? Number(weightage_percentage) : 50))
 
-    // Row-level authorization: Verify module belongs to this professor
-    const { data: moduleCheck, error: modErr } = await supabaseAdmin
-      .from('modules')
-      .select('id, module_name, responsible_prof_id')
-      .eq('id', module_id)
-      .single()
-
-    if (modErr || !moduleCheck) {
-      return NextResponse.json({ success: false, error: 'Selected module not found.' }, { status: 404 })
+    // If exam_id is provided, resolve module and check session weightage
+    let targetExam: any = null
+    if (exam_id) {
+      const { data: ex } = await supabaseAdmin
+        .from('exams')
+        .select('id, module_id, session_type')
+        .eq('id', exam_id)
+        .maybeSingle()
+      if (ex) {
+        targetExam = ex
+        if (!module_id) module_id = ex.module_id
+      }
+    } else if (module_id) {
+      // Find default exam session for this module
+      const { data: ex } = await supabaseAdmin
+        .from('exams')
+        .select('id, module_id, session_type')
+        .eq('module_id', module_id)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle()
+      if (ex) {
+        targetExam = ex
+        exam_id = ex.id
+      }
     }
 
-    if (
-      moduleCheck.responsible_prof_id !== prof.professorId &&
-      moduleCheck.responsible_prof_id !== prof.userId
-    ) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized: You are not assigned as the lead professor for this module.' },
-        { status: 403 }
+    let moduleCheck: any = null
+    // Row-level authorization: Verify module belongs to this professor
+    if (module_id) {
+      const { data: modData, error: modErr } = await supabaseAdmin
+        .from('modules')
+        .select('id, module_name, responsible_prof_id')
+        .eq('id', module_id)
+        .single()
+
+      if (modErr || !modData) {
+        return NextResponse.json({ success: false, error: 'Selected module not found.' }, { status: 404 })
+      }
+
+      if (
+        modData.responsible_prof_id !== prof.professorId &&
+        modData.responsible_prof_id !== prof.userId
+      ) {
+        return NextResponse.json(
+          { success: false, error: 'Unauthorized: You are not assigned as the lead professor for this module.' },
+          { status: 403 }
+        )
+      }
+      moduleCheck = modData
+    }
+
+    // Check cumulative weightage for target exam session or module
+    let currentTotal = 0
+    if (exam_id) {
+      const { data: sessionStations } = await supabaseAdmin
+        .from('stations')
+        .select('weightage_percentage')
+        .eq('exam_id', exam_id)
+
+      currentTotal = (sessionStations || []).reduce(
+        (sum, s) => sum + Number(s.weightage_percentage || 0),
+        0
+      )
+    } else if (module_id) {
+      const { data: existingStations } = await supabaseAdmin
+        .from('stations')
+        .select('weightage_percentage')
+        .eq('module_id', module_id)
+
+      currentTotal = (existingStations || []).reduce(
+        (sum, s) => sum + Number(s.weightage_percentage || 0),
+        0
       )
     }
 
-    // Check cumulative weightage for target module
-    const { data: existingStations } = await supabaseAdmin
-      .from('stations')
-      .select('weightage_percentage')
-      .eq('module_id', module_id)
+    const availableWeightage = Math.max(0, Math.round((100 - currentTotal) * 100) / 100)
 
-    const currentModuleTotal = (existingStations || []).reduce(
-      (sum, s) => sum + Number(s.weightage_percentage || 0),
-      0
-    )
-    const availableWeightage = Math.max(0, Math.round((100 - currentModuleTotal) * 100) / 100)
-
-    if (currentModuleTotal + weightage > 100) {
+    if (currentTotal + weightage > 100) {
       return NextResponse.json(
         {
           success: false,
-          error: `Total station weightage for this module cannot exceed 100% (Maximum available: ${availableWeightage}%).`,
+          error: `Total station weightage for this session cannot exceed 100% (Maximum available: ${availableWeightage}%).`,
         },
         { status: 400 }
       )
     }
 
+    const insertPayload: any = {
+      title: title.trim(),
+      station_number: parsedStationNumber,
+      access_pin: pinStr,
+      weightage_percentage: weightage,
+    }
+    if (exam_id) insertPayload.exam_id = exam_id
+    if (module_id) insertPayload.module_id = module_id
+
     const { data: newStation, error: insertErr } = await supabaseAdmin
       .from('stations')
-      .insert([
-        {
-          module_id,
-          title: title.trim(),
-          station_number: parsedStationNumber,
-          access_pin: pinStr,
-          weightage_percentage: weightage,
-        },
-      ])
+      .insert([insertPayload])
       .select()
       .single()
 

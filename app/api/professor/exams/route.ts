@@ -88,6 +88,27 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Enforce 1 regular + 1 retake exam limit per module (uq_module_session)
+    if (targetModuleId) {
+      const { data: existingSession } = await supabaseAdmin
+        .from('exams')
+        .select('id, session_type')
+        .eq('module_id', targetModuleId)
+        .eq('session_type', normalizedSessionType)
+        .maybeSingle()
+
+      if (existingSession) {
+        const typeLabel = normalizedSessionType === 'retake' ? 'Retake' : 'Regular'
+        return NextResponse.json(
+          {
+            success: false,
+            error: `A ${typeLabel} Session already exists for this module (maximum 1 Regular and 1 Retake session allowed).`,
+          },
+          { status: 400 }
+        )
+      }
+    }
+
     // Insert top-level exam session
     const insertPayload: any = {
       session_type: normalizedSessionType,

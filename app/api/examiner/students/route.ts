@@ -90,6 +90,34 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // 4b. Calculate station-scoped max possible points
+    let stationMaxPoints = 0
+    if (questions.length > 0) {
+      stationMaxPoints = questions.reduce(
+        (sum, q) => sum + (Number(q.max_scale_value) || 10),
+        0
+      )
+    } else if (stationId) {
+      const { data: examRow } = await supabaseAdmin
+        .from('exams')
+        .select('id')
+        .eq('station_id', stationId)
+        .limit(1)
+        .maybeSingle()
+
+      if (examRow?.id) {
+        const { data: qRows } = await supabaseAdmin
+          .from('questions')
+          .select('max_scale_value')
+          .eq('exam_id', examRow.id)
+
+        stationMaxPoints = (qRows || []).reduce(
+          (sum, q) => sum + (Number(q.max_scale_value) || 10),
+          0
+        )
+      }
+    }
+
     // 5. Strictly scope sections & groups to this station's study level
     let rawSections: any[] = []
     let rawGroups: any[] = []
@@ -263,7 +291,9 @@ export async function GET(req: NextRequest) {
         level_name: studyLevel?.level_name || '',
         academic_year_id: studyLevel?.academic_year_id || null,
         academic_year_label: academicYear?.year_label || '',
+        max_points: stationMaxPoints,
       },
+      station_max_points: stationMaxPoints,
       active_exam: activeExam || null,
       exams: exams || [],
       questions: questions || [],

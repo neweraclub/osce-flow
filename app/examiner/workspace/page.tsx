@@ -122,6 +122,7 @@ interface StationMeta {
   level_name?: string
   academic_year_id?: string | null
   academic_year_label?: string
+  max_points?: number
 }
 
 interface ExamMeta {
@@ -530,14 +531,20 @@ function ExaminerWorkspaceContent() {
     })
   }
 
+  // Station-Scoped Max Possible Points: calculated strictly for the current station's checklist questions
+  const stationMaxPoints = useMemo(() => {
+    if (questions.length > 0) {
+      return questions.reduce((sum, q) => sum + (Number(q.max_scale_value) || 10), 0)
+    }
+    return station?.max_points || 0
+  }, [questions, station?.max_points])
+
   // Calculate Running Score
   const calculatedPoints = useMemo(() => {
     let earned = 0
-    let max = 0
 
     questions.forEach((q) => {
       const maxVal = Number(q.max_scale_value) || 10
-      max += maxVal
 
       const state = answersState[q.id]
       if (!state) return
@@ -570,8 +577,8 @@ function ExaminerWorkspaceContent() {
       }
     })
 
-    return { earned: Math.round(earned * 100) / 100, max }
-  }, [questions, answersState])
+    return { earned: Math.round(earned * 100) / 100, max: stationMaxPoints }
+  }, [questions, answersState, stationMaxPoints])
 
   // Deductions calculation strictly from local candidatePenalties state array
   const totalDeductions = useMemo(() => {
@@ -871,6 +878,10 @@ function ExaminerWorkspaceContent() {
                     <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                       {questions.length} Checklist Items
                     </span>
+                    <span className="text-xs text-slate-400">·</span>
+                    <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 font-mono">
+                      Max {stationMaxPoints} pts
+                    </span>
                   </div>
                   <h2 className="text-xl font-black text-slate-900 dark:text-white">
                     {station?.title}
@@ -1037,9 +1048,12 @@ function ExaminerWorkspaceContent() {
                               </span>
                             )}
                           </td>
-                          <td className="py-3 px-4 text-right font-mono font-bold">
+                          <td className="py-3 px-4 text-right font-mono">
                             {st.final_score !== null ? (
-                              <span className="text-amber-600 dark:text-amber-400">{st.final_score} pts</span>
+                              <span className="inline-flex items-center gap-1 justify-end">
+                                <span className="font-bold text-amber-600 dark:text-amber-400">{st.final_score}</span>
+                                <span className="text-slate-400 dark:text-slate-500 font-medium text-[11px]"> / {stationMaxPoints} pts</span>
+                              </span>
                             ) : (
                               <span className="text-slate-400 font-normal">—</span>
                             )}
@@ -1213,7 +1227,14 @@ function ExaminerWorkspaceContent() {
                         <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
                           {isCompleted ? (
                             <span className="text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                              Score: {st.final_score !== null ? `${st.final_score} pts` : 'Scored'}
+                              Score: {st.final_score !== null ? (
+                                <>
+                                  <span>{st.final_score}</span>
+                                  <span className="text-slate-400 dark:text-slate-500 font-medium"> / {stationMaxPoints} pts</span>
+                                </>
+                              ) : (
+                                'Scored'
+                              )}
                             </span>
                           ) : (
                             <span className="text-[11px] font-medium text-slate-400">
@@ -1348,7 +1369,7 @@ function ExaminerWorkspaceContent() {
                             </span>
                             <span className="text-xl font-black font-mono text-amber-600 dark:text-amber-400">
                               {netScore}{' '}
-                              <span className="text-xs font-normal text-slate-400">/ {calculatedPoints.max}</span>
+                              <span className="text-xs font-normal text-slate-400">/ {stationMaxPoints} pts</span>
                             </span>
                           </div>
                         </div>
@@ -1542,7 +1563,7 @@ function ExaminerWorkspaceContent() {
                             <strong className="text-amber-600 dark:text-amber-400">
                               {netScore}
                             </strong>{' '}
-                            <span className="text-[11px] font-normal text-slate-400">/ {calculatedPoints.max} pts</span>
+                              <span className="text-[11px] font-normal text-slate-400">/ {stationMaxPoints} pts</span>
                           </span>
                         </div>
                       </div>

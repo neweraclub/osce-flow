@@ -78,18 +78,16 @@ export async function POST(req: NextRequest) {
 
     const attemptId = attemptRecord.id
 
-    // 3. Clear any existing student_answers for this attempt and station to avoid duplicates
+    // 3. Clear any existing student_answers for this attempt to avoid duplicates
     await supabaseAdmin
       .from('student_answers')
       .delete()
       .eq('attempt_id', attemptId)
-      .eq('station_id', station_id)
 
     // 4. Insert student_answers rows
     if (answerList.length > 0) {
       const answerRows = answerList.map((ans: any) => ({
         attempt_id: attemptId,
-        station_id: station_id,
         question_id: ans.question_id,
         selected_options: Array.isArray(ans.selected_options)
           ? ans.selected_options

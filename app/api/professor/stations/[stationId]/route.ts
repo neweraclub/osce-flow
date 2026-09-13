@@ -33,38 +33,37 @@ export async function GET(
 
     const { station, module: mod, levelName, slug } = resolved
 
-    // Fetch Exams for this Station (always using internal UUID)
-    const { data: exams, error: exErr } = await supabaseAdmin
-      .from('exams')
-      .select('*')
-      .eq('station_id', station.id)
-      .order('exam_date', { ascending: false })
-
-    if (exErr) throw exErr
-
-    const examIds = (exams || []).map((e) => e.id)
-
-    // Fetch Question counts for each exam
-    const questionsCountMap = new Map<string, number>()
-    if (examIds.length > 0) {
-      const { data: qData } = await supabaseAdmin
-        .from('questions')
-        .select('id, exam_id')
-        .in('exam_id', examIds)
-
-      ;(qData || []).forEach((q) => {
-        questionsCountMap.set(q.exam_id, (questionsCountMap.get(q.exam_id) || 0) + 1)
-      })
+    // Fetch Linked Exam for this Station
+    let linkedExam: any = null
+    if (station.exam_id) {
+      const { data: ex } = await supabaseAdmin
+        .from('exams')
+        .select('*')
+        .eq('id', station.exam_id)
+        .maybeSingle()
+      linkedExam = ex
     }
 
-    const formattedExams = (exams || []).map((e) => ({
-      id: e.id,
-      station_id: e.station_id,
-      session_type: e.session_type || 'regular',
-      exam_date: e.exam_date,
-      question_count: questionsCountMap.get(e.id) || 0,
-      created_at: e.created_at,
-    }))
+    // Fetch Questions for this station (questions.station_id)
+    const { data: questions, error: qErr } = await supabaseAdmin
+      .from('questions')
+      .select('*')
+      .eq('station_id', station.id)
+      .order('created_at', { ascending: true })
+
+    if (qErr) throw qErr
+
+    const formattedExams = linkedExam
+      ? [
+          {
+            id: linkedExam.id,
+            session_type: linkedExam.session_type || 'regular',
+            exam_date: linkedExam.exam_date,
+            question_count: (questions || []).length,
+            created_at: linkedExam.created_at,
+          },
+        ]
+      : []
 
     // Fetch modules assigned to this professor for modal dropdown
     const { data: profModules } = await supabaseAdmin
@@ -92,19 +91,32 @@ export async function GET(
       level_name: levelMap.get(m.level_id) || 'General Level',
     }))
 
-    // Calculate total weightage per module
+    // Calculate total weightage per module via exams
     const assignedModuleIds = assignedModulesList.map((m) => m.id)
     const moduleWeightageMap: Record<string, number> = {}
     if (assignedModuleIds.length > 0) {
-      const { data: modStations } = await supabaseAdmin
-        .from('stations')
-        .select('module_id, weightage_percentage')
+      const { data: modExams } = await supabaseAdmin
+        .from('exams')
+        .select('id, module_id')
         .in('module_id', assignedModuleIds)
 
-      ;(modStations || []).forEach((st) => {
-        moduleWeightageMap[st.module_id] =
-          (moduleWeightageMap[st.module_id] || 0) + Number(st.weightage_percentage || 0)
-      })
+      const examToMod = new Map((modExams || []).map((e) => [e.id, e.module_id]))
+      const exIds = (modExams || []).map((e) => e.id)
+
+      if (exIds.length > 0) {
+        const { data: modStations } = await supabaseAdmin
+          .from('stations')
+          .select('exam_id, weightage_percentage')
+          .in('exam_id', exIds)
+
+        ;(modStations || []).forEach((st) => {
+          const mId = examToMod.get(st.exam_id)
+          if (mId) {
+            moduleWeightageMap[mId] =
+              (moduleWeightageMap[mId] || 0) + Number(st.weightage_percentage || 0)
+          }
+        })
+      }
     }
 
     return NextResponse.json({
@@ -112,7 +124,8 @@ export async function GET(
       station: {
         id: station.id,
         slug,
-        module_id: station.module_id,
+        exam_id: station.exam_id,
+        module_id: mod?.id || linkedExam?.module_id || null,
         station_number: station.station_number,
         title: station.title,
         access_pin: station.access_pin,
@@ -161,7 +174,7 @@ export async function PUT(
 
     const currentStation = resolved.station
     const body = await req.json()
-    const { module_id, title, station_number, access_pin, weightage_percentage } = body
+    const { title, station_number, access_pin, weightage_percentage } = body
 
     const updatePayload: any = {}
 
@@ -192,58 +205,38 @@ export async function PUT(
       updatePayload.weightage_percentage = Math.max(0, Math.min(100, Number(weightage_percentage) || 0))
     }
 
-    if (module_id !== undefined && module_id !== currentStation.module_id) {
-      // Verify new module also belongs to this professor
-      const { data: targetMod } = await supabaseAdmin
-        .from('modules')
-        .select('id, responsible_prof_id')
-        .eq('id', module_id)
-        .single()
-
-      if (
-        !targetMod ||
-        (targetMod.responsible_prof_id !== prof.professorId &&
-          targetMod.responsible_prof_id !== prof.userId)
-      ) {
-        return NextResponse.json(
-          { success: false, error: 'Target module is not assigned to you.' },
-          { status: 403 }
-        )
-      }
-      updatePayload.module_id = module_id
-    }
-
-    const targetModuleId = updatePayload.module_id || currentStation.module_id
     const targetWeightage =
       updatePayload.weightage_percentage !== undefined
         ? updatePayload.weightage_percentage
         : Number(currentStation.weightage_percentage || 0)
 
-    // Validate cumulative weightage in target module
-    const { data: otherStations, error: otherStationsErr } = await supabaseAdmin
-      .from('stations')
-      .select('weightage_percentage')
-      .eq('module_id', targetModuleId)
-      .neq('id', currentStation.id)
+    // Validate cumulative weightage in target exam session
+    if (currentStation.exam_id) {
+      const { data: otherStations, error: otherStationsErr } = await supabaseAdmin
+        .from('stations')
+        .select('weightage_percentage')
+        .eq('exam_id', currentStation.exam_id)
+        .neq('id', currentStation.id)
 
-    if (otherStationsErr) {
-      throw otherStationsErr
-    }
+      if (otherStationsErr) {
+        throw otherStationsErr
+      }
 
-    const otherTotal = (otherStations || []).reduce(
-      (sum, s) => sum + Number(s.weightage_percentage || 0),
-      0
-    )
-    const availableWeightage = Math.max(0, Math.round((100 - otherTotal) * 100) / 100)
-
-    if (otherTotal + targetWeightage > 100) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Total station weightage for this module cannot exceed 100% (Maximum available: ${availableWeightage}%).`,
-        },
-        { status: 400 }
+      const otherTotal = (otherStations || []).reduce(
+        (sum, s) => sum + Number(s.weightage_percentage || 0),
+        0
       )
+      const availableWeightage = Math.max(0, Math.round((100 - otherTotal) * 100) / 100)
+
+      if (otherTotal + targetWeightage > 100) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Total station weightage for this session cannot exceed 100% (Maximum available: ${availableWeightage}%).`,
+          },
+          { status: 400 }
+        )
+      }
     }
 
     const { data: updatedStation, error: updateErr } = await supabaseAdmin
@@ -263,28 +256,9 @@ export async function PUT(
       throw updateErr
     }
 
-    const finalModuleId = updatePayload.module_id || currentStation.module_id
-    const { data: finalMod } = await supabaseAdmin
-      .from('modules')
-      .select('id, module_name, level_id')
-      .eq('id', finalModuleId)
-      .single()
-
-    let finalLevelName = resolved.levelName || 'General Level'
-    if (finalMod?.level_id) {
-      const { data: lvlData } = await supabaseAdmin
-        .from('study_levels')
-        .select('level_name')
-        .eq('id', finalMod.level_id)
-        .single()
-      if (lvlData?.level_name) {
-        finalLevelName = lvlData.level_name
-      }
-    }
-
     const updatedSlug = getStationSlug({
       station_number: updatedStation.station_number,
-      module_name: finalMod?.module_name || resolved.module?.module_name,
+      module_name: resolved.module?.module_name,
       id: updatedStation.id,
     })
 
@@ -293,13 +267,14 @@ export async function PUT(
       station: {
         id: updatedStation.id,
         slug: updatedSlug,
-        module_id: updatedStation.module_id,
+        exam_id: updatedStation.exam_id,
+        module_id: resolved.module?.id || null,
         station_number: updatedStation.station_number,
         title: updatedStation.title,
         access_pin: updatedStation.access_pin,
         weightage_percentage: Number(updatedStation.weightage_percentage || 0),
-        module_name: finalMod ? finalMod.module_name : 'General Module',
-        level_name: finalLevelName,
+        module_name: resolved.module ? resolved.module.module_name : 'General Module',
+        level_name: resolved.levelName || 'General Level',
         created_at: updatedStation.created_at,
       },
     })
@@ -310,6 +285,8 @@ export async function PUT(
     )
   }
 }
+
+export const PATCH = PUT
 
 export async function DELETE(
   req: NextRequest,
@@ -339,19 +316,13 @@ export async function DELETE(
 
     const currentStation = resolved.station
 
-    // 1. Find child exams to delete child questions if needed
-    const { data: childExams } = await supabaseAdmin
-      .from('exams')
-      .select('id')
-      .eq('station_id', currentStation.id)
+    // Delete dependent questions
+    await supabaseAdmin.from('questions').delete().eq('station_id', currentStation.id)
 
-    const examIds = (childExams || []).map((e) => e.id)
-    if (examIds.length > 0) {
-      await supabaseAdmin.from('questions').delete().in('exam_id', examIds)
-      await supabaseAdmin.from('exams').delete().eq('station_id', currentStation.id)
-    }
+    // Delete station criteria
+    await supabaseAdmin.from('station_criteria').delete().eq('station_id', currentStation.id)
 
-    // 2. Delete station
+    // Delete station
     const { error: delErr } = await supabaseAdmin
       .from('stations')
       .delete()

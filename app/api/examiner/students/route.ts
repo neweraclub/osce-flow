@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // Resolve exams: station belongs to exam (station.exam_id) or exams belong to station (legacy station_id)
+    // Resolve exam: station belongs to exam (station.exam_id)
     let exams: any[] = []
     let activeExam: any = null
 
@@ -44,23 +44,12 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const { data: stationExams } = await supabaseAdmin
-      .from('exams')
-      .select('*')
-      .eq('station_id', stationId)
-      .order('exam_date', { ascending: false })
-
-    if (stationExams && stationExams.length > 0) {
-      exams = [...exams, ...stationExams.filter((se) => !exams.some((e) => e.id === se.id))]
-      if (!activeExam) activeExam = exams[0]
-    }
-
-    if (examIdParam) {
+    if (examIdParam && exams.length > 0) {
       const selected = exams.find((e) => e.id === examIdParam)
       if (selected) activeExam = selected
     }
 
-    const moduleId = activeExam?.module_id || station.module_id
+    const moduleId = activeExam?.module_id || null
 
     // 2. Fetch module and level details
     let mod: any = null
@@ -204,20 +193,11 @@ export async function GET(req: NextRequest) {
 
     if (studentList.length > 0) {
       const studentIds = studentList.map((s) => s.id)
-      let { data: attempts } = await supabaseAdmin
+      const { data: attempts } = await supabaseAdmin
         .from('exam_attempts')
         .select('*')
         .eq('station_id', stationId)
         .in('student_id', studentIds)
-
-      if ((!attempts || attempts.length === 0) && activeExam?.id) {
-        const { data: legacyAttempts } = await supabaseAdmin
-          .from('exam_attempts')
-          .select('*')
-          .eq('exam_id', activeExam.id)
-          .in('student_id', studentIds)
-        if (legacyAttempts) attempts = legacyAttempts
-      }
 
       const attemptIds = (attempts || []).map((a) => a.id)
 
@@ -225,7 +205,7 @@ export async function GET(req: NextRequest) {
         // Fetch student answers
         const { data: savedAnswers } = await supabaseAdmin
           .from('student_answers')
-          .select('id, attempt_id, station_id, question_id, evaluation_score, points_awarded, selected_options')
+          .select('id, attempt_id, question_id, evaluation_score, points_awarded, selected_options')
           .in('attempt_id', attemptIds)
 
         ;(savedAnswers || []).forEach((ans) => {

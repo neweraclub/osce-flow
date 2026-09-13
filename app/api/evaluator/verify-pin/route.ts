@@ -29,64 +29,65 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 2. Look up module & level details
-    const { data: mod } = await supabaseAdmin
-      .from('modules')
-      .select('id, module_name, level_id')
-      .eq('id', station.module_id)
-      .single()
+    // 2. Look up linked exam & module (normalized schema: station.exam_id -> exams.module_id)
+    let linkedExam: any = null
+    if (station.exam_id) {
+      const { data: ex } = await supabaseAdmin
+        .from('exams')
+        .select('*')
+        .eq('id', station.exam_id)
+        .maybeSingle()
+      linkedExam = ex
+    }
 
+    const moduleId = linkedExam?.module_id || null
+    let mod: any = null
     let levelName = 'General Level'
-    let levelId = mod?.level_id || null
+    let levelId = null
     let academicYearId = null
 
-    if (levelId) {
-      const { data: lvl } = await supabaseAdmin
-        .from('study_levels')
-        .select('id, level_name, academic_year_id')
-        .eq('id', levelId)
+    if (moduleId) {
+      const { data: modData } = await supabaseAdmin
+        .from('modules')
+        .select('id, module_name, level_id')
+        .eq('id', moduleId)
         .single()
+      mod = modData
+      levelId = mod?.level_id || null
 
-      if (lvl) {
-        levelName = lvl.level_name || 'General Level'
-        academicYearId = lvl.academic_year_id
+      if (levelId) {
+        const { data: lvl } = await supabaseAdmin
+          .from('study_levels')
+          .select('id, level_name, academic_year_id')
+          .eq('id', levelId)
+          .single()
+
+        if (lvl) {
+          levelName = lvl.level_name || 'General Level'
+          academicYearId = lvl.academic_year_id
+        }
       }
     }
 
-    // 3. Fetch exams for this station
-    const { data: exams, error: exErr } = await supabaseAdmin
-      .from('exams')
-      .select('*')
+    // 3. Fetch questions for this station
+    const { data: questions } = await supabaseAdmin
+      .from('questions')
+      .select('id')
       .eq('station_id', station.id)
-      .order('exam_date', { ascending: false })
 
-    if (exErr) {
-      console.error('Error fetching station exams:', exErr)
-    }
+    const questionCount = (questions || []).length
 
-    // 4. Fetch question count per exam
-    const examIds = (exams || []).map((e) => e.id)
-    const questionsCountMap: Record<string, number> = {}
-
-    if (examIds.length > 0) {
-      const { data: qData } = await supabaseAdmin
-        .from('questions')
-        .select('id, exam_id')
-        .in('exam_id', examIds)
-
-      ;(qData || []).forEach((q) => {
-        questionsCountMap[q.exam_id] = (questionsCountMap[q.exam_id] || 0) + 1
-      })
-    }
-
-    const formattedExams = (exams || []).map((e) => ({
-      id: e.id,
-      station_id: e.station_id,
-      session_type: e.session_type || 'regular',
-      exam_date: e.exam_date,
-      question_count: questionsCountMap[e.id] || 0,
-      created_at: e.created_at,
-    }))
+    const formattedExams = linkedExam
+      ? [
+          {
+            id: linkedExam.id,
+            session_type: linkedExam.session_type || 'regular',
+            exam_date: linkedExam.exam_date,
+            question_count: questionCount,
+            created_at: linkedExam.created_at,
+          },
+        ]
+      : []
 
     return NextResponse.json({
       success: true,
@@ -96,19 +97,19 @@ export async function POST(req: NextRequest) {
         title: station.title,
         access_pin: station.access_pin,
         weightage_percentage: Number(station.weightage_percentage || 0),
-        module_id: station.module_id,
+        exam_id: station.exam_id,
+        module_id: moduleId,
         module_name: mod ? mod.module_name : 'Medical Module',
         level_id: levelId,
         level_name: levelName,
         academic_year_id: academicYearId,
-        created_at: station.created_at,
       },
       exams: formattedExams,
     })
   } catch (error: any) {
     console.error('verify-pin error:', error)
     return NextResponse.json(
-      { success: false, error: error?.message || 'Server error during PIN validation.' },
+      { success: false, error: error?.message || 'Failed to verify station PIN.' },
       { status: 500 }
     )
   }

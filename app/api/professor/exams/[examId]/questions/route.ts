@@ -29,29 +29,17 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'Exam session not found.' }, { status: 404 })
     }
 
-    // 2. Fetch Station
-    let station: any = null
-    if (exam.station_id) {
-      const { data: st } = await supabaseAdmin
-        .from('stations')
-        .select('*')
-        .eq('id', exam.station_id)
-        .maybeSingle()
-      station = st
-    }
-    if (!station) {
-      const { data: st } = await supabaseAdmin
-        .from('stations')
-        .select('*')
-        .eq('exam_id', examId)
-        .maybeSingle()
-      station = st
-    }
+    // 2. Fetch Station (stations.exam_id)
+    const { data: station } = await supabaseAdmin
+      .from('stations')
+      .select('*')
+      .eq('exam_id', examId)
+      .maybeSingle()
 
     // 3. Fetch Module info
     let moduleName = 'General Module'
     let levelName = 'General Level'
-    const moduleId = exam.module_id || station?.module_id
+    const moduleId = exam.module_id
     if (moduleId) {
       const { data: mod } = await supabaseAdmin
         .from('modules')
@@ -70,20 +58,24 @@ export async function GET(
       }
     }
 
-    // 4. Fetch Questions
-    const questionsQuery = station?.id
-      ? supabaseAdmin.from('questions').select('*').or(`station_id.eq.${station.id},exam_id.eq.${examId}`)
-      : supabaseAdmin.from('questions').select('*').eq('exam_id', examId)
+    // 4. Fetch Questions (questions.station_id)
+    let questions: any[] = []
+    if (station?.id) {
+      const { data: qData, error: qErr } = await supabaseAdmin
+        .from('questions')
+        .select('*')
+        .eq('station_id', station.id)
+        .order('created_at', { ascending: true })
 
-    const { data: questions, error: qErr } = await questionsQuery.order('created_at', { ascending: true })
-
-    if (qErr) throw qErr
+      if (qErr) throw qErr
+      questions = qData || []
+    }
 
     return NextResponse.json({
       success: true,
       exam: {
         id: exam.id,
-        station_id: exam.station_id,
+        module_id: exam.module_id,
         session_type: exam.session_type || 'regular',
         exam_date: exam.exam_date,
         created_at: exam.created_at,
@@ -96,7 +88,7 @@ export async function GET(
               module_name: moduleName,
               id: station.id,
             }),
-            module_id: station.module_id,
+            module_id: exam.module_id,
             station_number: station.station_number,
             title: station.title,
             access_pin: station.access_pin,
@@ -105,7 +97,7 @@ export async function GET(
             level_name: levelName,
           }
         : null,
-      questions: questions || [],
+      questions,
     })
   } catch (error: any) {
     return NextResponse.json(

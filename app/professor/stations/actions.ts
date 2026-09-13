@@ -32,7 +32,7 @@ export interface UpdateStationResult {
 
 /**
  * Server Action: Updates station details directly with database validation.
- * Ensures the target module belongs to the authenticated professor.
+ * Ensures the target module belongs to the authenticated professor and respects normalized schema.
  */
 export async function updateStationDetailsAction(
   input: UpdateStationInput
@@ -112,38 +112,41 @@ export async function updateStationDetailsAction(
       }
     }
 
-    // 4. Validate cumulative module weightage (cannot exceed 100%)
-    const { data: otherStations, error: stationsErr } = await supabaseAdmin
-      .from('stations')
-      .select('weightage_percentage')
-      .eq('module_id', module_id)
-      .neq('id', currentStation.id)
+    // 4. Validate cumulative exam session weightage (cannot exceed 100%)
+    let otherTotal = 0
+    if (currentStation.exam_id) {
+      const { data: otherStations, error: stationsErr } = await supabaseAdmin
+        .from('stations')
+        .select('weightage_percentage')
+        .eq('exam_id', currentStation.exam_id)
+        .neq('id', currentStation.id)
 
-    if (stationsErr) {
-      throw stationsErr
+      if (stationsErr) {
+        throw stationsErr
+      }
+
+      otherTotal = (otherStations || []).reduce(
+        (sum, s) => sum + Number(s.weightage_percentage || 0),
+        0
+      )
     }
 
-    const otherTotal = (otherStations || []).reduce(
-      (sum, s) => sum + Number(s.weightage_percentage || 0),
-      0
-    )
     const availableWeightage = Math.max(0, Math.round((100 - otherTotal) * 100) / 100)
 
     if (otherTotal + weightage > 100) {
       return {
         success: false,
-        error: `Total station weightage for this module cannot exceed 100% (Maximum available: ${availableWeightage}%).`,
+        error: `Total station weightage for this session cannot exceed 100% (Maximum available: ${availableWeightage}%).`,
       }
     }
 
-    // 5. Update station in Supabase database
+    // 5. Update station in Supabase database (strictly normalized: NO module_id on stations)
     const { data: updatedStation, error: updateErr } = await supabaseAdmin
       .from('stations')
       .update({
         title: title.trim(),
         station_number: num,
         weightage_percentage: weightage,
-        module_id: module_id,
       })
       .eq('id', currentStation.id)
       .select()
@@ -153,7 +156,7 @@ export async function updateStationDetailsAction(
       throw updateErr
     }
 
-    // 5. Generate human-readable station slug with updated module name & number
+    // 6. Generate human-readable station slug with updated module name & number
     const updatedSlug = getStationSlug({
       station_number: updatedStation.station_number,
       module_name: targetMod.module_name,
@@ -165,7 +168,7 @@ export async function updateStationDetailsAction(
       station: {
         id: updatedStation.id,
         slug: updatedSlug,
-        module_id: updatedStation.module_id,
+        module_id: module_id,
         station_number: updatedStation.station_number,
         title: updatedStation.title,
         access_pin: updatedStation.access_pin,
@@ -182,5 +185,3 @@ export async function updateStationDetailsAction(
     }
   }
 }
-
-

@@ -23,7 +23,17 @@ export async function GET(req: NextRequest) {
       query = query.eq('module_id', moduleId)
     }
     if (stationId) {
-      query = query.eq('station_id', stationId)
+      const { data: st } = await supabaseAdmin
+        .from('stations')
+        .select('exam_id')
+        .eq('id', stationId)
+        .maybeSingle()
+
+      if (st?.exam_id) {
+        query = query.eq('id', st.exam_id)
+      } else {
+        return NextResponse.json({ success: true, exams: [] })
+      }
     }
 
     const { data: exams, error } = await query
@@ -109,13 +119,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Insert top-level exam session
+    // Insert top-level exam session (strictly normalized: NO station_id on exams)
     const insertPayload: any = {
       session_type: normalizedSessionType,
       exam_date: examDateVal,
     }
     if (targetModuleId) insertPayload.module_id = targetModuleId
-    if (trueStationId) insertPayload.station_id = trueStationId
 
     const { data: newExam, error: insertErr } = await supabaseAdmin
       .from('exams')
@@ -129,7 +138,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            error: `A ${typeLabel} Session already exists for this station/module.`,
+            error: `A ${typeLabel} Session already exists for this module.`,
           },
           { status: 400 }
         )
@@ -137,7 +146,7 @@ export async function POST(req: NextRequest) {
       throw insertErr
     }
 
-    // If trueStationId was provided, update station's exam_id link
+    // If trueStationId was provided, link station's exam_id to newExam.id
     if (trueStationId && newExam?.id) {
       await supabaseAdmin
         .from('stations')
@@ -168,8 +177,22 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Exam ID is required.' }, { status: 400 })
     }
 
-    // Delete child questions if any
-    await supabaseAdmin.from('questions').delete().eq('exam_id', id)
+    // Find child stations
+    const { data: childStations } = await supabaseAdmin
+      .from('stations')
+      .select('id')
+      .eq('exam_id', id)
+
+    const stationIds = (childStations || []).map((s) => s.id)
+
+    if (stationIds.length > 0) {
+      // Delete child questions
+      await supabaseAdmin.from('questions').delete().in('station_id', stationIds)
+      // Delete child station criteria
+      await supabaseAdmin.from('station_criteria').delete().in('station_id', stationIds)
+      // Delete child stations
+      await supabaseAdmin.from('stations').delete().eq('exam_id', id)
+    }
 
     // Delete exam
     const { error: delErr } = await supabaseAdmin.from('exams').delete().eq('id', id)

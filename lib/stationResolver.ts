@@ -17,7 +17,7 @@ export interface ResolvedStationResult {
 
 /**
  * Resolves a station by either raw UUID or human-readable slug (e.g. 'cardiology-station-01' or 'station-01')
- * scoped to the authenticated professor's assigned modules.
+ * scoped to the authenticated professor's assigned modules and normalized schema hierarchy.
  */
 export async function resolveStationRecord(
   identifier: string,
@@ -49,14 +49,25 @@ export async function resolveStationRecord(
       return { station: null }
     }
 
-    // Verify ownership
-    let mod = moduleMap.get(station.module_id)
-    if (!mod) {
+    // Resolve exam for this station
+    let linkedExam: any = null
+    if (station.exam_id) {
+      const { data: ex } = await supabaseAdmin
+        .from('exams')
+        .select('id, module_id, session_type, exam_date')
+        .eq('id', station.exam_id)
+        .maybeSingle()
+      linkedExam = ex
+    }
+
+    const targetModuleId = linkedExam?.module_id || station.module_id
+    let mod = targetModuleId ? moduleMap.get(targetModuleId) : null
+    if (!mod && targetModuleId) {
       // Query module directly if not in initial list
       const { data: rawMod } = await supabaseAdmin
         .from('modules')
         .select('id, module_name, level_id, responsible_prof_id')
-        .eq('id', station.module_id)
+        .eq('id', targetModuleId)
         .single()
 
       if (
@@ -86,7 +97,11 @@ export async function resolveStationRecord(
     })
 
     return {
-      station,
+      station: {
+        ...station,
+        module_id: targetModuleId,
+        exams: linkedExam,
+      },
       module: mod,
       levelName,
       slug: cleanSlug,
@@ -98,36 +113,70 @@ export async function resolveStationRecord(
     return { station: null }
   }
 
-  // Fetch all candidate stations for the professor's assigned modules
+  // Fetch all exams for the professor's assigned modules
+  const { data: candidateExams, error: exErr } = await supabaseAdmin
+    .from('exams')
+    .select('id, module_id, session_type, exam_date')
+    .in('module_id', moduleIds)
+
+  if (exErr || !candidateExams || candidateExams.length === 0) {
+    return { station: null }
+  }
+
+  const examMap = new Map(candidateExams.map((e) => [e.id, e]))
+  const examIds = candidateExams.map((e) => e.id)
+
+  // Fetch all candidate stations for these exams
   const { data: candidateStations, error: candErr } = await supabaseAdmin
     .from('stations')
     .select('*')
-    .in('module_id', moduleIds)
+    .in('exam_id', examIds)
     .order('station_number', { ascending: true })
 
   if (candErr || !candidateStations || candidateStations.length === 0) {
     return { station: null }
   }
 
+  const buildResult = async (st: any) => {
+    const ex = examMap.get(st.exam_id)
+    const mod = ex ? moduleMap.get(ex.module_id) : null
+    let levelName = 'General Level'
+    if (mod?.level_id) {
+      const { data: lvl } = await supabaseAdmin
+        .from('study_levels')
+        .select('level_name')
+        .eq('id', mod.level_id)
+        .single()
+      if (lvl?.level_name) levelName = lvl.level_name
+    }
+    const stSlug = getStationSlug({
+      station_number: st.station_number,
+      module_name: mod?.module_name,
+      id: st.id,
+    })
+    return {
+      station: {
+        ...st,
+        module_id: ex?.module_id,
+        exams: ex,
+      },
+      module: mod,
+      levelName,
+      slug: stSlug,
+    }
+  }
+
   // B1. Exact slug match
   for (const st of candidateStations) {
-    const mod = moduleMap.get(st.module_id)
+    const ex = examMap.get(st.exam_id)
+    const mod = ex ? moduleMap.get(ex.module_id) : null
     const stSlug = getStationSlug({
       station_number: st.station_number,
       module_name: mod?.module_name,
       id: st.id,
     })
     if (stSlug.toLowerCase() === parsed.raw.toLowerCase()) {
-      let levelName = 'General Level'
-      if (mod?.level_id) {
-        const { data: lvl } = await supabaseAdmin
-          .from('study_levels')
-          .select('level_name')
-          .eq('id', mod.level_id)
-          .single()
-        if (lvl?.level_name) levelName = lvl.level_name
-      }
-      return { station: st, module: mod, levelName, slug: stSlug }
+      return await buildResult(st)
     }
   }
 
@@ -141,25 +190,12 @@ export async function resolveStationRecord(
       })
 
       if (matchedMod) {
+        const matchedExams = candidateExams.filter((e) => e.module_id === matchedMod.id).map((e) => e.id)
         const st = candidateStations.find(
-          (s) => s.module_id === matchedMod.id && Number(s.station_number) === parsed.stationNumber
+          (s) => matchedExams.includes(s.exam_id) && Number(s.station_number) === parsed.stationNumber
         )
         if (st) {
-          let levelName = 'General Level'
-          if (matchedMod.level_id) {
-            const { data: lvl } = await supabaseAdmin
-              .from('study_levels')
-              .select('level_name')
-              .eq('id', matchedMod.level_id)
-              .single()
-            if (lvl?.level_name) levelName = lvl.level_name
-          }
-          const stSlug = getStationSlug({
-            station_number: st.station_number,
-            module_name: matchedMod.module_name,
-            id: st.id,
-          })
-          return { station: st, module: matchedMod, levelName, slug: stSlug }
+          return await buildResult(st)
         }
       }
     }
@@ -169,22 +205,7 @@ export async function resolveStationRecord(
       (s) => Number(s.station_number) === parsed.stationNumber
     )
     if (st) {
-      const mod = moduleMap.get(st.module_id)
-      let levelName = 'General Level'
-      if (mod?.level_id) {
-        const { data: lvl } = await supabaseAdmin
-          .from('study_levels')
-          .select('level_name')
-          .eq('id', mod.level_id)
-          .single()
-        if (lvl?.level_name) levelName = lvl.level_name
-      }
-      const stSlug = getStationSlug({
-        station_number: st.station_number,
-        module_name: mod?.module_name,
-        id: st.id,
-      })
-      return { station: st, module: mod, levelName, slug: stSlug }
+      return await buildResult(st)
     }
   }
 

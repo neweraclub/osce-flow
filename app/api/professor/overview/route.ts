@@ -83,13 +83,29 @@ export async function GET(req: NextRequest) {
     const assignedModuleIds = assignedModules.map((m) => m.id)
     const assignedModuleMap = new Map(assignedModules.map((m) => [m.id, m]))
 
-    // 4. Query ONLY stations belonging to these assigned modules
-    let stationsList: any[] = []
+    // 4. Query Exams for assigned modules
+    let examsList: any[] = []
     if (assignedModuleIds.length > 0) {
+      const { data: rawExams, error: examsErr } = await supabaseAdmin
+        .from('exams')
+        .select('*')
+        .in('module_id', assignedModuleIds)
+        .order('exam_date', { ascending: true })
+
+      if (examsErr) throw examsErr
+      examsList = rawExams || []
+    }
+
+    const examIds = examsList.map((e) => e.id)
+    const examMap = new Map(examsList.map((e) => [e.id, e]))
+
+    // 5. Query stations belonging to these exams (normalized: stations.exam_id)
+    let stationsList: any[] = []
+    if (examIds.length > 0) {
       const { data: rawStations, error: stationsErr } = await supabaseAdmin
         .from('stations')
         .select('*')
-        .in('module_id', assignedModuleIds)
+        .in('exam_id', examIds)
         .order('station_number', { ascending: true })
 
       if (stationsErr) throw stationsErr
@@ -98,45 +114,16 @@ export async function GET(req: NextRequest) {
 
     const stationIds = stationsList.map((s) => s.id)
 
-    // 5. Fetch exams linked to these stations
-    let linkedExamsList: any[] = []
-    if (stationIds.length > 0) {
-      const { data: exData } = await supabaseAdmin
-        .from('exams')
-        .select('*')
-        .in('station_id', stationIds)
-        .order('exam_date', { ascending: true })
-
-      linkedExamsList = exData || []
-    }
-
-    const examIds = linkedExamsList.map((e) => e.id)
-    const examsByStation = new Map<string, any[]>()
-    linkedExamsList.forEach((e) => {
-      const list = examsByStation.get(e.station_id) || []
-      list.push(e)
-      examsByStation.set(e.station_id, list)
-    })
-
-    // 6. Fetch questions for these stations and exams
+    // 6. Fetch questions for these stations (questions.station_id)
     const questionsCountMap = new Map<string, number>()
     if (stationIds.length > 0) {
-      let qQuery = supabaseAdmin.from('questions').select('id, station_id, exam_id')
-      if (examIds.length > 0) {
-        qQuery = qQuery.or(`station_id.in.(${stationIds.join(',')}),exam_id.in.(${examIds.join(',')})`)
-      } else {
-        qQuery = qQuery.in('station_id', stationIds)
-      }
-
-      const { data: questions } = await qQuery
+      const { data: questions } = await supabaseAdmin
+        .from('questions')
+        .select('id, station_id')
+        .in('station_id', stationIds)
 
       ;(questions || []).forEach((q) => {
-        if (q.station_id) {
-          questionsCountMap.set(q.station_id, (questionsCountMap.get(q.station_id) || 0) + 1)
-        }
-        if (q.exam_id) {
-          questionsCountMap.set(q.exam_id, (questionsCountMap.get(q.exam_id) || 0) + 1)
-        }
+        questionsCountMap.set(q.station_id, (questionsCountMap.get(q.station_id) || 0) + 1)
       })
     }
 
@@ -179,39 +166,13 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    const formattedModules = assignedModules.map((m) => ({
-      id: m.id,
-      module_name: m.module_name,
-      level_id: m.level_id,
-      level_name: levelMap.get(m.level_id) || 'General Level',
-      total_exams: 0,
-      created_at: m.created_at,
-    }))
-
     // Format stations list
     const assignedStations = stationsList.map((st) => {
-      const mod = assignedModuleMap.get(st.module_id)
+      const linkedExam = examMap.get(st.exam_id)
+      const mod = linkedExam ? assignedModuleMap.get(linkedExam.module_id) : null
       const lvl = mod ? levelObjectMap.get(mod.level_id) : null
-      const stExams = examsByStation.get(st.id) || []
-      const questionsCountByStation = questionsCountMap.get(st.id) || 0
-      const questionsCountByExam = stExams.reduce(
-        (sum, e) => sum + (questionsCountMap.get(e.id) || 0),
-        0
-      )
-      const totalQuestions = Math.max(questionsCountByStation, questionsCountByExam)
+      const totalQuestions = questionsCountMap.get(st.id) || 0
       const isReady = totalQuestions > 0
-      const firstExam = stExams[0]
-      const linked_exam = firstExam
-        ? {
-            id: firstExam.id,
-            module_name: mod ? mod.module_name : 'General Module',
-            level_name: lvl ? lvl.level_name : 'General Level',
-            section_name: firstExam.section_name || 'All Sections',
-            group_name: firstExam.group_name || 'All Groups',
-            session_type: firstExam.session_type || 'regular',
-            exam_date: firstExam.exam_date,
-          }
-        : null
 
       const progress = stationProgressMap.get(st.id) || {
         completed_count: 0,
@@ -221,14 +182,15 @@ export async function GET(req: NextRequest) {
 
       return {
         id: st.id,
-        module_id: st.module_id,
+        exam_id: st.exam_id,
+        module_id: linkedExam?.module_id || null,
         station_number: st.station_number,
         title: st.title,
         access_pin: st.access_pin,
         weightage_percentage: Number(st.weightage_percentage || 50),
         created_at: st.created_at,
         question_count: totalQuestions,
-        exam_count: stExams.length,
+        exam_count: linkedExam ? 1 : 0,
         status: isReady ? 'ready' : 'incomplete',
         status_label: isReady ? 'Checklist Ready' : 'Incomplete Checklist',
         progress,
@@ -237,7 +199,15 @@ export async function GET(req: NextRequest) {
           module_name: mod?.module_name,
           id: st.id,
         }),
-        linked_exam,
+        linked_exam: linkedExam
+          ? {
+              id: linkedExam.id,
+              module_name: mod ? mod.module_name : 'General Module',
+              level_name: lvl ? lvl.level_name : 'General Level',
+              session_type: linkedExam.session_type || 'regular',
+              exam_date: linkedExam.exam_date,
+            }
+          : null,
         module_name: mod ? mod.module_name : 'General Module',
         level_id: mod?.level_id || null,
         level_name: lvl ? lvl.level_name : 'General Level',
@@ -247,21 +217,23 @@ export async function GET(req: NextRequest) {
     })
 
     // Format upcoming exams list
-    const formattedUpcomingExams = linkedExamsList.map((e) => {
-      const st = stationsList.find((s) => s.id === e.station_id)
-      const mod = st ? assignedModuleMap.get(st.module_id) : null
+    const formattedUpcomingExams = examsList.map((e) => {
+      const mod = assignedModuleMap.get(e.module_id)
       const lvl = mod ? levelObjectMap.get(mod.level_id) : null
+      const examStations = stationsList.filter((s) => s.exam_id === e.id)
+      const firstStation = examStations[0] || null
 
       return {
         id: e.id,
-        station_id: e.station_id,
-        station_title: st ? st.title : 'Station',
-        station_number: st ? st.station_number : 1,
+        exam_id: e.id,
+        station_id: firstStation ? firstStation.id : null,
+        station_title: firstStation ? firstStation.title : 'All Stations',
+        station_number: firstStation ? firstStation.station_number : 1,
         module_name: mod ? mod.module_name : 'Clinical Exam',
         level_name: lvl ? lvl.level_name : '',
         session_type: e.session_type || 'regular',
         exam_date: e.exam_date,
-        question_count: questionsCountMap.get(e.id) || 0,
+        question_count: examStations.reduce((sum, s) => sum + (questionsCountMap.get(s.id) || 0), 0),
       }
     })
 

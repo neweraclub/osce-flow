@@ -340,7 +340,6 @@ export async function submitAssessmentAction(
     if (answers.length > 0) {
       const answerRows = answers.map((ans) => ({
         attempt_id: attemptId,
-        station_id: station_id,
         question_id: ans.question_id,
         selected_options: Array.isArray(ans.selected_options) ? ans.selected_options : [],
         evaluation_score: typeof ans.evaluation_score === 'number' ? ans.evaluation_score : null,

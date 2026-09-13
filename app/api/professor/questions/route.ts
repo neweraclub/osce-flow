@@ -10,12 +10,26 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url)
-    const stationId = searchParams.get('station_id')
+    let stationId = searchParams.get('station_id')
     const examId = searchParams.get('exam_id')
 
+    if (!stationId && examId) {
+      const { data: st } = await supabaseAdmin
+        .from('stations')
+        .select('id')
+        .eq('exam_id', examId)
+        .maybeSingle()
+      if (st?.id) {
+        stationId = st.id
+      } else {
+        return NextResponse.json({ success: true, questions: [] })
+      }
+    }
+
     let query = supabaseAdmin.from('questions').select('*').order('created_at', { ascending: true })
-    if (stationId) query = query.eq('station_id', stationId)
-    else if (examId) query = query.eq('exam_id', examId)
+    if (stationId) {
+      query = query.eq('station_id', stationId)
+    }
 
     const { data: questions, error } = await query
     if (error) throw error
@@ -34,11 +48,22 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { station_id, exam_id, question_text, question_type, max_scale_value, options } = body
+    let { station_id, exam_id, question_text, question_type, max_scale_value, options } = body
 
-    if ((!station_id && !exam_id) || !question_text?.trim()) {
+    if (!station_id && exam_id) {
+      const { data: st } = await supabaseAdmin
+        .from('stations')
+        .select('id')
+        .eq('exam_id', exam_id)
+        .maybeSingle()
+      if (st?.id) {
+        station_id = st.id
+      }
+    }
+
+    if (!station_id || !question_text?.trim()) {
       return NextResponse.json(
-        { success: false, error: 'Station ID or Exam ID and Question text are required.' },
+        { success: false, error: 'Station ID and Question text are required.' },
         { status: 400 }
       )
     }
@@ -56,14 +81,14 @@ export async function POST(req: NextRequest) {
       }))
     }
 
-    const insertPayload: any = {
+    // Strictly normalized: questions table belongs to stations (station_id)
+    const insertPayload = {
+      station_id: station_id,
       question_text: question_text.trim(),
       question_type: qType,
       max_scale_value: scaleVal,
       options: sanitizedOptions,
     }
-    if (station_id) insertPayload.station_id = station_id
-    if (exam_id) insertPayload.exam_id = exam_id
 
     const { data: newQuestion, error: qErr } = await supabaseAdmin
       .from('questions')

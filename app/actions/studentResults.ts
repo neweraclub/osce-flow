@@ -325,7 +325,7 @@ export async function getStudentResultsDashboardDataAction(
     if (attemptIds.length > 0) {
       const { data: ansData, error: ansErr } = await supabaseAdmin
         .from('student_answers')
-        .select('id, attempt_id, station_id, question_id, evaluation_score, points_awarded')
+        .select('id, attempt_id, question_id, evaluation_score, points_awarded')
         .in('attempt_id', attemptIds)
 
       if (!ansErr && ansData) {

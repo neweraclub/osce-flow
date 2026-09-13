@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // 1. Fetch station and module details
+    // 1. Fetch station details
     const { data: station, error: stErr } = await supabaseAdmin
       .from('stations')
       .select('*')
@@ -28,11 +28,27 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    const { data: mod } = await supabaseAdmin
-      .from('modules')
-      .select('id, module_name, level_id')
-      .eq('id', station.module_id)
-      .single()
+    // 2. Fetch linked exam & module
+    let linkedExam: any = null
+    if (station.exam_id) {
+      const { data: ex } = await supabaseAdmin
+        .from('exams')
+        .select('*')
+        .eq('id', station.exam_id)
+        .maybeSingle()
+      linkedExam = ex
+    }
+
+    const moduleId = linkedExam?.module_id || null
+    let mod: any = null
+    if (moduleId) {
+      const { data: modData } = await supabaseAdmin
+        .from('modules')
+        .select('id, module_name, level_id')
+        .eq('id', moduleId)
+        .maybeSingle()
+      mod = modData
+    }
 
     const levelId = mod?.level_id
 
@@ -60,34 +76,17 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 2. Fetch exams for this station
-    const { data: exams, error: exErr } = await supabaseAdmin
-      .from('exams')
+    const exams = linkedExam ? [linkedExam] : []
+    const activeExam = examIdParam ? exams.find((e) => e.id === examIdParam) || linkedExam : linkedExam
+
+    // 3. Fetch questions strictly by station_id
+    const { data: qData, error: qErr } = await supabaseAdmin
+      .from('questions')
       .select('*')
       .eq('station_id', stationId)
-      .order('exam_date', { ascending: false })
+      .order('created_at', { ascending: true })
 
-    if (exErr) {
-      console.error('Failed to fetch exams:', exErr)
-    }
-
-    const activeExam = examIdParam
-      ? (exams || []).find((e) => e.id === examIdParam) || exams?.[0]
-      : exams?.[0]
-
-    // 3. If there is an active exam, fetch its questions
-    let questions: any[] = []
-    if (activeExam) {
-      const { data: qData, error: qErr } = await supabaseAdmin
-        .from('questions')
-        .select('*')
-        .eq('exam_id', activeExam.id)
-        .order('created_at', { ascending: true })
-
-      if (!qErr && qData) {
-        questions = qData
-      }
-    }
+    const questions = !qErr && qData ? qData : []
 
     // 4. Fetch sections & groups strictly for this level
     let rawSections: any[] = []
@@ -144,21 +143,39 @@ export async function GET(req: NextRequest) {
 
     // 6. Fetch existing exam_attempts for these students on this station
     const attemptMap = new Map<string, any>()
+    const answersMap = new Map<string, any[]>()
+    const penaltiesMap = new Map<string, any[]>()
+
     if (studentList.length > 0) {
       const studentIds = studentList.map((s) => s.id)
-      let { data: attempts } = await supabaseAdmin
+      const { data: attempts } = await supabaseAdmin
         .from('exam_attempts')
         .select('*')
         .eq('station_id', stationId)
         .in('student_id', studentIds)
 
-      if ((!attempts || attempts.length === 0) && activeExam?.id) {
-        const { data: legacyAttempts } = await supabaseAdmin
-          .from('exam_attempts')
-          .select('*')
-          .eq('exam_id', activeExam.id)
-          .in('student_id', studentIds)
-        if (legacyAttempts) attempts = legacyAttempts
+      const attemptIds = (attempts || []).map((a) => a.id)
+
+      if (attemptIds.length > 0) {
+        const { data: savedAnswers } = await supabaseAdmin
+          .from('student_answers')
+          .select('id, attempt_id, question_id, evaluation_score, points_awarded')
+          .in('attempt_id', attemptIds)
+
+        ;(savedAnswers || []).forEach((ans) => {
+          if (!answersMap.has(ans.attempt_id)) answersMap.set(ans.attempt_id, [])
+          answersMap.get(ans.attempt_id)!.push(ans)
+        })
+
+        const { data: penaltiesData } = await supabaseAdmin
+          .from('candidate_penalties')
+          .select('id, exam_attempt_id, reason, points')
+          .in('exam_attempt_id', attemptIds)
+
+        ;(penaltiesData || []).forEach((p) => {
+          if (!penaltiesMap.has(p.exam_attempt_id)) penaltiesMap.set(p.exam_attempt_id, [])
+          penaltiesMap.get(p.exam_attempt_id)!.push(p)
+        })
       }
 
       ;(attempts || []).forEach((att) => {
@@ -166,14 +183,21 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    // 7. Format students with status, section, group, study level, and academic year info
+    // 7. Format students with dynamic score calculation: GREATEST(0, SUM(points_awarded) + SUM(penalties.points))
     const formattedStudents = studentList.map((st) => {
       const grp = groupMap.get(st.group_id)
       const sec = grp ? sectionMap.get(grp.section_id) : null
       const attempt = attemptMap.get(st.id)
+      const savedAnswers = attempt ? answersMap.get(attempt.id) || [] : []
+      const penalties = attempt ? penaltiesMap.get(attempt.id) || [] : []
 
       const status: 'pending' | 'completed' = attempt?.status === 'completed' ? 'completed' : 'pending'
-      const finalScore = attempt ? Number(attempt.final_score ?? 0) : null
+      
+      const earnedScore = savedAnswers.reduce((sum, a) => sum + (Number(a.points_awarded) || 0), 0)
+      const totalDeductions = penalties.reduce((sum, p) => sum + (Number(p.points) || 0), 0)
+      const dynamicFinalScore = status === 'completed'
+        ? Math.max(0, Math.round((earnedScore + totalDeductions) * 100) / 100)
+        : null
 
       return {
         id: st.id,
@@ -189,8 +213,8 @@ export async function GET(req: NextRequest) {
         academic_year_label: academicYear?.year_label || '',
         import_index: typeof st.import_index === 'number' ? st.import_index : 0,
         attempt_id: attempt?.id || null,
-        status: status,
-        final_score: finalScore,
+        status,
+        final_score: dynamicFinalScore,
       }
     })
 
@@ -213,7 +237,8 @@ export async function GET(req: NextRequest) {
         id: station.id,
         station_number: station.station_number,
         title: station.title,
-        module_id: station.module_id,
+        exam_id: station.exam_id,
+        module_id: moduleId,
         module_name: mod?.module_name || 'Medical Module',
         level_id: levelId,
         level_name: studyLevel?.level_name || '',
@@ -221,8 +246,8 @@ export async function GET(req: NextRequest) {
         academic_year_label: academicYear?.year_label || '',
       },
       active_exam: activeExam || null,
-      exams: exams || [],
-      questions: questions || [],
+      exams,
+      questions,
       sections: formattedSections,
       groups: formattedGroups,
       students: formattedStudents,

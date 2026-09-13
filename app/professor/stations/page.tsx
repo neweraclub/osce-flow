@@ -411,7 +411,6 @@ export default function ProfessorStationsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           exam_id: activeExam.id,
-          module_id: selectedModuleId,
           station_number: formStationNumber,
           title: formTitle.trim(),
           access_pin: formAccessPin.trim(),

@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
       station_id,
       answers,
       graded_by_prof_id,
+      penalty_total,
     } = body
 
     if ((!student_id && !matricule) || !exam_id || !station_id) {
@@ -41,11 +42,14 @@ export async function POST(req: NextRequest) {
       points_awarded: number
     }> = Array.isArray(answers) ? answers : []
 
-    // 1. Calculate total score
-    const finalScore = answerList.reduce((sum, a) => {
+    // 1. Calculate total score with clinical deductions
+    const earnedScore = answerList.reduce((sum, a) => {
       const pts = Number(a.points_awarded) || 0
       return sum + (pts >= 0 ? pts : 0)
     }, 0)
+
+    const deductions = Math.abs(Number(penalty_total) || 0)
+    const finalScore = Math.max(0, Math.round((earnedScore - deductions) * 100) / 100)
 
     // 2. Check or create exam_attempts record
     const { data: existingAttempt } = await supabaseAdmin

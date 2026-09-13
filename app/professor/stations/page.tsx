@@ -110,6 +110,40 @@ export default function ProfessorStationsPage() {
   const [formWeightage, setFormWeightage] = useState<number>(10)
   const [formError, setFormError] = useState('')
 
+  // Calculate cumulative module weightage map across all stations
+  const moduleWeightageMap = useMemo(() => {
+    const map = new Map<string, number>()
+    stations.forEach((s) => {
+      if (s.module_id) {
+        const current = map.get(s.module_id) || 0
+        map.set(s.module_id, current + Number(s.weightage_percentage || 0))
+      }
+    })
+    return map
+  }, [stations])
+
+  // Real-time Available Weightage Calculation for Creation / Edit Modal
+  const modalAvailableWeightage = useMemo(() => {
+    if (!formModuleId) return 100
+    const totalForModule = moduleWeightageMap.get(formModuleId) || 0
+    const currentStationWeight =
+      editingStation && editingStation.module_id === formModuleId
+        ? Number(editingStation.weightage_percentage || 0)
+        : 0
+    const otherStationsTotal = Math.max(0, totalForModule - currentStationWeight)
+    return Math.max(0, Math.round((100 - otherStationsTotal) * 100) / 100)
+  }, [formModuleId, moduleWeightageMap, editingStation])
+
+  const isModalWeightageExceeded = Number(formWeightage || 0) > modalAvailableWeightage
+
+  // Summary of modules for the weightage progress overview
+  const displayedModulesSummary = useMemo(() => {
+    if (filterModule !== 'ALL') {
+      return assignedModules.filter((m) => m.module_name === filterModule)
+    }
+    return assignedModules
+  }, [assignedModules, filterModule])
+
   // Optimistic UI exit animation state
   const [exitingStationIds, setExitingStationIds] = useState<Set<string>>(new Set())
 
@@ -232,6 +266,13 @@ export default function ProfessorStationsPage() {
       return
     }
 
+    if (formWeightage > modalAvailableWeightage) {
+      setFormError(
+        `Total station weightage for this module cannot exceed 100% (Maximum available: ${modalAvailableWeightage}%).`
+      )
+      return
+    }
+
     setSubmitting(true)
     setFormError('')
 
@@ -277,6 +318,13 @@ export default function ProfessorStationsPage() {
     }
     if (!formAccessPin || formAccessPin.trim().length < 4) {
       setFormError('Access PIN must be at least 4 characters.')
+      return
+    }
+
+    if (formWeightage > modalAvailableWeightage) {
+      setFormError(
+        `Total station weightage for this module cannot exceed 100% (Maximum available: ${modalAvailableWeightage}%).`
+      )
       return
     }
 
@@ -418,7 +466,7 @@ export default function ProfessorStationsPage() {
                 )}
               </div>
               <p className="text-xs font-semibold text-slate-400 mt-0.5">
-                Manage your clinical stations, access PINs, and scoring rubrics
+                Manage your clinical stations, access PINs, and scoring checklists
               </p>
             </div>
           </div>
@@ -496,6 +544,77 @@ export default function ProfessorStationsPage() {
         </div>
       </div>
 
+      {/* Module Weightage Allocation Overview Banner */}
+      {assignedModules.length > 0 && (
+        <div className="p-4 sm:p-5 rounded-3xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div className="size-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs">
+                <BookOpen className="size-4" />
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-slate-900 dark:text-white">
+                  {filterModule !== 'ALL'
+                    ? `${filterModule} Weightage Allocation`
+                    : 'Curriculum Modules Weightage Allocation'}
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  Total cumulative score distribution across clinical stations (Maximum: 100% per module)
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {displayedModulesSummary.map((mod) => {
+              const total = moduleWeightageMap.get(mod.id) || 0
+              const isFullyAllocated = total >= 100
+              const pct = Math.min(100, Math.max(0, total))
+
+              return (
+                <div
+                  key={mod.id}
+                  className="p-3.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 space-y-2.5"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                      {mod.module_name}
+                    </span>
+                    {isFullyAllocated ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800 shrink-0">
+                        <CheckCircle2 className="size-2.5 text-emerald-500" />
+                        <span>Fully Allocated</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800 shrink-0">
+                        <AlertCircle className="size-2.5 text-amber-500" />
+                        <span>Unallocated Weightage Remaining</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Visual Progress Bar */}
+                  <div className="space-y-1">
+                    <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          isFullyAllocated ? 'bg-emerald-500' : 'bg-amber-500'
+                        }`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] font-mono font-bold text-slate-400">
+                      <span>Module Weightage: {total}% / 100%</span>
+                      <span>{isFullyAllocated ? '100%' : `${Math.max(0, 100 - total)}% remaining`}</span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Stations Grid */}
       {loading ? (
         <div className="flex flex-col items-center justify-center p-16 rounded-3xl bg-white/50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800">
@@ -515,7 +634,7 @@ export default function ProfessorStationsPage() {
               ? 'You have not been assigned to any clinical modules yet. Contact the Dean to assign you as a lead professor.'
               : search || filterModule !== 'ALL'
               ? 'Try modifying your search or clearing the module filter.'
-              : 'Click "+ Create Station" to set up your first clinical station and scoring rubric.'}
+              : 'Click "+ Create Station" to set up your first clinical station and scoring checklist.'}
           </p>
           {assignedModules.length > 0 && !search && (
             <button
@@ -560,13 +679,18 @@ export default function ProfessorStationsPage() {
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/50">
                         {station.level_name}
                       </span>
+                      {station.weightage_percentage > 0 && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800">
+                          {station.weightage_percentage}% Weightage
+                        </span>
+                      )}
                       <StationStatusBadge
                         status={
                           station.status ||
                           (station.question_count && station.question_count > 0
                             ? station.exam_count > 0
                               ? 'ready'
-                              : 'rubric_ready'
+                              : 'checklist_ready'
                             : 'incomplete')
                         }
                         questionCount={station.question_count}
@@ -707,7 +831,7 @@ export default function ProfessorStationsPage() {
                   <p className="text-[11px] font-semibold text-slate-400">
                     {editingStation
                       ? `Update station details and PIN credentials`
-                      : 'Set up station checklist & rubrics'}
+                      : 'Set up station checklist & scoring criteria'}
                   </p>
                 </div>
               </div>
@@ -821,10 +945,27 @@ export default function ProfessorStationsPage() {
               </div>
 
               {/* Weightage Percentage */}
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Weightage Percentage (0 - 100%)
-                </label>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Exam Weightage (%)
+                  </label>
+                  {formModuleId && (
+                    <span
+                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border transition-colors ${
+                        isModalWeightageExceeded
+                          ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800'
+                          : modalAvailableWeightage === 0
+                          ? 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                          : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+                      }`}
+                    >
+                      <Percent className="size-2.5" />
+                      <span>Available Module Weightage: {modalAvailableWeightage}%</span>
+                    </span>
+                  )}
+                </div>
+
                 <div className="relative">
                   <input
                     type="number"
@@ -833,12 +974,29 @@ export default function ProfessorStationsPage() {
                     step={0.5}
                     value={formWeightage}
                     onChange={(e) => setFormWeightage(parseFloat(e.target.value) || 0)}
-                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className={`w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 shadow-xs ${
+                      isModalWeightageExceeded
+                        ? 'border-rose-300 dark:border-rose-700 focus:ring-rose-500'
+                        : 'border-slate-200 dark:border-slate-700 focus:ring-emerald-500'
+                    }`}
                   />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 pointer-events-none">
                     %
                   </span>
                 </div>
+
+                {isModalWeightageExceeded ? (
+                  <p className="text-[11px] font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1.5 animate-in fade-in">
+                    <AlertTriangle className="size-3.5 shrink-0" />
+                    <span>
+                      Total station weightage for this module cannot exceed 100% (Maximum available: {modalAvailableWeightage}%).
+                    </span>
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-slate-400">
+                    Percentage contribution of this station towards the overall module score.
+                  </p>
+                )}
               </div>
 
               {/* Action Buttons */}
@@ -855,8 +1013,8 @@ export default function ProfessorStationsPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/25 hover:bg-emerald-700 transition-all disabled:opacity-50"
+                  disabled={submitting || isModalWeightageExceeded}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/25 hover:bg-emerald-700 transition-all disabled:opacity-50 cursor-pointer"
                 >
                   {submitting ? (
                     <>

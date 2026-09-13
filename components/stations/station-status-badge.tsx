@@ -15,6 +15,7 @@ export type StationStatusType =
   | 'incomplete'
   | 'needs_setup'
   | 'ready'
+  | 'checklist_ready'
   | 'rubric_ready'
   | 'ready_for_exam'
   | 'live'
@@ -37,8 +38,8 @@ export interface StationStatusBadgeProps {
  * Standardized Station Status Badge
  * Handles status matrix:
  * - Draft: Gray badge (`bg-slate-100 text-slate-700`) -> "Draft"
- * - In Progress / Incomplete: Amber badge (`bg-amber-50 text-amber-700`) -> "Incomplete Rubric" (Pencil icon)
- * - Complete / Rubric Ready: Green badge (`bg-emerald-50 text-emerald-700`) -> "Rubric Ready" (Check icon)
+ * - In Progress / Incomplete: Amber badge (`bg-amber-50 text-amber-700`) -> "Incomplete Checklist" (Pencil icon)
+ * - Complete / Checklist Ready: Green badge (`bg-emerald-50 text-emerald-700`) -> "Checklist Ready" (Check icon)
  * - Ready for Exam: Green badge (`bg-emerald-50 text-emerald-700`) -> "Ready for Exam" (Check icon)
  * - Live/Active: Blue/Pulse badge (`bg-blue-50 text-blue-700`) -> "Live Session" (Pulsing dot)
  */
@@ -54,7 +55,7 @@ export function StationStatusBadge({
   showIcon = true,
 }: StationStatusBadgeProps) {
   // 1. Resolve normalized status
-  let resolved: 'draft' | 'incomplete' | 'ready' | 'rubric_ready' | 'live' | 'unscheduled' = 'incomplete'
+  let resolved: 'draft' | 'incomplete' | 'ready' | 'checklist_ready' | 'rubric_ready' | 'live' | 'unscheduled' = 'incomplete'
 
   if (isLive || status === 'live' || status === 'active') {
     resolved = 'live'
@@ -62,8 +63,8 @@ export function StationStatusBadge({
     resolved = 'draft'
   } else if (status === 'unscheduled') {
     resolved = 'unscheduled'
-  } else if (status === 'rubric_ready') {
-    resolved = 'rubric_ready'
+  } else if (status === 'checklist_ready' || status === 'rubric_ready') {
+    resolved = 'checklist_ready'
   } else if (status === 'ready_for_exam') {
     resolved = 'ready'
   } else if (questionCount !== undefined) {
@@ -71,7 +72,7 @@ export function StationStatusBadge({
       if (hasLinkedExam || (examCount !== undefined && examCount > 0)) {
         resolved = 'ready'
       } else {
-        resolved = 'rubric_ready'
+        resolved = 'checklist_ready'
       }
     } else {
       resolved = 'incomplete'
@@ -80,7 +81,7 @@ export function StationStatusBadge({
     if (hasLinkedExam || (examCount !== undefined && examCount > 0)) {
       resolved = 'ready'
     } else {
-      resolved = 'rubric_ready'
+      resolved = 'checklist_ready'
     }
   } else if (status === 'incomplete' || status === 'in_progress' || status === 'needs_setup') {
     resolved = 'incomplete'
@@ -100,14 +101,14 @@ export function StationStatusBadge({
       break
 
     case 'incomplete':
-      badgeLabel = badgeLabel || 'Incomplete Rubric'
+      badgeLabel = badgeLabel || 'Incomplete Checklist'
       styleClasses =
         'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200/60 dark:border-amber-800'
       IconComponent = Edit2
       break
 
-    case 'rubric_ready':
-      badgeLabel = badgeLabel || 'Rubric Ready'
+    case 'checklist_ready':
+      badgeLabel = badgeLabel || 'Checklist Ready'
       styleClasses =
         'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-800'
       IconComponent = CheckCircle2

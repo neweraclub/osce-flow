@@ -90,6 +90,22 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // 4b. Fetch station criteria (penalties/deductions)
+    let stationCriteria: any[] = []
+    try {
+      const { data: critData, error: critErr } = await supabaseAdmin
+        .from('station_criteria')
+        .select('*')
+        .eq('station_id', stationId)
+        .order('created_at', { ascending: true })
+
+      if (!critErr && critData) {
+        stationCriteria = critData
+      }
+    } catch (critErr) {
+      console.warn('Could not query station_criteria:', critErr)
+    }
+
     // 5. Strictly scope sections & groups to this station's study level
     let rawSections: any[] = []
     let rawGroups: any[] = []
@@ -239,6 +255,7 @@ export async function GET(req: NextRequest) {
       active_exam: activeExam || null,
       exams: exams || [],
       questions: questions || [],
+      station_criteria: stationCriteria,
       sections: formattedSections,
       groups: formattedGroups,
       students: formattedStudents,

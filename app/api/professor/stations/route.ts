@@ -159,7 +159,7 @@ export async function GET(req: NextRequest) {
         exam_count: examsCountMap.get(st.id) || 0,
         question_count: totalQuestions,
         status: isReady ? 'ready' : 'incomplete',
-        status_label: isReady ? 'Rubric Ready' : 'Incomplete Rubric',
+        status_label: isReady ? 'Checklist Ready' : 'Incomplete Checklist',
         slug: getStationSlug({
           station_number: st.station_number,
           module_name: mod ? mod.module_name : undefined,
@@ -242,6 +242,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized: You are not assigned as the lead professor for this module.' },
         { status: 403 }
+      )
+    }
+
+    // Check cumulative weightage for target module
+    const { data: existingStations } = await supabaseAdmin
+      .from('stations')
+      .select('weightage_percentage')
+      .eq('module_id', module_id)
+
+    const currentModuleTotal = (existingStations || []).reduce(
+      (sum, s) => sum + Number(s.weightage_percentage || 0),
+      0
+    )
+    const availableWeightage = Math.max(0, Math.round((100 - currentModuleTotal) * 100) / 100)
+
+    if (currentModuleTotal + weightage > 100) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Total station weightage for this module cannot exceed 100% (Maximum available: ${availableWeightage}%).`,
+        },
+        { status: 400 }
       )
     }
 

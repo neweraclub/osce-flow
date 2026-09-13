@@ -44,7 +44,7 @@ export default function PrivacyPage() {
           <section className="space-y-4">
             <h2 className="text-xl font-semibold text-slate-900">1. Types of Data Collected</h2>
             <p className="text-slate-600 text-sm leading-relaxed">
-              We collect information necessary to operate medical assessment workflows, including candidate identifiers (name, matricule, cohort), examiner scores, evaluation rubrics, session timestamps, and technical audit telemetry (IP addresses, browser signatures).
+              We collect information necessary to operate medical assessment workflows, including candidate identifiers (name, matricule, cohort), examiner scores, evaluation checklists, session timestamps, and technical audit telemetry (IP addresses, browser signatures).
             </p>
           </section>
 

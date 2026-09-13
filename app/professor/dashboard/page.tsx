@@ -61,9 +61,11 @@ export interface AssignedModule {
 export interface AssignedStation {
   id: string
   slug?: string
+  module_id?: string
   station_number: number
   title: string
   access_pin: string
+  weightage_percentage?: number
   exam_id: string | null
   question_count: number
   status: 'ready' | 'needs_setup' | 'incomplete'
@@ -133,7 +135,7 @@ export default function ProfessorDashboardPage() {
   // Module Preview Modal
   const [previewModule, setPreviewModule] = useState<AssignedModule | null>(null)
 
-  // Station Question / Rubric Builder Modal
+  // Station Question / Checklist Builder Modal
   const [activeStationForQuestions, setActiveStationForQuestions] = useState<AssignedStation | null>(null)
   const [stationQuestions, setStationQuestions] = useState<QuestionItem[]>([])
   const [loadingQuestions, setLoadingQuestions] = useState(false)
@@ -237,7 +239,7 @@ export default function ProfessorDashboardPage() {
         showError(json.error || 'Failed to load station questions.')
       }
     } catch {
-      showError('Network error loading station rubrics.')
+      showError('Network error loading station checklist.')
     } finally {
       setLoadingQuestions(false)
     }
@@ -408,7 +410,7 @@ export default function ProfessorDashboardPage() {
           </div>
         </div>
 
-        {/* Metric 4: Rubrics Readiness */}
+        {/* Metric 4: Checklist Readiness */}
         <div className="p-5 rounded-3xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 shadow-sm backdrop-blur-md flex items-center gap-4 transition-all hover:border-slate-300 dark:hover:border-slate-700">
           <div className="size-12 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-xs">
             <ShieldCheck className="size-6" />
@@ -483,6 +485,46 @@ export default function ProfessorDashboardPage() {
                           Study Level: <strong className="text-slate-600 dark:text-slate-300">{mod.level_name}</strong>
                         </p>
                       </div>
+
+                      {/* Module Weightage Allocation Progress */}
+                      {(() => {
+                        const modStations = stations.filter((s) => s.module_id === mod.id)
+                        const totalWeightage = modStations.reduce(
+                          (acc, s) => acc + Number(s.weightage_percentage || 0),
+                          0
+                        )
+                        const isFullyAllocated = totalWeightage >= 100
+                        const pct = Math.min(100, Math.max(0, totalWeightage))
+
+                        return (
+                          <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                            <div className="flex items-center justify-between text-[11px] gap-2">
+                              <span className="font-bold text-slate-700 dark:text-slate-300">
+                                Module Weightage: {totalWeightage}% / 100%
+                              </span>
+                              {isFullyAllocated ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
+                                  <CheckCircle2 className="size-3" />
+                                  <span>Fully Allocated</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 shrink-0">
+                                  <AlertCircle className="size-3" />
+                                  <span>Unallocated Weightage Remaining</span>
+                                </span>
+                              )}
+                            </div>
+                            <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-300 ${
+                                  isFullyAllocated ? 'bg-emerald-500' : 'bg-amber-500'
+                                }`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        )
+                      })()}
                     </div>
 
                     <button
@@ -551,7 +593,7 @@ export default function ProfessorDashboardPage() {
                           </span>
 
                           <StationStatusBadge
-                            status={st.question_count > 0 ? (st.linked_exam ? 'ready' : 'rubric_ready') : 'incomplete'}
+                            status={st.question_count > 0 ? (st.linked_exam ? 'ready' : 'checklist_ready') : 'incomplete'}
                             questionCount={st.question_count}
                             hasLinkedExam={!!st.linked_exam}
                           />
@@ -791,7 +833,7 @@ export default function ProfessorDashboardPage() {
         </div>
       )}
 
-      {/* --- Question & Rubric Builder Modal --- */}
+      {/* --- Question & Checklist Builder Modal --- */}
       {activeStationForQuestions && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
           <div className="relative w-full max-w-2xl rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-5 animate-in zoom-in-95 max-h-[90vh] flex flex-col">
@@ -803,7 +845,7 @@ export default function ProfessorDashboardPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    Station Rubric Builder: Station #{activeStationForQuestions.station_number}
+                    Station Checklist Builder: Station #{activeStationForQuestions.station_number}
                   </h3>
                   <p className="text-[11px] font-semibold text-slate-400">
                     {activeStationForQuestions.title} • Total Points: {totalStationPoints} pts

@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import { cookies } from 'next/headers'
 import { verifyAuthToken, supabaseAdmin } from '@/lib/auth'
 
 export interface AuthenticatedProfessor {
@@ -13,9 +14,8 @@ export interface AuthenticatedProfessor {
   fullName: string
 }
 
-export async function getAuthenticatedProfessor(req: NextRequest): Promise<AuthenticatedProfessor | null> {
+export async function getAuthenticatedProfessorByToken(token?: string): Promise<AuthenticatedProfessor | null> {
   try {
-    const token = req.cookies.get('ecos_auth_token')?.value
     if (!token) return null
 
     const payload = verifyAuthToken(token)
@@ -94,3 +94,19 @@ export async function getAuthenticatedProfessor(req: NextRequest): Promise<Authe
     return null
   }
 }
+
+export async function getAuthenticatedProfessor(req: NextRequest): Promise<AuthenticatedProfessor | null> {
+  const token = req.cookies.get('ecos_auth_token')?.value
+  return getAuthenticatedProfessorByToken(token)
+}
+
+export async function getAuthenticatedProfessorFromCookies(): Promise<AuthenticatedProfessor | null> {
+  try {
+    const cookieStore = await cookies()
+    const token = cookieStore.get('ecos_auth_token')?.value
+    return getAuthenticatedProfessorByToken(token)
+  } catch {
+    return null
+  }
+}
+

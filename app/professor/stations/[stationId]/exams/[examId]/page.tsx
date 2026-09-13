@@ -95,7 +95,7 @@ export const QUESTION_TYPES = [
     value: 'Q&A' as const,
     title: 'Clinical Task (Q&A)',
     badge: 'Scale',
-    description: 'Continuous scale grading rubric',
+    description: 'Continuous scale grading checklist',
     icon: Sliders,
     iconBg: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400',
     badgeColor: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-900/50',
@@ -445,7 +445,7 @@ export default function ProfessorExamQuestionsPage({
           </Link>
           <ChevronRight className="size-3.5 text-slate-400" />
           <span className="text-slate-900 dark:text-white font-extrabold">
-            Questions & Scoring Rubric
+            Questions & Scoring Checklist
           </span>
         </div>
 
@@ -696,7 +696,7 @@ export default function ProfessorExamQuestionsPage({
                         </div>
                       )}
 
-                      {/* Render Q&A Rubric guideline */}
+                      {/* Render Q&A checklist guideline */}
                       {q.question_type === 'Q&A' && (
                         <div className="pt-2 pl-11">
                           <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">

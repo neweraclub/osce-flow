@@ -66,6 +66,47 @@ export async function GET(
       created_at: e.created_at,
     }))
 
+    // Fetch modules assigned to this professor for modal dropdown
+    const { data: profModules } = await supabaseAdmin
+      .from('modules')
+      .select('id, module_name, level_id')
+      .or(`responsible_prof_id.eq.${prof.professorId},responsible_prof_id.eq.${prof.userId}`)
+      .order('module_name', { ascending: true })
+
+    const assignedModulesList = profModules || []
+    const levelIds = Array.from(
+      new Set(assignedModulesList.map((m) => m.level_id).filter(Boolean))
+    )
+    const levelMap = new Map<string, string>()
+    if (levelIds.length > 0) {
+      const { data: levelsData } = await supabaseAdmin
+        .from('study_levels')
+        .select('id, level_name')
+        .in('id', levelIds)
+      ;(levelsData || []).forEach((l) => levelMap.set(l.id, l.level_name))
+    }
+
+    const assignedModules = assignedModulesList.map((m) => ({
+      id: m.id,
+      module_name: m.module_name,
+      level_name: levelMap.get(m.level_id) || 'General Level',
+    }))
+
+    // Calculate total weightage per module
+    const assignedModuleIds = assignedModulesList.map((m) => m.id)
+    const moduleWeightageMap: Record<string, number> = {}
+    if (assignedModuleIds.length > 0) {
+      const { data: modStations } = await supabaseAdmin
+        .from('stations')
+        .select('module_id, weightage_percentage')
+        .in('module_id', assignedModuleIds)
+
+      ;(modStations || []).forEach((st) => {
+        moduleWeightageMap[st.module_id] =
+          (moduleWeightageMap[st.module_id] || 0) + Number(st.weightage_percentage || 0)
+      })
+    }
+
     return NextResponse.json({
       success: true,
       station: {
@@ -81,6 +122,8 @@ export async function GET(
         created_at: station.created_at,
       },
       exams: formattedExams,
+      assigned_modules: assignedModules,
+      module_weightage_map: moduleWeightageMap,
     })
   } catch (error: any) {
     return NextResponse.json(
@@ -170,6 +213,39 @@ export async function PUT(
       updatePayload.module_id = module_id
     }
 
+    const targetModuleId = updatePayload.module_id || currentStation.module_id
+    const targetWeightage =
+      updatePayload.weightage_percentage !== undefined
+        ? updatePayload.weightage_percentage
+        : Number(currentStation.weightage_percentage || 0)
+
+    // Validate cumulative weightage in target module
+    const { data: otherStations, error: otherStationsErr } = await supabaseAdmin
+      .from('stations')
+      .select('weightage_percentage')
+      .eq('module_id', targetModuleId)
+      .neq('id', currentStation.id)
+
+    if (otherStationsErr) {
+      throw otherStationsErr
+    }
+
+    const otherTotal = (otherStations || []).reduce(
+      (sum, s) => sum + Number(s.weightage_percentage || 0),
+      0
+    )
+    const availableWeightage = Math.max(0, Math.round((100 - otherTotal) * 100) / 100)
+
+    if (otherTotal + targetWeightage > 100) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Total station weightage for this module cannot exceed 100% (Maximum available: ${availableWeightage}%).`,
+        },
+        { status: 400 }
+      )
+    }
+
     const { data: updatedStation, error: updateErr } = await supabaseAdmin
       .from('stations')
       .update(updatePayload)
@@ -187,15 +263,45 @@ export async function PUT(
       throw updateErr
     }
 
+    const finalModuleId = updatePayload.module_id || currentStation.module_id
+    const { data: finalMod } = await supabaseAdmin
+      .from('modules')
+      .select('id, module_name, level_id')
+      .eq('id', finalModuleId)
+      .single()
+
+    let finalLevelName = resolved.levelName || 'General Level'
+    if (finalMod?.level_id) {
+      const { data: lvlData } = await supabaseAdmin
+        .from('study_levels')
+        .select('level_name')
+        .eq('id', finalMod.level_id)
+        .single()
+      if (lvlData?.level_name) {
+        finalLevelName = lvlData.level_name
+      }
+    }
+
     const updatedSlug = getStationSlug({
       station_number: updatedStation.station_number,
-      module_name: resolved.module?.module_name,
+      module_name: finalMod?.module_name || resolved.module?.module_name,
       id: updatedStation.id,
     })
 
     return NextResponse.json({
       success: true,
-      station: { ...updatedStation, slug: updatedSlug },
+      station: {
+        id: updatedStation.id,
+        slug: updatedSlug,
+        module_id: updatedStation.module_id,
+        station_number: updatedStation.station_number,
+        title: updatedStation.title,
+        access_pin: updatedStation.access_pin,
+        weightage_percentage: Number(updatedStation.weightage_percentage || 0),
+        module_name: finalMod ? finalMod.module_name : 'General Module',
+        level_name: finalLevelName,
+        created_at: updatedStation.created_at,
+      },
     })
   } catch (error: any) {
     return NextResponse.json(

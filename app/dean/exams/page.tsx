@@ -876,7 +876,7 @@ export default function DeanStationsManagementPage() {
             {/* Boundary reminder */}
             <div className="flex items-center gap-2 p-3 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-800 dark:text-sky-300 text-[11px] font-semibold">
               <Info className="size-3.5 shrink-0 text-sky-600 dark:text-sky-400" />
-              <span>Questions and rubrics are authored later by the assigned invigilator professor.</span>
+              <span>Questions and checklists are authored later by the assigned professor.</span>
             </div>
 
             {formError && (

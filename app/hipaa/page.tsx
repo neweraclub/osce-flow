@@ -44,7 +44,7 @@ export default function HipaaPage() {
           <section className="space-y-4">
             <h2 className="text-xl font-semibold text-slate-900">1. Educational Safeguards & PHI Handling</h2>
             <p className="text-slate-600 text-sm leading-relaxed">
-              NEW ERA live ecos platform (NE-ECOS) is designed for medical education and assessment. While clinical scenarios utilize simulated patients and standardized OSCE rubrics, NE-ECOS enforces strict technical and administrative safeguards equivalent to HIPAA security standards.
+              NEW ERA live ecos platform (NE-ECOS) is designed for medical education and assessment. While clinical scenarios utilize simulated patients and standardized OSCE checklists, NE-ECOS enforces strict technical and administrative safeguards equivalent to HIPAA security standards.
             </p>
           </section>
 

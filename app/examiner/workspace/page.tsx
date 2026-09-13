@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import {
   Activity,
   AlertCircle,
+  AlertTriangle,
   ArrowRight,
   ArrowUpDown,
   BarChart3,
@@ -47,6 +48,34 @@ import { ThemeToggle } from '@/components/theme-toggle'
 import { useToast } from '@/context/ToastContext'
 import { ExaminerSidebar, ExaminerNavTab } from '@/components/examiner/ExaminerSidebar'
 import { Select } from '@/components/ui/Select'
+import { ClinicalPenaltiesCard, StationCriterion } from '@/components/examiner/ClinicalPenaltiesCard'
+
+const DEFAULT_CLINICAL_PENALTIES: StationCriterion[] = [
+  {
+    id: 'penalty-hand-hygiene',
+    title: 'Failed Hand Hygiene / Infection Control',
+    description: 'Candidate omitted hand sanitization or breached aseptic field prior to examination.',
+    points: -1.0,
+  },
+  {
+    id: 'penalty-patient-consent',
+    title: 'Failure to Obtain Informed Consent & Verify ID',
+    description: 'Proceeded with procedure without verbal consent, identity verification, or explanation.',
+    points: -1.0,
+  },
+  {
+    id: 'penalty-safety-violation',
+    title: 'Patient Safety Hazard / Critical Breach',
+    description: 'Unsafe sharps disposal, uncontrolled maneuver, or leaving patient unattended unsafely.',
+    points: -2.0,
+  },
+  {
+    id: 'penalty-communication',
+    title: 'Unprofessional Communication or Demeanor',
+    description: 'Dismissive behavior, inappropriate language, or failure to address patient distress.',
+    points: -0.5,
+  },
+]
 
 interface StudentAnswerItem {
   question_id: string
@@ -140,6 +169,7 @@ function ExaminerWorkspaceContent() {
   const [students, setStudents] = useState<StudentItem[]>([])
   const [sections, setSections] = useState<SectionItem[]>([])
   const [groups, setGroups] = useState<GroupItem[]>([])
+  const [stationCriteria, setStationCriteria] = useState<StationCriterion[]>([])
   const [loading, setLoading] = useState<boolean>(true)
 
   // Examiner Sidebar & Tab Navigation States
@@ -203,6 +233,7 @@ function ExaminerWorkspaceContent() {
       }
     >
   >({})
+  const [candidatePenalties, setCandidatePenalties] = useState<Record<string, string[]>>({})
   const [submittingAttempt, setSubmittingAttempt] = useState(false)
 
   // Active Exam Session
@@ -299,6 +330,11 @@ function ExaminerWorkspaceContent() {
         setActiveExamId(data.exams[0].id)
       }
       setQuestions(data.questions || [])
+      if (Array.isArray(data.station_criteria) && data.station_criteria.length > 0) {
+        setStationCriteria(data.station_criteria)
+      } else {
+        setStationCriteria(DEFAULT_CLINICAL_PENALTIES)
+      }
       setSections(data.sections || [])
       setGroups(data.groups || [])
       setStudents(data.students || [])
@@ -315,6 +351,7 @@ function ExaminerWorkspaceContent() {
     setActiveExamId(newExamId)
     setActiveStudent(null)
     setAnswersState({})
+    setCandidatePenalties({})
     loadDashboardData(station.id, newExamId)
   }
 
@@ -433,6 +470,13 @@ function ExaminerWorkspaceContent() {
     setActiveStudent(student)
     setActiveTab('roster')
 
+    // Ensure penalty selections strictly reset to 0 when switching to a new candidate
+    const studentKey = student.id || student.matricule
+    setCandidatePenalties((prev) => ({
+      ...prev,
+      [studentKey]: prev[studentKey] && student.status === 'completed' ? prev[studentKey] : [],
+    }))
+
     // Initialize answer state, populating with existing answers if available
     const initialAnswers: typeof answersState = {}
     questions.forEach((q) => {
@@ -468,7 +512,7 @@ function ExaminerWorkspaceContent() {
     }
   }
 
-  // Rubric Selection Handlers
+  // Checklist Selection Handlers
   const handleOptionSelect = (questionId: string, optionId: string, isMCQ: boolean) => {
     setAnswersState((prev) => {
       const curr = prev[questionId] || { selected_option_ids: [] }
@@ -540,6 +584,57 @@ function ExaminerWorkspaceContent() {
     return { earned: Math.round(earned * 100) / 100, max }
   }, [questions, answersState])
 
+  // Active Candidate Penalties & Net Score
+  const activeCandidateKey = activeStudent ? (activeStudent.id || activeStudent.matricule) : ''
+
+  const selectedPenaltyIds = useMemo(() => {
+    if (!activeCandidateKey) return []
+    return candidatePenalties[activeCandidateKey] || []
+  }, [activeCandidateKey, candidatePenalties])
+
+  const criteriaList = useMemo(() => {
+    return stationCriteria.length > 0 ? stationCriteria : DEFAULT_CLINICAL_PENALTIES
+  }, [stationCriteria])
+
+  // Total negative points accumulated by active candidate (strictly negative or 0)
+  const totalDeductionPoints = useMemo(() => {
+    if (!selectedPenaltyIds.length) return 0
+    return selectedPenaltyIds.reduce((sum, id) => {
+      const crit = criteriaList.find((c) => c.id === id)
+      if (!crit) return sum
+      const pts = Number(crit.points) || 0
+      return sum + (pts < 0 ? pts : -Math.abs(pts))
+    }, 0)
+  }, [selectedPenaltyIds, criteriaList])
+
+  // Net score awarded to active candidate
+  const netScore = useMemo(() => {
+    return Math.max(0, Math.round((calculatedPoints.earned + totalDeductionPoints) * 100) / 100)
+  }, [calculatedPoints.earned, totalDeductionPoints])
+
+  const handleTogglePenalty = (criterionId: string) => {
+    if (!activeCandidateKey) return
+    setCandidatePenalties((prev) => {
+      const current = prev[activeCandidateKey] || []
+      const exists = current.includes(criterionId)
+      const updated = exists
+        ? current.filter((id) => id !== criterionId)
+        : [...current, criterionId]
+      return {
+        ...prev,
+        [activeCandidateKey]: updated,
+      }
+    })
+  }
+
+  const handleClearPenalties = () => {
+    if (!activeCandidateKey) return
+    setCandidatePenalties((prev) => ({
+      ...prev,
+      [activeCandidateKey]: [],
+    }))
+  }
+
   // Submit Completed Assessment
   const handleSubmitAttempt = async () => {
     if (!activeStudent || !activeExamId || !station) return
@@ -588,6 +683,8 @@ function ExaminerWorkspaceContent() {
           exam_id: activeExamId,
           station_id: station.id,
           answers: answersPayload,
+          penalty_total: Math.abs(totalDeductionPoints),
+          selected_penalties: selectedPenaltyIds,
         }),
       })
 
@@ -606,19 +703,27 @@ function ExaminerWorkspaceContent() {
       }))
 
       const wasAlreadyCompleted = activeStudent.status === 'completed'
+      const finalRecordedScore = typeof data.final_score === 'number' ? data.final_score : netScore
 
       if (wasAlreadyCompleted) {
-        showSuccess(`Marksheet successfully updated for ${activeStudent.full_name}: ${data.final_score} pts`)
+        showSuccess(`Marksheet successfully updated for ${activeStudent.full_name}: ${finalRecordedScore} pts`)
       } else {
-        showSuccess(`Score recorded for ${activeStudent.full_name}: ${data.final_score} pts`)
+        showSuccess(`Score recorded for ${activeStudent.full_name}: ${finalRecordedScore} pts`)
       }
 
       const currentStudentId = activeStudent.id
       const currentMatricule = activeStudent.matricule
+      const currentStudentKey = currentStudentId || currentMatricule
+
+      setCandidatePenalties((prev) => ({
+        ...prev,
+        [currentStudentKey]: selectedPenaltyIds,
+      }))
+
       setStudents((prev) =>
         prev.map((s) =>
           (currentStudentId ? s.id === currentStudentId : s.matricule === currentMatricule)
-            ? { ...s, status: 'completed', final_score: data.final_score, saved_answers: updatedSavedAnswers }
+            ? { ...s, status: 'completed', final_score: finalRecordedScore, saved_answers: updatedSavedAnswers }
             : s
         )
       )
@@ -779,7 +884,7 @@ function ExaminerWorkspaceContent() {
           </div>
         </header>
 
-        {/* View Switcher: Active Station Spec | Completed Marksheets | Candidate Roster & Rubric */}
+        {/* View Switcher: Active Station Spec | Completed Marksheets | Candidate Roster & Checklist */}
         {activeTab === 'station' ? (
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-slate-50/50 dark:bg-slate-950">
             <div className="max-w-4xl mx-auto space-y-6">
@@ -792,7 +897,7 @@ function ExaminerWorkspaceContent() {
                     </span>
                     <span className="text-xs text-slate-400">·</span>
                     <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                      {questions.length} Rubric Items
+                      {questions.length} Checklist Items
                     </span>
                   </div>
                   <h2 className="text-xl font-black text-slate-900 dark:text-white">
@@ -987,7 +1092,7 @@ function ExaminerWorkspaceContent() {
           </div>
         ) : (
           /* ======================================================================= */
-          /* 2. DUAL-PANE MAIN WORKSPACE: CANDIDATE ROSTER + GRADING RUBRIC           */
+          /* 2. DUAL-PANE MAIN WORKSPACE: CANDIDATE ROSTER + GRADING CHECKLIST        */
           /* ======================================================================= */
           <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
             {/* LEFT COLUMN: CANDIDATE ROSTER PANEL */}
@@ -1180,7 +1285,7 @@ function ExaminerWorkspaceContent() {
               </div>
             </aside>
 
-            {/* RIGHT PANE: LIVE GRADING RUBRIC WORKSPACE */}
+            {/* RIGHT PANE: LIVE GRADING CHECKLIST WORKSPACE */}
             <main className="flex-1 flex flex-col h-[calc(100vh-64px)] overflow-y-auto bg-slate-50/70 dark:bg-slate-950 p-4 sm:p-6 lg:p-8">
               {!activeStudent ? (
                 <div className="m-auto max-w-md text-center p-8 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 space-y-4">
@@ -1192,7 +1297,7 @@ function ExaminerWorkspaceContent() {
                       Ready to Assess Candidate
                     </h3>
                     <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                      Select a candidate from the left roster to open the live station rubric, record responses, and submit the final score.
+                      Select a candidate from the left roster to open the live station checklist, record responses, and submit the final score.
                     </p>
                   </div>
 
@@ -1230,16 +1335,50 @@ function ExaminerWorkspaceContent() {
                         </div>
                       </div>
 
-                      {/* Live Score Counter */}
-                      <div className="flex items-center gap-3 self-end sm:self-auto bg-slate-50 dark:bg-slate-800/80 p-3 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
-                        <div className="text-right">
-                          <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 block">
-                            Current Score
-                          </span>
-                          <span className="text-xl font-black font-mono text-amber-600 dark:text-amber-400">
-                            {calculatedPoints.earned}{' '}
-                            <span className="text-xs font-normal text-slate-400">/ {calculatedPoints.max}</span>
-                          </span>
+                      {/* Live Score Counter & Penalties Badge */}
+                      <div className="flex items-center gap-2.5 self-end sm:self-auto flex-wrap justify-end">
+                        {/* Dedicated Red Penalty Badge */}
+                        <div
+                          className={`flex items-center gap-2 px-3 py-2 rounded-2xl border transition-all ${
+                            totalDeductionPoints < 0
+                              ? 'bg-rose-50 dark:bg-rose-950/70 border-rose-300 dark:border-rose-800/80 text-rose-700 dark:text-rose-300 shadow-sm shadow-rose-500/10 ring-1 ring-rose-400/30'
+                              : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200/70 dark:border-slate-700/60 text-slate-400'
+                          }`}
+                        >
+                          <AlertTriangle
+                            className={`size-4 shrink-0 ${
+                              totalDeductionPoints < 0
+                                ? 'text-rose-600 dark:text-rose-400 animate-pulse'
+                                : 'text-slate-400'
+                            }`}
+                          />
+                          <div className="text-right">
+                            <span className="text-[9px] uppercase tracking-wider font-bold block leading-tight">
+                              Penalties
+                            </span>
+                            <span
+                              className={`text-sm font-black font-mono ${
+                                totalDeductionPoints < 0
+                                  ? 'text-rose-600 dark:text-rose-400'
+                                  : 'text-slate-400'
+                              }`}
+                            >
+                              {totalDeductionPoints < 0 ? `${totalDeductionPoints.toFixed(1)} pts` : '0.0 pts'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Current Net Score */}
+                        <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800/80 p-2.5 px-3.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
+                          <div className="text-right">
+                            <span className="text-[9px] uppercase tracking-wider font-bold text-slate-400 block leading-tight">
+                              Current Score
+                            </span>
+                            <span className="text-xl font-black font-mono text-amber-600 dark:text-amber-400">
+                              {netScore}{' '}
+                              <span className="text-xs font-normal text-slate-400">/ {calculatedPoints.max}</span>
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1251,7 +1390,7 @@ function ExaminerWorkspaceContent() {
                           <FileEdit className="size-4 text-emerald-600 dark:text-emerald-400" />
                           <span>Submitted Marksheet (Editing Mode)</span>
                           <span className="hidden sm:inline text-[11px] font-normal text-emerald-700/80 dark:text-emerald-400/80">
-                            — Previously recorded: {activeStudent.final_score ?? 0} pts. Modifying rubrics will update the existing record.
+                            — Previously recorded: {activeStudent.final_score ?? 0} pts. Modifying scores will update the existing record.
                           </span>
                         </div>
                         <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 shrink-0">
@@ -1261,7 +1400,7 @@ function ExaminerWorkspaceContent() {
                     )}
                   </div>
 
-                  {/* Rubric Criteria Items */}
+                  {/* Checklist Scoring Items */}
                   <div className="space-y-4">
                     {questions.length === 0 ? (
                       <div className="p-8 text-center text-slate-400 border rounded-2xl bg-white dark:bg-slate-900">
@@ -1372,8 +1511,18 @@ function ExaminerWorkspaceContent() {
                     )}
                   </div>
 
+                  {/* Clinical Deductions & Penalties Section */}
+                  <ClinicalPenaltiesCard
+                    criteria={criteriaList}
+                    selectedPenaltyIds={selectedPenaltyIds}
+                    totalDeductionPoints={totalDeductionPoints}
+                    onTogglePenalty={handleTogglePenalty}
+                    onClearPenalties={handleClearPenalties}
+                    disabled={submittingAttempt}
+                  />
+
                   {/* Bottom Sticky Submission Bar */}
-                  <div className="sticky bottom-4 z-20 p-4 rounded-3xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800/90 shadow-2xl flex items-center justify-between gap-4">
+                  <div className="sticky bottom-4 z-20 p-4 rounded-3xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800/90 shadow-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                       <button
                         type="button"
@@ -1383,18 +1532,38 @@ function ExaminerWorkspaceContent() {
                             resetAnswers[q.id] = { selected_option_ids: [], evaluation_score: 0 }
                           })
                           setAnswersState(resetAnswers)
+                          handleClearPenalties()
                         }}
-                        className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                        title="Reset Rubric"
+                        className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
+                        title="Reset Checklist & Penalties"
                       >
                         <RotateCcw className="size-4" />
                       </button>
 
                       <div>
-                        <span className="text-xs text-slate-400 font-semibold block">Total Awarded:</span>
-                        <span className="text-sm font-black font-mono text-amber-600 dark:text-amber-400">
-                          {calculatedPoints.earned} / {calculatedPoints.max} pts
+                        <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block leading-tight">
+                          Total Awarded:
                         </span>
+                        <div className="flex items-center gap-2 text-xs sm:text-sm font-black font-mono flex-wrap">
+                          <span className="text-slate-700 dark:text-slate-200">
+                            Earned: <strong className="text-emerald-600 dark:text-emerald-400">{calculatedPoints.earned}</strong>
+                          </span>
+                          <span className="text-slate-300 dark:text-slate-600">|</span>
+                          <span className="text-slate-700 dark:text-slate-200">
+                            Deductions:{' '}
+                            <strong className={totalDeductionPoints < 0 ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-400 font-bold'}>
+                              {totalDeductionPoints < 0 ? `${totalDeductionPoints.toFixed(1)}` : '-0.0'}
+                            </strong>
+                          </span>
+                          <span className="text-slate-300 dark:text-slate-600">|</span>
+                          <span className="text-slate-700 dark:text-slate-200">
+                            Net Total:{' '}
+                            <strong className="text-amber-600 dark:text-amber-400">
+                              {netScore}
+                            </strong>{' '}
+                            <span className="text-[11px] font-normal text-slate-400">/ {calculatedPoints.max} pts</span>
+                          </span>
+                        </div>
                       </div>
                     </div>
 

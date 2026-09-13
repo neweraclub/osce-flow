@@ -92,8 +92,7 @@ CREATE TABLE public.exams (
   created_at timestamp with time zone NOT NULL DEFAULT clock_timestamp(),
   station_id uuid NOT NULL,
   CONSTRAINT exams_pkey PRIMARY KEY (id),
-  CONSTRAINT exams_station_id_fkey FOREIGN KEY (station_id) REFERENCES public.stations(id),
-  CONSTRAINT exams_station_session_unique UNIQUE (station_id, session_type)
+  CONSTRAINT exams_station_id_fkey FOREIGN KEY (station_id) REFERENCES public.stations(id)
 );
 CREATE TABLE public.stations (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -143,4 +142,15 @@ CREATE TABLE public.student_answers (
   CONSTRAINT fk_ans_station FOREIGN KEY (station_id) REFERENCES public.stations(id),
   CONSTRAINT fk_ans_question FOREIGN KEY (question_id) REFERENCES public.questions(id),
   CONSTRAINT fk_ans_prof FOREIGN KEY (graded_by_prof_id) REFERENCES public.professors(id)
+);
+CREATE TABLE public.station_criteria (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  station_id uuid NOT NULL,
+  title text NOT NULL,
+  description text,
+  points numeric NOT NULL CHECK (points < 0::numeric),
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT station_criteria_pkey PRIMARY KEY (id),
+  CONSTRAINT station_criteria_station_id_fkey FOREIGN KEY (station_id) REFERENCES public.stations(id)
 );

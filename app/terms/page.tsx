@@ -58,7 +58,7 @@ export default function TermsPage() {
           <section className="space-y-4">
             <h2 className="text-xl font-semibold text-slate-900">3. User Responsibilities</h2>
             <p className="text-slate-600 text-sm leading-relaxed">
-              Examiners, administrators, and students are responsible for maintaining the confidentiality of examination rubrics, candidate identities, and station records. Any security vulnerability or unauthorized access attempt must be reported immediately to security@ne-ecos.com.
+              Examiners, administrators, and students are responsible for maintaining the confidentiality of examination checklists, candidate identities, and station records. Any security vulnerability or unauthorized access attempt must be reported immediately to security@ne-ecos.com.
             </p>
           </section>
 

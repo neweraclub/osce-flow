@@ -174,7 +174,7 @@ export async function GET(req: NextRequest) {
         question_count: totalQuestions,
         exam_count: stExams.length,
         status: isReady ? 'ready' : 'incomplete',
-        status_label: isReady ? 'Rubric Ready' : 'Incomplete Rubric',
+        status_label: isReady ? 'Checklist Ready' : 'Incomplete Checklist',
         slug: getStationSlug({
           station_number: st.station_number,
           module_name: mod?.module_name,

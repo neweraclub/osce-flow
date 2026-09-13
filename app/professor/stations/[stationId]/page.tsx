@@ -33,6 +33,12 @@ import {
 import { useToast } from '@/context/ToastContext'
 import { DatePicker } from '@/components/ui/date-picker'
 import { UUID_REGEX } from '@/lib/stationSlug'
+import {
+  EditStationModal,
+  AssignedModuleOption,
+  EditStationFormValues,
+} from '@/components/stations/EditStationModal'
+import { updateStationDetailsAction } from '@/app/professor/stations/actions'
 
 export interface StationDetail {
   id: string
@@ -74,6 +80,11 @@ export default function ProfessorStationDetailPage({
   const [pinRevealed, setPinRevealed] = useState(false)
   const [pinCopied, setPinCopied] = useState(false)
 
+  // Edit Station Details Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [assignedModules, setAssignedModules] = useState<AssignedModuleOption[]>([])
+  const [moduleWeightageMap, setModuleWeightageMap] = useState<Record<string, number>>({})
+
   // Create Exam Session Modal
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [sessionType, setSessionType] = useState<'regular' | 'makeup'>('regular')
@@ -108,6 +119,7 @@ export default function ProfessorStationDetailPage({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIsCreateOpen(false)
+        setIsEditModalOpen(false)
         setDeletingExam(null)
       }
     }
@@ -126,6 +138,22 @@ export default function ProfessorStationDetailPage({
       if (res.ok && json.success) {
         setStation(json.station || null)
         setExams(json.exams || [])
+        if (json.module_weightage_map) {
+          setModuleWeightageMap(json.module_weightage_map)
+        }
+        if (json.assigned_modules && json.assigned_modules.length > 0) {
+          setAssignedModules(json.assigned_modules)
+        } else {
+          // Fallback fetch modules assigned to professor
+          fetch('/api/professor/modules')
+            .then((r) => r.json())
+            .then((mJson) => {
+              if (mJson.success && mJson.modules) {
+                setAssignedModules(mJson.modules)
+              }
+            })
+            .catch(() => {})
+        }
       } else {
         showError(json.error || 'Failed to fetch station details.')
       }
@@ -134,6 +162,73 @@ export default function ProfessorStationDetailPage({
     } finally {
       setLoading(false)
       setRefreshing(false)
+    }
+  }
+
+  // --- Optimistic Update Handler for Station Details ---
+  const handleSaveStationDetails = async (values: EditStationFormValues) => {
+    if (!station) return
+
+    const previousStation = { ...station }
+    const previousWeightageMap = { ...moduleWeightageMap }
+    const targetMod = assignedModules.find((m) => m.id === values.module_id)
+
+    // 1. Instant Optimistic UI update on header title, weightage, and module
+    setStation((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        title: values.title,
+        station_number: values.station_number,
+        weightage_percentage: values.weightage_percentage,
+        module_id: values.module_id,
+        module_name: targetMod?.module_name || prev.module_name,
+        level_name: targetMod?.level_name || prev.level_name,
+      }
+    })
+
+    // Optimistically update module weightage map
+    setModuleWeightageMap((prev) => {
+      const next = { ...prev }
+      if (station.module_id) {
+        next[station.module_id] = Math.max(
+          0,
+          (next[station.module_id] || 0) - Number(station.weightage_percentage || 0)
+        )
+      }
+      next[values.module_id] = (next[values.module_id] || 0) + values.weightage_percentage
+      return next
+    })
+
+    // 2. Immediate Toast Feedback
+    showSuccess('Station details updated successfully.')
+
+    // 3. Asynchronous Server Action execution in background
+    try {
+      const result = await updateStationDetailsAction({
+        stationId: station.id,
+        title: values.title,
+        station_number: values.station_number,
+        weightage_percentage: values.weightage_percentage,
+        module_id: values.module_id,
+      })
+
+      if (result.success && result.station) {
+        setStation((current) => (current ? { ...current, ...result.station } : null))
+        if (result.station.slug && result.station.slug !== stationId) {
+          window.history.replaceState(null, '', `/professor/stations/${result.station.slug}`)
+        }
+      } else {
+        // Rollback on server validation error
+        setStation(previousStation)
+        setModuleWeightageMap(previousWeightageMap)
+        showError(result.error || 'Failed to update station details. Changes reverted.')
+      }
+    } catch (err: any) {
+      // Rollback on network failure
+      setStation(previousStation)
+      setModuleWeightageMap(previousWeightageMap)
+      showError(err?.message || 'Network error updating station. Changes reverted.')
     }
   }
 
@@ -313,9 +408,32 @@ export default function ProfessorStationDetailPage({
                   </span>
                   {station.weightage_percentage > 0 && (
                     <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                      {station.weightage_percentage}% Weightage
+                      {station.weightage_percentage}% Station Weightage
                     </span>
                   )}
+                  {(() => {
+                    const modTotal = moduleWeightageMap[station.module_id] ?? station.weightage_percentage
+                    const isFullyAllocated = modTotal >= 100
+                    return (
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${
+                          isFullyAllocated
+                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                            : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                        }`}
+                      >
+                        {isFullyAllocated ? (
+                          <CheckCircle2 className="size-3 text-emerald-400" />
+                        ) : (
+                          <AlertCircle className="size-3 text-amber-400" />
+                        )}
+                        <span>
+                          Module Weightage: {modTotal}% / 100%{' '}
+                          {isFullyAllocated ? '(Fully Allocated)' : `(${Math.max(0, 100 - modTotal)}% Unallocated)`}
+                        </span>
+                      </span>
+                    )
+                  })()}
                 </div>
 
                 <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
@@ -328,37 +446,51 @@ export default function ProfessorStationDetailPage({
                 </div>
               </div>
 
-              {/* Secure Tablet Access PIN Box */}
-              <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 flex items-center justify-between gap-4 min-w-[220px]">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="size-9 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center shrink-0">
-                    <Key className="size-4.5" />
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">
-                      Live Scoring PIN
-                    </span>
-                    <span className="font-mono text-sm font-black text-white tracking-widest">
-                      {pinRevealed ? station.access_pin : '••••••'}
-                    </span>
-                  </div>
-                </div>
+              {/* Header Right Actions: Edit Station Details & PIN Box */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+                {/* Edit Station Details Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/20 active:bg-white/25 border border-white/15 text-white text-xs font-bold transition-all shadow-sm hover:shadow-md cursor-pointer hover:border-emerald-400/50 group shrink-0"
+                  aria-label="Edit Station Details"
+                >
+                  <Edit2 className="size-3.5 text-emerald-400 group-hover:rotate-12 transition-transform" />
+                  <span>Edit Station Details</span>
+                </button>
 
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setPinRevealed(!pinRevealed)}
-                    className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
-                    aria-label="Toggle PIN Visibility"
-                  >
-                    {pinRevealed ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                  <button
-                    onClick={handleCopyPin}
-                    className="p-1.5 rounded-lg text-slate-300 hover:text-emerald-400 hover:bg-white/10 transition-colors"
-                    aria-label="Copy Access PIN"
-                  >
-                    {pinCopied ? <Check className="size-4 text-emerald-400" /> : <Copy className="size-4" />}
-                  </button>
+                {/* Secure Tablet Access PIN Box */}
+                <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 flex items-center justify-between gap-4 min-w-[200px]">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="size-9 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center shrink-0">
+                      <Key className="size-4.5" />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">
+                        Live Scoring PIN
+                      </span>
+                      <span className="font-mono text-sm font-black text-white tracking-widest">
+                        {pinRevealed ? station.access_pin : '••••••'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setPinRevealed(!pinRevealed)}
+                      className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+                      aria-label="Toggle PIN Visibility"
+                    >
+                      {pinRevealed ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                    <button
+                      onClick={handleCopyPin}
+                      className="p-1.5 rounded-lg text-slate-300 hover:text-emerald-400 hover:bg-white/10 transition-colors"
+                      aria-label="Copy Access PIN"
+                    >
+                      {pinCopied ? <Check className="size-4 text-emerald-400" /> : <Copy className="size-4" />}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -481,9 +613,9 @@ export default function ProfessorStationDetailPage({
                       </div>
 
                       <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
-                        <span className="font-semibold text-slate-400">Scoring Rubric</span>
+                        <span className="font-semibold text-slate-400">Scoring Checklist</span>
                         <div className="flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400 group-hover:translate-x-0.5 transition-transform">
-                          <span>Open Question & Rubric Builder</span>
+                          <span>Open Question & Checklist Builder</span>
                           <ChevronRight className="size-4" />
                         </div>
                       </div>
@@ -677,6 +809,18 @@ export default function ProfessorStationDetailPage({
             </div>
           </div>
         </div>
+      )}
+
+      {/* --- Edit Station Details Modal --- */}
+      {station && (
+        <EditStationModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          station={station}
+          assignedModules={assignedModules}
+          moduleWeightageMap={moduleWeightageMap}
+          onSave={handleSaveStationDetails}
+        />
       )}
     </div>
   )

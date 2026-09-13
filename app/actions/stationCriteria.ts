@@ -96,3 +96,72 @@ export async function createStationCriterionAction(
     }
   }
 }
+
+/**
+ * Server Action: Fetches all preset penalty criteria rows for a station.
+ */
+export async function getStationCriteriaAction(
+  stationId: string
+): Promise<{ success: boolean; criteria: StationCriterionRecord[]; error?: string }> {
+  try {
+    if (!stationId) {
+      return { success: false, criteria: [], error: 'Station ID is required.' }
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('station_criteria')
+      .select('*')
+      .eq('station_id', stationId.trim())
+      .order('created_at', { ascending: true })
+
+    if (error) {
+      console.error('Error fetching station_criteria:', error)
+      return { success: false, criteria: [], error: error.message }
+    }
+
+    return {
+      success: true,
+      criteria: (data || []).map((d) => ({
+        id: d.id,
+        station_id: d.station_id,
+        title: d.title,
+        description: d.description,
+        points: Number(d.points),
+        created_at: d.created_at,
+        updated_at: d.updated_at,
+      })),
+    }
+  } catch (err: any) {
+    return { success: false, criteria: [], error: err?.message || 'Failed to fetch station criteria.' }
+  }
+}
+
+/**
+ * Server Action: Deletes a preset penalty criterion.
+ */
+export async function deleteStationCriterionAction(
+  criterionId: string,
+  stationId?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!criterionId) {
+      return { success: false, error: 'Criterion ID is required.' }
+    }
+
+    const { error } = await supabaseAdmin
+      .from('station_criteria')
+      .delete()
+      .eq('id', criterionId)
+
+    if (error) throw error
+
+    if (stationId) {
+      revalidatePath(`/professor/stations/${stationId}`)
+      revalidatePath('/examiner/workspace')
+    }
+
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to delete criterion.' }
+  }
+}

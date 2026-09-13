@@ -142,15 +142,24 @@ export async function GET(req: NextRequest) {
       studentList = rawStudents || []
     }
 
-    // 6. Fetch existing exam_attempts for these students on the active exam
+    // 6. Fetch existing exam_attempts for these students on this station
     const attemptMap = new Map<string, any>()
-    if (activeExam && studentList.length > 0) {
+    if (studentList.length > 0) {
       const studentIds = studentList.map((s) => s.id)
-      const { data: attempts } = await supabaseAdmin
+      let { data: attempts } = await supabaseAdmin
         .from('exam_attempts')
         .select('*')
-        .eq('exam_id', activeExam.id)
+        .eq('station_id', stationId)
         .in('student_id', studentIds)
+
+      if ((!attempts || attempts.length === 0) && activeExam?.id) {
+        const { data: legacyAttempts } = await supabaseAdmin
+          .from('exam_attempts')
+          .select('*')
+          .eq('exam_id', activeExam.id)
+          .in('student_id', studentIds)
+        if (legacyAttempts) attempts = legacyAttempts
+      }
 
       ;(attempts || []).forEach((att) => {
         attemptMap.set(att.student_id, att)
@@ -163,7 +172,7 @@ export async function GET(req: NextRequest) {
       const sec = grp ? sectionMap.get(grp.section_id) : null
       const attempt = attemptMap.get(st.id)
 
-      const status: 'pending' | 'completed' = attempt ? 'completed' : 'pending'
+      const status: 'pending' | 'completed' = attempt?.status === 'completed' ? 'completed' : 'pending'
       const finalScore = attempt ? Number(attempt.final_score ?? 0) : null
 
       return {

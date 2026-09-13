@@ -57,17 +57,16 @@ export async function POST(req: NextRequest) {
     const deductions = penaltyList.length > 0 ? deductionsFromList : Math.abs(Number(penalty_total) || 0)
     const finalScore = Math.max(0, Math.round((earnedScore - deductions) * 100) / 100)
 
-    // 2. Upsert exam_attempts record with onConflict: 'student_id, exam_id'
+    // 2. Upsert exam_attempts record with onConflict: 'student_id, station_id'
     const { data: attemptRecord, error: attErr } = await supabaseAdmin
       .from('exam_attempts')
       .upsert(
         {
           student_id: targetStudentId,
-          exam_id: exam_id,
-          final_score: finalScore,
-          status: 'passed',
+          station_id: station_id,
+          status: 'completed',
         },
-        { onConflict: 'student_id, exam_id' }
+        { onConflict: 'student_id, station_id' }
       )
       .select('id')
       .single()

@@ -27,6 +27,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Student not found.' }, { status: 404 })
     }
 
+    const targetStationId = body.station_id || exam_id
+
     let attemptResult = null
 
     let upsertRes = await supabaseAdmin
@@ -34,33 +36,18 @@ export async function POST(req: NextRequest) {
       .upsert(
         {
           student_id: targetStudentId,
-          exam_id: exam_id,
-          final_score: 0.0,
-          status: 'absent',
+          station_id: targetStationId,
+          status: 'pending',
         },
-        { onConflict: 'student_id, exam_id' }
+        { onConflict: 'student_id, station_id' }
       )
       .select()
       .single()
 
-    if (upsertRes.error && upsertRes.error.message.includes('attempt_status_enum')) {
-      // Fallback for DB where 'absent' is not in attempt_status_enum
-      upsertRes = await supabaseAdmin
-        .from('exam_attempts')
-        .upsert(
-          {
-            student_id: targetStudentId,
-            exam_id: exam_id,
-            final_score: 0.0,
-            status: 'passed',
-          },
-          { onConflict: 'student_id, exam_id' }
-        )
-        .select()
-        .single()
+    if (upsertRes.error) {
+      console.error('mark-absent upsert error:', upsertRes.error)
+      throw upsertRes.error
     }
-
-    if (upsertRes.error) throw upsertRes.error
     attemptResult = upsertRes.data
 
     return NextResponse.json({

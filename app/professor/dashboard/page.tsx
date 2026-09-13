@@ -68,6 +68,9 @@ export interface AssignedStation {
   weightage_percentage?: number
   exam_id: string | null
   question_count: number
+  completed_count?: number
+  total_candidates?: number
+  progress_percentage?: number
   status: 'ready' | 'needs_setup' | 'incomplete'
   status_label: string
   created_at?: string
@@ -690,6 +693,27 @@ export default function ProfessorDashboardPage() {
                             </button>
                           </div>
                         </div>
+
+                        {/* Real-time Candidate Completion Progress Bar */}
+                        {typeof st.completed_count === 'number' && typeof st.total_candidates === 'number' && st.total_candidates > 0 && (
+                          <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                                <Users className="size-3 text-emerald-500" />
+                                <span>Candidate Progress:</span>
+                              </span>
+                              <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">
+                                {st.completed_count} / {st.total_candidates} ({st.progress_percentage ?? 0}%)
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                                style={{ width: `${Math.min(100, st.progress_percentage ?? 0)}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Direct Navigation Action */}

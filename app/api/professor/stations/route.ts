@@ -222,7 +222,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Access PIN must be at least 4 characters.' }, { status: 400 })
     }
 
-    const weightage = Math.max(0, Math.min(100, Number(weightage_percentage) || 0))
+    const weightage = Math.max(0, Math.min(100, typeof weightage_percentage !== 'undefined' && weightage_percentage !== null ? Number(weightage_percentage) : 50))
 
     // Row-level authorization: Verify module belongs to this professor
     const { data: moduleCheck, error: modErr } = await supabaseAdmin

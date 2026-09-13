@@ -28,14 +28,52 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // 2. Fetch module and level details
-    const { data: mod } = await supabaseAdmin
-      .from('modules')
-      .select('id, module_name, level_id')
-      .eq('id', station.module_id)
-      .single()
+    // Resolve exams: station belongs to exam (station.exam_id) or exams belong to station (legacy station_id)
+    let exams: any[] = []
+    let activeExam: any = null
 
-    const levelId = mod?.level_id
+    if (station.exam_id) {
+      const { data: exData } = await supabaseAdmin
+        .from('exams')
+        .select('*')
+        .eq('id', station.exam_id)
+        .maybeSingle()
+      if (exData) {
+        exams = [exData]
+        activeExam = exData
+      }
+    }
+
+    const { data: stationExams } = await supabaseAdmin
+      .from('exams')
+      .select('*')
+      .eq('station_id', stationId)
+      .order('exam_date', { ascending: false })
+
+    if (stationExams && stationExams.length > 0) {
+      exams = [...exams, ...stationExams.filter((se) => !exams.some((e) => e.id === se.id))]
+      if (!activeExam) activeExam = exams[0]
+    }
+
+    if (examIdParam) {
+      const selected = exams.find((e) => e.id === examIdParam)
+      if (selected) activeExam = selected
+    }
+
+    const moduleId = activeExam?.module_id || station.module_id
+
+    // 2. Fetch module and level details
+    let mod: any = null
+    let levelId: string | null = null
+    if (moduleId) {
+      const { data: m } = await supabaseAdmin
+        .from('modules')
+        .select('id, module_name, level_id')
+        .eq('id', moduleId)
+        .maybeSingle()
+      mod = m
+      levelId = mod?.level_id || null
+    }
 
     // Fetch study level and bound academic year
     let studyLevel: any = null
@@ -61,33 +99,23 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 3. Fetch exams for this station
-    const { data: exams, error: exErr } = await supabaseAdmin
-      .from('exams')
+    // 4. Fetch questions: belongs to stations (station_id), fallback to exam_id
+    let questions: any[] = []
+    const { data: qData } = await supabaseAdmin
+      .from('questions')
       .select('*')
       .eq('station_id', stationId)
-      .order('exam_date', { ascending: false })
+      .order('created_at', { ascending: true })
 
-    if (exErr) {
-      console.error('Failed to fetch exams:', exErr)
-    }
-
-    const activeExam = examIdParam
-      ? (exams || []).find((e) => e.id === examIdParam) || exams?.[0]
-      : exams?.[0]
-
-    // 4. Fetch exam questions if active exam exists
-    let questions: any[] = []
-    if (activeExam) {
-      const { data: qData, error: qErr } = await supabaseAdmin
+    if (qData && qData.length > 0) {
+      questions = qData
+    } else if (activeExam?.id) {
+      const { data: qLegacy } = await supabaseAdmin
         .from('questions')
         .select('*')
         .eq('exam_id', activeExam.id)
         .order('created_at', { ascending: true })
-
-      if (!qErr && qData) {
-        questions = qData
-      }
+      if (qLegacy) questions = qLegacy
     }
 
     // 4b. Calculate station-scoped max possible points
@@ -97,26 +125,24 @@ export async function GET(req: NextRequest) {
         (sum, q) => sum + (Number(q.max_scale_value) || 10),
         0
       )
-    } else if (stationId) {
-      const { data: examRow } = await supabaseAdmin
-        .from('exams')
-        .select('id')
-        .eq('station_id', stationId)
-        .limit(1)
-        .maybeSingle()
-
-      if (examRow?.id) {
-        const { data: qRows } = await supabaseAdmin
-          .from('questions')
-          .select('max_scale_value')
-          .eq('exam_id', examRow.id)
-
-        stationMaxPoints = (qRows || []).reduce(
-          (sum, q) => sum + (Number(q.max_scale_value) || 10),
-          0
-        )
-      }
+    } else {
+      stationMaxPoints = 10
     }
+
+    // 4c. Fetch preset criteria/penalties for this station
+    const { data: criteriaData } = await supabaseAdmin
+      .from('station_criteria')
+      .select('id, station_id, title, description, points')
+      .eq('station_id', stationId)
+      .order('created_at', { ascending: true })
+
+    const stationCriteria = (criteriaData || []).map((c) => ({
+      id: c.id,
+      station_id: c.station_id,
+      title: c.title,
+      description: c.description,
+      points: Number(c.points),
+    }))
 
     // 5. Strictly scope sections & groups to this station's study level
     let rawSections: any[] = []
@@ -171,18 +197,27 @@ export async function GET(req: NextRequest) {
       studentList = rawStudents || []
     }
 
-    // 7. Fetch existing exam_attempts, saved student_answers, and candidate_penalties
+    // 7. Fetch existing exam_attempts (scoped to station_id), saved student_answers, and candidate_penalties
     const attemptMap = new Map<string, any>()
     const answersMap = new Map<string, any[]>()
     const penaltiesMap = new Map<string, any[]>()
 
-    if (activeExam && studentList.length > 0) {
+    if (studentList.length > 0) {
       const studentIds = studentList.map((s) => s.id)
-      const { data: attempts } = await supabaseAdmin
+      let { data: attempts } = await supabaseAdmin
         .from('exam_attempts')
         .select('*')
-        .eq('exam_id', activeExam.id)
+        .eq('station_id', stationId)
         .in('student_id', studentIds)
+
+      if ((!attempts || attempts.length === 0) && activeExam?.id) {
+        const { data: legacyAttempts } = await supabaseAdmin
+          .from('exam_attempts')
+          .select('*')
+          .eq('exam_id', activeExam.id)
+          .in('student_id', studentIds)
+        if (legacyAttempts) attempts = legacyAttempts
+      }
 
       const attemptIds = (attempts || []).map((a) => a.id)
 
@@ -192,7 +227,6 @@ export async function GET(req: NextRequest) {
           .from('student_answers')
           .select('id, attempt_id, station_id, question_id, evaluation_score, points_awarded, selected_options')
           .in('attempt_id', attemptIds)
-          .eq('station_id', stationId)
 
         ;(savedAnswers || []).forEach((ans) => {
           if (!answersMap.has(ans.attempt_id)) {
@@ -205,7 +239,7 @@ export async function GET(req: NextRequest) {
         try {
           const { data: penaltiesData } = await supabaseAdmin
             .from('candidate_penalties')
-            .select('id, exam_attempt_id, reason, points, created_at')
+            .select('id, exam_attempt_id, criteria_id, reason, points, created_at')
             .in('exam_attempt_id', attemptIds)
             .order('created_at', { ascending: true })
 
@@ -216,6 +250,7 @@ export async function GET(req: NextRequest) {
             penaltiesMap.get(p.exam_attempt_id)!.push({
               id: p.id,
               exam_attempt_id: p.exam_attempt_id,
+              criteria_id: p.criteria_id || null,
               reason: p.reason,
               points: Number(p.points),
               created_at: p.created_at,
@@ -231,14 +266,22 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    // 8. Format candidate roster (Strictly Pending or Completed)
+    // 8. Format candidate roster (Strictly Pending or Completed) with dynamic score calculation
     const formattedStudents = studentList.map((st) => {
       const grp = groupMap.get(st.group_id)
       const sec = grp ? sectionMap.get(grp.section_id) : null
       const attempt = attemptMap.get(st.id)
       const savedAnswers = attempt ? answersMap.get(attempt.id) || [] : []
       const candidatePenalties = attempt ? penaltiesMap.get(attempt.id) || [] : []
-      const isCompleted = !!attempt && attempt.final_score !== null
+      
+      const isCompleted = attempt?.status === 'completed' || (attempt && (savedAnswers.length > 0 || typeof attempt.final_score === 'number'))
+
+      // Dynamic Net Raw Score: GREATEST(0, earnedScore + totalDeductions)
+      const earnedScore = savedAnswers.reduce((sum, a) => sum + (Number(a.points_awarded) || 0), 0)
+      const totalDeductions = candidatePenalties.reduce((sum, p) => sum + (Number(p.points) || 0), 0)
+      const dynamicFinalScore = isCompleted
+        ? Math.max(0, Math.round((earnedScore + totalDeductions) * 100) / 100)
+        : null
 
       return {
         id: st.id,
@@ -255,7 +298,7 @@ export async function GET(req: NextRequest) {
         import_index: typeof st.import_index === 'number' ? st.import_index : 0,
         attempt_id: attempt?.id || null,
         status: isCompleted ? 'completed' : 'pending',
-        final_score: isCompleted ? Number(attempt.final_score) : null,
+        final_score: dynamicFinalScore,
         saved_answers: savedAnswers.map((ans) => ({
           question_id: ans.question_id,
           selected_options: Array.isArray(ans.selected_options) ? ans.selected_options : [],
@@ -297,6 +340,7 @@ export async function GET(req: NextRequest) {
       active_exam: activeExam || null,
       exams: exams || [],
       questions: questions || [],
+      criteria: stationCriteria,
       sections: formattedSections,
       groups: formattedGroups,
       students: formattedStudents,

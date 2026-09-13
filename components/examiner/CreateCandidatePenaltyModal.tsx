@@ -8,11 +8,19 @@ import {
   X,
 } from 'lucide-react'
 
+export interface PresetCriterionOption {
+  id: string
+  title: string
+  description?: string | null
+  points: number
+}
+
 interface CreateCandidatePenaltyModalProps {
   isOpen: boolean
   onClose: () => void
   studentName: string
-  onAddPenalty: (penalty: { id: string; reason: string; points: number }) => void
+  presetCriteria?: PresetCriterionOption[]
+  onAddPenalty: (penalty: { id: string; reason: string; points: number; criteria_id?: string }) => void
 }
 
 const PRESET_DEDUCTIONS = [-0.5, -1.0, -1.5, -2.0]
@@ -21,16 +29,19 @@ export function CreateCandidatePenaltyModal({
   isOpen,
   onClose,
   studentName,
+  presetCriteria = [],
   onAddPenalty,
 }: CreateCandidatePenaltyModalProps) {
   const [reason, setReason] = useState('')
   const [pointsInput, setPointsInput] = useState('-0.5')
+  const [selectedCriteriaId, setSelectedCriteriaId] = useState<string | undefined>(undefined)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
     if (isOpen) {
       setReason('')
       setPointsInput('-0.5')
+      setSelectedCriteriaId(undefined)
       setErrorMessage(null)
     }
   }, [isOpen])
@@ -45,6 +56,13 @@ export function CreateCandidatePenaltyModal({
       ? -0.5
       : parsed
     : -0.5
+
+  const handleSelectPresetTemplate = (c: PresetCriterionOption) => {
+    setReason(c.title)
+    setPointsInput(c.points.toString())
+    setSelectedCriteriaId(c.id)
+    setErrorMessage(null)
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -70,11 +88,13 @@ export function CreateCandidatePenaltyModal({
       id: newId,
       reason: reason.trim(),
       points: -Math.abs(effectivePoints),
+      criteria_id: selectedCriteriaId,
     })
 
     // Reset input fields and close modal
     setReason('')
     setPointsInput('-0.5')
+    setSelectedCriteriaId(undefined)
     onClose()
   }
 
@@ -127,6 +147,38 @@ export function CreateCandidatePenaltyModal({
             <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center gap-2">
               <AlertCircle className="size-4 shrink-0 text-rose-600 dark:text-rose-400" />
               <span>{errorMessage}</span>
+            </div>
+          )}
+
+          {/* Station Preset Penalties Selection (if configured) */}
+          {presetCriteria.length > 0 && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                <span>Preset Station Penalties</span>
+                <span className="text-[10px] text-slate-400">Click to autofill</span>
+              </label>
+              <div className="grid grid-cols-1 gap-1.5 max-h-32 overflow-y-auto pr-1">
+                {presetCriteria.map((preset) => {
+                  const isSelected = selectedCriteriaId === preset.id
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => handleSelectPresetTemplate(preset)}
+                      className={`p-2 rounded-xl text-left text-xs border transition-all flex items-center justify-between gap-2 ${
+                        isSelected
+                          ? 'bg-rose-100/80 dark:bg-rose-950/80 border-rose-500 text-rose-900 dark:text-rose-100 font-bold ring-1 ring-rose-500/30'
+                          : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-rose-300'
+                      }`}
+                    >
+                      <span className="truncate font-medium">{preset.title}</span>
+                      <span className="font-mono text-[11px] font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950 px-2 py-0.5 rounded border border-rose-200 dark:border-rose-800 shrink-0">
+                        {Number(preset.points).toFixed(1)} pts
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           )}
 

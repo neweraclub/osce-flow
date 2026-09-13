@@ -30,21 +30,34 @@ export async function GET(
     }
 
     // 2. Fetch Station
-    const { data: station } = await supabaseAdmin
-      .from('stations')
-      .select('*')
-      .eq('id', exam.station_id)
-      .single()
+    let station: any = null
+    if (exam.station_id) {
+      const { data: st } = await supabaseAdmin
+        .from('stations')
+        .select('*')
+        .eq('id', exam.station_id)
+        .maybeSingle()
+      station = st
+    }
+    if (!station) {
+      const { data: st } = await supabaseAdmin
+        .from('stations')
+        .select('*')
+        .eq('exam_id', examId)
+        .maybeSingle()
+      station = st
+    }
 
     // 3. Fetch Module info
     let moduleName = 'General Module'
     let levelName = 'General Level'
-    if (station?.module_id) {
+    const moduleId = exam.module_id || station?.module_id
+    if (moduleId) {
       const { data: mod } = await supabaseAdmin
         .from('modules')
         .select('module_name, level_id')
-        .eq('id', station.module_id)
-        .single()
+        .eq('id', moduleId)
+        .maybeSingle()
 
       if (mod?.module_name) moduleName = mod.module_name
       if (mod?.level_id) {
@@ -52,17 +65,17 @@ export async function GET(
           .from('study_levels')
           .select('level_name')
           .eq('id', mod.level_id)
-          .single()
+          .maybeSingle()
         if (lvl?.level_name) levelName = lvl.level_name
       }
     }
 
     // 4. Fetch Questions
-    const { data: questions, error: qErr } = await supabaseAdmin
-      .from('questions')
-      .select('*')
-      .eq('exam_id', examId)
-      .order('created_at', { ascending: true })
+    const questionsQuery = station?.id
+      ? supabaseAdmin.from('questions').select('*').or(`station_id.eq.${station.id},exam_id.eq.${examId}`)
+      : supabaseAdmin.from('questions').select('*').eq('exam_id', examId)
+
+    const { data: questions, error: qErr } = await questionsQuery.order('created_at', { ascending: true })
 
     if (qErr) throw qErr
 

@@ -24,12 +24,19 @@ import {
   Loader2,
   Plus,
   RefreshCw,
+  ShieldAlert,
   ShieldCheck,
   Sparkles,
   Stethoscope,
   Trash2,
   X,
 } from 'lucide-react'
+import {
+  getStationCriteriaAction,
+  createStationCriterionAction,
+  deleteStationCriterionAction,
+  StationCriterionRecord,
+} from '@/app/actions/stationCriteria'
 import { useToast } from '@/context/ToastContext'
 import { DatePicker } from '@/components/ui/date-picker'
 import { UUID_REGEX } from '@/lib/stationSlug'
@@ -87,15 +94,25 @@ export default function ProfessorStationDetailPage({
 
   // Create Exam Session Modal
   const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [sessionType, setSessionType] = useState<'regular' | 'makeup'>('regular')
+  const [sessionType, setSessionType] = useState<'regular' | 'retake'>('regular')
   const [examDate, setExamDate] = useState(new Date().toISOString().split('T')[0])
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState('')
 
+  // Preset Station Penalties State (public.station_criteria)
+  const [criteria, setCriteria] = useState<StationCriterionRecord[]>([])
+  const [loadingCriteria, setLoadingCriteria] = useState(false)
+  const [isCreateCriteriaOpen, setIsCreateCriteriaOpen] = useState(false)
+  const [criteriaTitle, setCriteriaTitle] = useState('')
+  const [criteriaDescription, setCriteriaDescription] = useState('')
+  const [criteriaPoints, setCriteriaPoints] = useState('-0.5')
+  const [submittingCriteria, setSubmittingCriteria] = useState(false)
+  const [deletingCriteriaId, setDeletingCriteriaId] = useState<string | null>(null)
+
   // Session Limits & Availability Constraints
   const hasRegularSession = exams.some((e) => e.session_type === 'regular')
-  const hasMakeupSession = exams.some((e) => e.session_type === 'makeup')
-  const isMaxSessionsReached = hasRegularSession && hasMakeupSession
+  const hasRetakeSession = exams.some((e) => e.session_type === 'retake' || e.session_type === 'makeup')
+  const isMaxSessionsReached = hasRegularSession && hasRetakeSession
 
   const handleOpenCreateSession = () => {
     if (isMaxSessionsReached) return
@@ -103,7 +120,7 @@ export default function ProfessorStationDetailPage({
     if (!hasRegularSession) {
       setSessionType('regular')
     } else {
-      setSessionType('makeup')
+      setSessionType('retake')
     }
     setExamDate(new Date().toISOString().split('T')[0])
     setFormError('')
@@ -154,6 +171,13 @@ export default function ProfessorStationDetailPage({
             })
             .catch(() => {})
         }
+
+        // Fetch Station Criteria
+        getStationCriteriaAction(stationId).then((cRes) => {
+          if (cRes.success && cRes.criteria) {
+            setCriteria(cRes.criteria)
+          }
+        })
       } else {
         showError(json.error || 'Failed to fetch station details.')
       }
@@ -264,8 +288,8 @@ export default function ProfessorStationDetailPage({
       setFormError('A Regular Session already exists for this station.')
       return
     }
-    if (sessionType === 'makeup' && hasMakeupSession) {
-      setFormError('A Makeup Session already exists for this station.')
+    if (sessionType === 'retake' && hasRetakeSession) {
+      setFormError('A Retake Session already exists for this station.')
       return
     }
 
@@ -295,6 +319,61 @@ export default function ProfessorStationDetailPage({
       setFormError(err?.message || 'Error communicating with server.')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  // --- Station Preset Criteria Handlers (public.station_criteria) ---
+  const handleCreateCriteria = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!criteriaTitle.trim()) {
+      showError('Please provide a penalty title.')
+      return
+    }
+    const rawPts = Number(criteriaPoints)
+    if (isNaN(rawPts) || rawPts === 0) {
+      showError('Points must be a valid non-zero number.')
+      return
+    }
+
+    setSubmittingCriteria(true)
+    try {
+      const res = await createStationCriterionAction({
+        station_id: station?.id || stationId,
+        title: criteriaTitle.trim(),
+        description: criteriaDescription.trim() || null,
+        points: rawPts > 0 ? -rawPts : rawPts,
+      })
+      if (res.success && res.criterion) {
+        setCriteria((prev) => [...prev, res.criterion!])
+        showSuccess('Preset penalty item added.')
+        setIsCreateCriteriaOpen(false)
+        setCriteriaTitle('')
+        setCriteriaDescription('')
+        setCriteriaPoints('-0.5')
+      } else {
+        showError(res.error || 'Failed to create penalty item.')
+      }
+    } catch (err: any) {
+      showError(err?.message || 'Error saving penalty.')
+    } finally {
+      setSubmittingCriteria(false)
+    }
+  }
+
+  const handleDeleteCriteria = async (criterionId: string) => {
+    setDeletingCriteriaId(criterionId)
+    try {
+      const res = await deleteStationCriterionAction(criterionId)
+      if (res.success) {
+        setCriteria((prev) => prev.filter((c) => c.id !== criterionId))
+        showSuccess('Preset penalty item deleted.')
+      } else {
+        showError(res.error || 'Failed to delete penalty item.')
+      }
+    } catch (err: any) {
+      showError(err?.message || 'Error deleting penalty item.')
+    } finally {
+      setDeletingCriteriaId(null)
     }
   }
 
@@ -568,10 +647,10 @@ export default function ProfessorStationDetailPage({
                     >
                       <div className="space-y-3">
                         <div className="flex items-center justify-between gap-2">
-                          {exam.session_type === 'makeup' ? (
+                          {exam.session_type === 'retake' || exam.session_type === 'makeup' ? (
                             <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200/60 dark:border-purple-800 shadow-xs">
                               <Layers className="size-3 text-purple-500" />
-                              <span>Makeup Session</span>
+                              <span>Retake Session</span>
                             </span>
                           ) : (
                             <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-800 shadow-xs">
@@ -625,7 +704,196 @@ export default function ProfessorStationDetailPage({
               </div>
             )}
           </div>
+
+          {/* Preset Clinical Deductions & Penalties Section (public.station_criteria) */}
+          <div className="space-y-4 pt-4 border-t border-slate-200/80 dark:border-slate-800">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+                  <ShieldAlert className="size-5 text-rose-500" />
+                  <span>Preset Deduction & Penalty Templates ({criteria.length})</span>
+                </h2>
+                <p className="text-xs font-medium text-slate-400">
+                  Standardized penalty templates available to examiners during candidate evaluation at this station
+                </p>
+              </div>
+
+              <button
+                onClick={() => setIsCreateCriteriaOpen(true)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 text-white text-xs font-bold shadow-md shadow-rose-500/25 hover:from-rose-700 hover:to-red-700 transition-all active:scale-[0.98]"
+              >
+                <Plus className="size-4" />
+                <span>+ Add Preset Penalty</span>
+              </button>
+            </div>
+
+            {criteria.length === 0 ? (
+              <div className="p-8 rounded-3xl bg-rose-50/20 dark:bg-rose-950/10 border border-dashed border-rose-200/80 dark:border-rose-900/40 text-center space-y-2">
+                <ShieldAlert className="size-8 text-rose-400 mx-auto opacity-80" />
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  No Preset Penalties Configured
+                </h4>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                  Add preset deductions (e.g. Failed Hand Hygiene, Patient Safety Breach) to give examiners 1-click deduction options.
+                </p>
+                <button
+                  onClick={() => setIsCreateCriteriaOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 bg-rose-50/50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors"
+                >
+                  <Plus className="size-3.5" />
+                  <span>Add First Penalty Item</span>
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {criteria.map((c) => {
+                  const pts = Number(c.points)
+                  const displayPts = pts < 0 ? pts.toFixed(1) : `-${Math.abs(pts).toFixed(1)}`
+                  const isDeleting = deletingCriteriaId === c.id
+
+                  return (
+                    <div
+                      key={c.id}
+                      className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-rose-200/70 dark:border-rose-950/60 shadow-xs flex items-start justify-between gap-3 group"
+                    >
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="size-1.5 rounded-full bg-rose-500 shrink-0" />
+                          <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                            {c.title}
+                          </h4>
+                        </div>
+                        {c.description && (
+                          <p className="text-[11px] text-slate-400 line-clamp-2 pl-3.5">
+                            {c.description}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60">
+                          {displayPts} pts
+                        </span>
+                        <button
+                          onClick={() => handleDeleteCriteria(c.id)}
+                          disabled={isDeleting}
+                          title="Delete Preset Penalty"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors disabled:opacity-40"
+                        >
+                          {isDeleting ? (
+                            <Loader2 className="size-3.5 animate-spin text-rose-500" />
+                          ) : (
+                            <Trash2 className="size-3.5" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </>
+      )}
+
+      {/* --- Create Station Preset Criteria Modal --- */}
+      {isCreateCriteriaOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <div className="relative w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/80 shadow-2xl p-6 space-y-5 animate-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-rose-100 dark:border-rose-950/60">
+              <div className="flex items-center gap-2.5">
+                <div className="flex size-9 items-center justify-center rounded-xl bg-rose-600 text-white shadow-md shadow-rose-500/20">
+                  <ShieldAlert className="size-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Add Preset Penalty
+                  </h3>
+                  <p className="text-[11px] font-semibold text-slate-400">
+                    Station #{station?.station_number} • {station?.title}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsCreateCriteriaOpen(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateCriteria} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Penalty Title *
+                </label>
+                <input
+                  type="text"
+                  value={criteriaTitle}
+                  onChange={(e) => setCriteriaTitle(e.target.value)}
+                  placeholder="e.g. Failed Hand Hygiene"
+                  className="w-full px-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/30 focus:border-rose-500"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Description (Optional)
+                </label>
+                <textarea
+                  value={criteriaDescription}
+                  onChange={(e) => setCriteriaDescription(e.target.value)}
+                  placeholder="e.g. Candidate omitted hand sanitization prior to patient physical examination"
+                  rows={2}
+                  className="w-full px-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/30 focus:border-rose-500"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Deduction Points *
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={criteriaPoints}
+                  onChange={(e) => setCriteriaPoints(e.target.value)}
+                  placeholder="-0.5"
+                  className="w-full px-3.5 py-2.5 rounded-2xl text-xs font-mono font-semibold bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/30 focus:border-rose-500"
+                  required
+                />
+                <p className="text-[10px] text-slate-400">
+                  Values are automatically saved as negative deductions (e.g. 1.0 becomes -1.0).
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateCriteriaOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingCriteria}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-600 text-white text-xs font-bold shadow-md shadow-rose-500/25 hover:bg-rose-700 transition-all disabled:opacity-50"
+                >
+                  {submittingCriteria ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <span>Add Preset Penalty</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* --- Create Exam Session Modal --- */}
@@ -699,21 +967,21 @@ export default function ProfessorStationDetailPage({
 
                   <button
                     type="button"
-                    disabled={hasMakeupSession}
-                    onClick={() => setSessionType('makeup')}
+                    disabled={hasRetakeSession}
+                    onClick={() => setSessionType('retake')}
                     className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl border text-xs font-bold transition-all relative ${
-                      hasMakeupSession
+                      hasRetakeSession
                         ? 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60'
-                        : sessionType === 'makeup'
+                        : sessionType === 'retake'
                         ? 'bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 ring-2 ring-purple-500/20'
                         : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
                     }`}
                   >
                     <div className="flex items-center gap-1.5">
-                      <Layers className={`size-4 ${hasMakeupSession ? 'text-slate-400' : 'text-purple-500'}`} />
-                      <span>Makeup Session</span>
+                      <Layers className={`size-4 ${hasRetakeSession ? 'text-slate-400' : 'text-purple-500'}`} />
+                      <span>Retake Session</span>
                     </div>
-                    {hasMakeupSession && (
+                    {hasRetakeSession && (
                       <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
                         (Already Created)
                       </span>

@@ -219,25 +219,24 @@ export async function getStudentResultsDashboardDataAction(
     const studyLevelData: any = sectionData?.study_levels
     const academicYearData: any = studyLevelData?.academic_years
 
-    // 2. Fetch all exam attempts for this student with exams, stations, and modules
+    // 2. Fetch all exam attempts for this student with stations, exams, and modules
     const { data: attempts, error: attErr } = await supabaseAdmin
       .from('exam_attempts')
       .select(`
         id,
-        exam_id,
-        final_score,
+        station_id,
         status,
         created_at,
-        exams (
+        stations (
           id,
-          session_type,
-          exam_date,
-          station_id,
-          stations (
+          station_number,
+          title,
+          weightage_percentage,
+          exam_id,
+          exams (
             id,
-            station_number,
-            title,
-            weightage_percentage,
+            session_type,
+            exam_date,
             module_id,
             modules (
               id,
@@ -248,28 +247,76 @@ export async function getStudentResultsDashboardDataAction(
         )
       `)
       .eq('student_id', student.id)
+      .in('status', ['completed', 'passed'])
       .order('created_at', { ascending: false })
 
     if (attErr) {
       console.error('Error fetching student attempts:', attErr)
-      return { success: false, error: 'Failed to retrieve examination attempts.' }
     }
 
-    const attemptList = attempts || []
-    const attemptIds = attemptList.map((a) => a.id)
-    const examIds = attemptList.map((a) => a.exam_id).filter(Boolean)
-    const stationIds = attemptList.map((a: any) => a.exams?.stations?.id).filter(Boolean)
+    let attemptList: any[] = attempts || []
 
-    // 3. Fetch questions across these exams to compute Station Max Points
+    // Fallback for legacy attempts where exam_id was used
+    if (attemptList.length === 0) {
+      const { data: legacyAttempts } = await supabaseAdmin
+        .from('exam_attempts')
+        .select(`
+          id,
+          exam_id,
+          status,
+          created_at,
+          exams (
+            id,
+            session_type,
+            exam_date,
+            station_id,
+            stations (
+              id,
+              station_number,
+              title,
+              weightage_percentage,
+              module_id,
+              modules (
+                id,
+                module_name,
+                level_id
+              )
+            )
+          )
+        `)
+        .eq('student_id', student.id)
+        .in('status', ['completed', 'passed'])
+        .order('created_at', { ascending: false })
+
+      if (legacyAttempts) {
+        attemptList = legacyAttempts
+      }
+    }
+
+    const attemptIds = attemptList.map((a) => a.id)
+    const stationIds = attemptList
+      .map((a: any) => a.station_id || a.stations?.id || a.exams?.stations?.id)
+      .filter(Boolean)
+
+    // 3. Fetch questions across these stations to compute Station Max Points
     let allQuestions: any[] = []
-    if (examIds.length > 0) {
+    if (stationIds.length > 0) {
       const { data: qData, error: qErr } = await supabaseAdmin
         .from('questions')
-        .select('id, exam_id, question_text, question_type, max_scale_value')
-        .in('exam_id', examIds)
+        .select('id, station_id, exam_id, question_text, question_type, max_scale_value')
+        .in('station_id', stationIds)
 
-      if (!qErr && qData) {
+      if (!qErr && qData && qData.length > 0) {
         allQuestions = qData
+      } else {
+        const examIds = attemptList.map((a: any) => a.exams?.id || a.exam_id).filter(Boolean)
+        if (examIds.length > 0) {
+          const { data: qLegacy } = await supabaseAdmin
+            .from('questions')
+            .select('id, station_id, exam_id, question_text, question_type, max_scale_value')
+            .in('exam_id', examIds)
+          if (qLegacy) allQuestions = qLegacy
+        }
       }
     }
 
@@ -291,7 +338,7 @@ export async function getStudentResultsDashboardDataAction(
     if (attemptIds.length > 0) {
       const { data: penData, error: penErr } = await supabaseAdmin
         .from('candidate_penalties')
-        .select('id, exam_attempt_id, points, reason, created_at')
+        .select('id, exam_attempt_id, criteria_id, points, reason, created_at')
         .in('exam_attempt_id', attemptIds)
 
       if (!penErr && penData) {
@@ -322,19 +369,22 @@ export async function getStudentResultsDashboardDataAction(
     }>()
 
     attemptList.forEach((att: any) => {
-      const exam = att.exams
-      const station = exam?.stations
-      const mod = station?.modules
+      const station = att.stations || att.exams?.stations
+      const exam = att.stations?.exams || att.exams
+      const mod = exam?.modules || station?.modules
 
       if (!station || !mod) return
 
       const moduleId = mod.id
       const moduleName = mod.module_name
-      const sessionType = exam.session_type || 'regular'
+      const rawSession = exam?.session_type || 'regular'
+      const sessionType = (rawSession === 'retake' || rawSession === 'makeup') ? 'retake' : 'regular'
       const groupKey = `${moduleId}_${sessionType}`
 
-      // Questions for this station exam
-      const stationQuestions = allQuestions.filter((q) => q.exam_id === att.exam_id)
+      // Questions for this station: match station_id or fallback exam_id
+      const stationQuestions = allQuestions.filter(
+        (q) => q.station_id === station.id || (att.exam_id && q.exam_id === att.exam_id)
+      )
       const stationMaxPoints = stationQuestions.reduce(
         (sum, q) => sum + (Number(q.max_scale_value) || 10),
         0
@@ -362,7 +412,7 @@ export async function getStudentResultsDashboardDataAction(
 
       // Station Weight Scaling:
       // Station Max Contribution = 20 * (weightage_percentage / 100)
-      const weightagePct = Number(station.weightage_percentage) || 0
+      const weightagePct = Number(station.weightage_percentage) || 50
       const stationMaxContribution = Math.round((20 * (weightagePct / 100)) * 100) / 100
 
       // Station Contribution (/20) = 20 * (weightage_percentage / 100) * (Net Station Raw Score / Station Max Points)
@@ -374,6 +424,7 @@ export async function getStudentResultsDashboardDataAction(
       const stationCriteria = allCriteria.filter((c) => c.station_id === station.id)
       const formattedPenalties: StationPenaltyBreakdown[] = attemptPenalties.map((p) => {
         const matched = stationCriteria.find((c) =>
+          (p.criteria_id && c.id === p.criteria_id) ||
           p.reason.toLowerCase().includes(c.title.toLowerCase()) ||
           c.title.toLowerCase().includes(p.reason.toLowerCase())
         )
@@ -411,7 +462,7 @@ export async function getStudentResultsDashboardDataAction(
         station_contribution: stationContribution,
         penalties: formattedPenalties,
         answers: formattedAnswers,
-        attempt_status: att.status || 'passed',
+        attempt_status: att.status || 'completed',
         attempt_date: att.created_at,
       }
 
@@ -445,7 +496,7 @@ export async function getStudentResultsDashboardDataAction(
 
       const bannerMessage = isPassed
         ? `Congratulations! You have successfully passed the ${mg.module_name} module.`
-        : `You did not pass the ${mg.module_name} module (Score: ${formattedScoreStr}/20). You are required to sit for the Makeup Session (Rattrapage).`
+        : `You did not pass the ${mg.module_name} module (Score: ${formattedScoreStr}/20). You are required to sit for the Retake Exam.`
 
       return {
         module_id: mg.module_id,

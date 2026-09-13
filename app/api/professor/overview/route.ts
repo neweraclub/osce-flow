@@ -118,16 +118,64 @@ export async function GET(req: NextRequest) {
       examsByStation.set(e.station_id, list)
     })
 
-    // 6. Fetch questions for these exams
+    // 6. Fetch questions for these stations and exams
     const questionsCountMap = new Map<string, number>()
-    if (examIds.length > 0) {
-      const { data: questions } = await supabaseAdmin
-        .from('questions')
-        .select('id, exam_id')
-        .in('exam_id', examIds)
+    if (stationIds.length > 0) {
+      let qQuery = supabaseAdmin.from('questions').select('id, station_id, exam_id')
+      if (examIds.length > 0) {
+        qQuery = qQuery.or(`station_id.in.(${stationIds.join(',')}),exam_id.in.(${examIds.join(',')})`)
+      } else {
+        qQuery = qQuery.in('station_id', stationIds)
+      }
+
+      const { data: questions } = await qQuery
 
       ;(questions || []).forEach((q) => {
-        questionsCountMap.set(q.exam_id, (questionsCountMap.get(q.exam_id) || 0) + 1)
+        if (q.station_id) {
+          questionsCountMap.set(q.station_id, (questionsCountMap.get(q.station_id) || 0) + 1)
+        }
+        if (q.exam_id) {
+          questionsCountMap.set(q.exam_id, (questionsCountMap.get(q.exam_id) || 0) + 1)
+        }
+      })
+    }
+
+    // 7. Calculate real-time candidate completion progress per station
+    const stationProgressMap = new Map<
+      string,
+      { completed_count: number; total_candidates: number; progress_percentage: number }
+    >()
+
+    if (stationIds.length > 0) {
+      const { data: completedAttempts } = await supabaseAdmin
+        .from('exam_attempts')
+        .select('id, station_id, status')
+        .in('station_id', stationIds)
+        .eq('status', 'completed')
+
+      // Total students in cohorts
+      let totalCohortStudents = 0
+      if (levelIds.length > 0) {
+        const { count } = await supabaseAdmin
+          .from('students')
+          .select('id, groups!inner(section_id, sections!inner(level_id))', { count: 'exact', head: true })
+          .in('groups.sections.level_id', levelIds)
+        totalCohortStudents = count || 0
+      }
+
+      const completedMap = new Map<string, number>()
+      ;(completedAttempts || []).forEach((att) => {
+        completedMap.set(att.station_id, (completedMap.get(att.station_id) || 0) + 1)
+      })
+
+      stationIds.forEach((sid) => {
+        const completed = completedMap.get(sid) || 0
+        const pct = totalCohortStudents > 0 ? Math.round((completed / totalCohortStudents) * 100) : 0
+        stationProgressMap.set(sid, {
+          completed_count: completed,
+          total_candidates: totalCohortStudents,
+          progress_percentage: pct,
+        })
       })
     }
 
@@ -145,10 +193,12 @@ export async function GET(req: NextRequest) {
       const mod = assignedModuleMap.get(st.module_id)
       const lvl = mod ? levelObjectMap.get(mod.level_id) : null
       const stExams = examsByStation.get(st.id) || []
-      const totalQuestions = stExams.reduce(
+      const questionsCountByStation = questionsCountMap.get(st.id) || 0
+      const questionsCountByExam = stExams.reduce(
         (sum, e) => sum + (questionsCountMap.get(e.id) || 0),
         0
       )
+      const totalQuestions = Math.max(questionsCountByStation, questionsCountByExam)
       const isReady = totalQuestions > 0
       const firstExam = stExams[0]
       const linked_exam = firstExam
@@ -163,18 +213,25 @@ export async function GET(req: NextRequest) {
           }
         : null
 
+      const progress = stationProgressMap.get(st.id) || {
+        completed_count: 0,
+        total_candidates: 0,
+        progress_percentage: 0,
+      }
+
       return {
         id: st.id,
         module_id: st.module_id,
         station_number: st.station_number,
         title: st.title,
         access_pin: st.access_pin,
-        weightage_percentage: Number(st.weightage_percentage || 0),
+        weightage_percentage: Number(st.weightage_percentage || 50),
         created_at: st.created_at,
         question_count: totalQuestions,
         exam_count: stExams.length,
         status: isReady ? 'ready' : 'incomplete',
         status_label: isReady ? 'Checklist Ready' : 'Incomplete Checklist',
+        progress,
         slug: getStationSlug({
           station_number: st.station_number,
           module_name: mod?.module_name,
@@ -228,6 +285,7 @@ export async function GET(req: NextRequest) {
         upcomingSessionsCount: formattedUpcomingExams.length,
         readyStationsCount: assignedStations.filter((s) => s.status === 'ready').length,
         pendingStationsCount: assignedStations.filter((s) => s.status === 'incomplete' || s.status === 'needs_setup').length,
+        completedAssessmentsCount: Array.from(stationProgressMap.values()).reduce((sum, p) => sum + p.completed_count, 0),
       },
       modules: assignedModules,
       stations: assignedStations,

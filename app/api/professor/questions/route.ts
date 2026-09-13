@@ -2,6 +2,30 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedProfessor } from '@/lib/professorAuth'
 import { supabaseAdmin } from '@/lib/auth'
 
+export async function GET(req: NextRequest) {
+  try {
+    const prof = await getAuthenticatedProfessor(req)
+    if (!prof) {
+      return NextResponse.json({ success: false, error: 'Unauthorized.' }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(req.url)
+    const stationId = searchParams.get('station_id')
+    const examId = searchParams.get('exam_id')
+
+    let query = supabaseAdmin.from('questions').select('*').order('created_at', { ascending: true })
+    if (stationId) query = query.eq('station_id', stationId)
+    else if (examId) query = query.eq('exam_id', examId)
+
+    const { data: questions, error } = await query
+    if (error) throw error
+
+    return NextResponse.json({ success: true, questions: questions || [] })
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err?.message || 'Failed to fetch questions.' }, { status: 500 })
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const prof = await getAuthenticatedProfessor(req)
@@ -10,11 +34,11 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { exam_id, question_text, question_type, max_scale_value, options } = body
+    const { station_id, exam_id, question_text, question_type, max_scale_value, options } = body
 
-    if (!exam_id || !question_text?.trim()) {
+    if ((!station_id && !exam_id) || !question_text?.trim()) {
       return NextResponse.json(
-        { success: false, error: 'Exam ID and Question text are required.' },
+        { success: false, error: 'Station ID or Exam ID and Question text are required.' },
         { status: 400 }
       )
     }
@@ -32,17 +56,18 @@ export async function POST(req: NextRequest) {
       }))
     }
 
+    const insertPayload: any = {
+      question_text: question_text.trim(),
+      question_type: qType,
+      max_scale_value: scaleVal,
+      options: sanitizedOptions,
+    }
+    if (station_id) insertPayload.station_id = station_id
+    if (exam_id) insertPayload.exam_id = exam_id
+
     const { data: newQuestion, error: qErr } = await supabaseAdmin
       .from('questions')
-      .insert([
-        {
-          exam_id,
-          question_text: question_text.trim(),
-          question_type: qType,
-          max_scale_value: scaleVal,
-          options: sanitizedOptions,
-        },
-      ])
+      .insert([insertPayload])
       .select()
       .single()
 

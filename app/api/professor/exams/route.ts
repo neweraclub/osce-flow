@@ -3,6 +3,38 @@ import { getAuthenticatedProfessor } from '@/lib/professorAuth'
 import { supabaseAdmin } from '@/lib/auth'
 import { resolveStationRecord } from '@/lib/stationResolver'
 
+export async function GET(req: NextRequest) {
+  try {
+    const prof = await getAuthenticatedProfessor(req)
+    if (!prof) {
+      return NextResponse.json({ success: false, error: 'Unauthorized.' }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(req.url)
+    const moduleId = searchParams.get('module_id')
+    const stationId = searchParams.get('station_id')
+
+    let query = supabaseAdmin
+      .from('exams')
+      .select('*')
+      .order('exam_date', { ascending: false })
+
+    if (moduleId) {
+      query = query.eq('module_id', moduleId)
+    }
+    if (stationId) {
+      query = query.eq('station_id', stationId)
+    }
+
+    const { data: exams, error } = await query
+    if (error) throw error
+
+    return NextResponse.json({ success: true, exams: exams || [] })
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err?.message || 'Failed to fetch exams.' }, { status: 500 })
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const prof = await getAuthenticatedProfessor(req)
@@ -11,90 +43,85 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { station_id, session_type, exam_date } = body
+    const { module_id, station_id, session_type, exam_date } = body
 
-    if (!station_id) {
+    let targetModuleId = module_id
+    let trueStationId = station_id
+
+    // If station_id provided but not module_id, resolve module from station
+    if (!targetModuleId && station_id) {
+      const resolved = await resolveStationRecord(station_id, prof)
+      if (resolved.station) {
+        targetModuleId = resolved.station.module_id || (resolved.station as any).exams?.module_id
+        trueStationId = resolved.station.id
+      }
+    }
+
+    if (!targetModuleId && !trueStationId) {
       return NextResponse.json(
-        { success: false, error: 'Station ID is required.' },
+        { success: false, error: 'Module ID or Station ID is required.' },
         { status: 400 }
       )
     }
 
-    const normalizedSessionType = session_type === 'makeup' ? 'makeup' : 'regular'
+    const normalizedSessionType =
+      session_type === 'retake' || session_type === 'makeup' ? 'retake' : 'regular'
     const examDateVal = exam_date || new Date().toISOString().split('T')[0]
 
-    // Verify station exists (supports slug or UUID)
-    const resolved = await resolveStationRecord(station_id, prof)
-    if (resolved.unauthorized) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized to add exams to this station.' },
-        { status: 403 }
-      )
-    }
-    if (!resolved.station) {
-      return NextResponse.json({ success: false, error: 'Target station not found.' }, { status: 404 })
-    }
+    // Verify module ownership if targetModuleId provided
+    if (targetModuleId) {
+      const { data: modCheck } = await supabaseAdmin
+        .from('modules')
+        .select('id, module_name, responsible_prof_id')
+        .eq('id', targetModuleId)
+        .maybeSingle()
 
-    const trueStationId = resolved.station.id
-
-    // 1. Fetch existing exams for this station
-    const { data: existingExams, error: exFetchErr } = await supabaseAdmin
-      .from('exams')
-      .select('id, session_type')
-      .eq('station_id', trueStationId)
-
-    if (exFetchErr) throw exFetchErr
-
-    // 2. Max 2 sessions constraint (1 Regular + 1 Makeup)
-    if (existingExams && existingExams.length >= 2) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Maximum exam sessions reached (2/2). Each station allows at most one Regular Session and one Makeup Session.',
-        },
-        { status: 400 }
-      )
+      if (
+        modCheck &&
+        modCheck.responsible_prof_id !== prof.professorId &&
+        modCheck.responsible_prof_id !== prof.userId
+      ) {
+        return NextResponse.json(
+          { success: false, error: 'Unauthorized: You are not assigned to this module.' },
+          { status: 403 }
+        )
+      }
     }
 
-    // 3. Unique session type constraint
-    const duplicateSession = (existingExams || []).find(
-      (e) => e.session_type === normalizedSessionType
-    )
-    if (duplicateSession) {
-      const typeLabel = normalizedSessionType === 'makeup' ? 'Makeup' : 'Regular'
-      return NextResponse.json(
-        {
-          success: false,
-          error: `A ${typeLabel} Session already exists for this station. Each station allows only one ${typeLabel} Session.`,
-        },
-        { status: 400 }
-      )
+    // Insert top-level exam session
+    const insertPayload: any = {
+      session_type: normalizedSessionType,
+      exam_date: examDateVal,
     }
+    if (targetModuleId) insertPayload.module_id = targetModuleId
+    if (trueStationId) insertPayload.station_id = trueStationId
 
     const { data: newExam, error: insertErr } = await supabaseAdmin
       .from('exams')
-      .insert([
-        {
-          station_id: trueStationId,
-          session_type: normalizedSessionType,
-          exam_date: examDateVal,
-        },
-      ])
+      .insert([insertPayload])
       .select()
       .single()
 
     if (insertErr) {
       if (insertErr.code === '23505') {
-        const typeLabel = normalizedSessionType === 'makeup' ? 'Makeup' : 'Regular'
+        const typeLabel = normalizedSessionType === 'retake' ? 'Retake' : 'Regular'
         return NextResponse.json(
           {
             success: false,
-            error: `A ${typeLabel} Session already exists for this station.`,
+            error: `A ${typeLabel} Session already exists for this station/module.`,
           },
           { status: 400 }
         )
       }
       throw insertErr
+    }
+
+    // If trueStationId was provided, update station's exam_id link
+    if (trueStationId && newExam?.id) {
+      await supabaseAdmin
+        .from('stations')
+        .update({ exam_id: newExam.id })
+        .eq('id', trueStationId)
     }
 
     return NextResponse.json({ success: true, exam: newExam })
@@ -120,7 +147,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Exam ID is required.' }, { status: 400 })
     }
 
-    // Delete child questions
+    // Delete child questions if any
     await supabaseAdmin.from('questions').delete().eq('exam_id', id)
 
     // Delete exam

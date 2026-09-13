@@ -49,7 +49,10 @@ import { useToast } from '@/context/ToastContext'
 import { ExaminerSidebar, ExaminerNavTab } from '@/components/examiner/ExaminerSidebar'
 import { Select } from '@/components/ui/Select'
 import { ClinicalPenaltiesCard } from '@/components/examiner/ClinicalPenaltiesCard'
-import { CreateCandidatePenaltyModal } from '@/components/examiner/CreateCandidatePenaltyModal'
+import {
+  CreateCandidatePenaltyModal,
+  PresetCriterionOption,
+} from '@/components/examiner/CreateCandidatePenaltyModal'
 import {
   CandidatePenaltyItem,
   getCandidatePenaltiesAction,
@@ -216,6 +219,7 @@ function ExaminerWorkspaceContent() {
   >({})
   const [candidatePenalties, setCandidatePenalties] = useState<CandidatePenaltyItem[]>([])
   const [loadingCandidatePenalties, setLoadingCandidatePenalties] = useState<boolean>(false)
+  const [presetCriteria, setPresetCriteria] = useState<PresetCriterionOption[]>([])
   const [isCreatePenaltyOpen, setIsCreatePenaltyOpen] = useState(false)
   const [submittingAttempt, setSubmittingAttempt] = useState(false)
 
@@ -313,6 +317,7 @@ function ExaminerWorkspaceContent() {
         setActiveExamId(data.exams[0].id)
       }
       setQuestions(data.questions || [])
+      setPresetCriteria(data.criteria || [])
       setSections(data.sections || [])
       setGroups(data.groups || [])
       setStudents(data.students || [])
@@ -614,12 +619,13 @@ function ExaminerWorkspaceContent() {
   }, [calculatedPoints.earned, totalDeductions])
 
   // Modal Submit Handler (+ Record Deduction): appends directly to local component state array
-  const handleAddLocalPenalty = (newPenalty: { id: string; reason: string; points: number }) => {
+  const handleAddLocalPenalty = (newPenalty: { id: string; reason: string; points: number; criteria_id?: string }) => {
     setCandidatePenalties((prev) => [
       ...prev,
       {
         id: newPenalty.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `penalty-${Date.now()}`),
         exam_attempt_id: activeStudent?.attempt_id || '',
+        criteria_id: newPenalty.criteria_id,
         reason: newPenalty.reason,
         points: -Math.abs(newPenalty.points),
       },
@@ -1601,12 +1607,13 @@ function ExaminerWorkspaceContent() {
                     isLoading={loadingCandidatePenalties}
                   />
 
-                  {/* Ad-Hoc Candidate Penalty Creation Modal */}
+                  {/* Ad-Hoc & Preset Candidate Penalty Creation Modal */}
                   {station && (
                     <CreateCandidatePenaltyModal
                       isOpen={isCreatePenaltyOpen}
                       onClose={() => setIsCreatePenaltyOpen(false)}
                       studentName={activeStudent.full_name}
+                      presetCriteria={presetCriteria}
                       onAddPenalty={handleAddLocalPenalty}
                     />
                   )}

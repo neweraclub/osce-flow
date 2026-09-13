@@ -6,8 +6,9 @@ import { revalidatePath } from 'next/cache'
 export interface CandidatePenaltyItem {
   id: string
   exam_attempt_id: string
+  criteria_id?: string | null
   reason: string
-  points: number // Strictly negative, e.g. -0.5, -1.0
+  points: number // strictly negative
   created_at?: string
 }
 
@@ -21,6 +22,7 @@ export interface AssessmentAnswerPayload {
 
 export interface CandidatePenaltyPayload {
   id?: string
+  criteria_id?: string | null
   reason: string
   points: number
 }
@@ -28,7 +30,7 @@ export interface CandidatePenaltyPayload {
 export interface SubmitAssessmentPayload {
   student_id?: string
   matricule?: string
-  exam_id: string
+  exam_id?: string
   station_id: string
   answers: AssessmentAnswerPayload[]
   penalties: CandidatePenaltyPayload[]
@@ -49,7 +51,9 @@ export interface SubmitAssessmentResult {
 export interface AddCandidatePenaltyInput {
   exam_attempt_id?: string | null
   student_id: string
-  exam_id: string
+  station_id?: string
+  exam_id?: string
+  criteria_id?: string | null
   reason: string
   points: number
 }
@@ -116,7 +120,8 @@ export async function addCandidatePenaltyAction(
   input: AddCandidatePenaltyInput
 ): Promise<AddCandidatePenaltyResult> {
   try {
-    const { student_id, exam_id, reason, points } = input
+    const { student_id, station_id, exam_id, reason, points, criteria_id } = input
+    const targetStationId = station_id || exam_id
 
     if (!reason || !reason.trim()) {
       return { success: false, error: 'Reason for deduction is required.' }
@@ -134,19 +139,19 @@ export async function addCandidatePenaltyAction(
 
     // If attemptId is not provided, ensure/fetch an exam_attempts record for this candidate
     if (!attemptId) {
-      if (!student_id || !exam_id) {
+      if (!student_id || !targetStationId) {
         return {
           success: false,
-          error: 'Either exam_attempt_id or both student_id and exam_id must be provided.',
+          error: 'Either exam_attempt_id or both student_id and station_id must be provided.',
         }
       }
 
-      // Check if attempt exists for student and exam
+      // Check if attempt exists for student and station
       const { data: existingAttempt } = await supabaseAdmin
         .from('exam_attempts')
         .select('id')
         .eq('student_id', student_id)
-        .eq('exam_id', exam_id)
+        .eq('station_id', targetStationId)
         .maybeSingle()
 
       if (existingAttempt?.id) {
@@ -158,10 +163,10 @@ export async function addCandidatePenaltyAction(
           .upsert(
             {
               student_id,
-              exam_id,
-              status: 'in_progress',
+              station_id: targetStationId,
+              status: 'pending',
             },
-            { onConflict: 'student_id, exam_id' }
+            { onConflict: 'student_id, station_id' }
           )
           .select('id')
           .single()
@@ -182,10 +187,11 @@ export async function addCandidatePenaltyAction(
       .from('candidate_penalties')
       .insert({
         exam_attempt_id: attemptId,
+        criteria_id: criteria_id || null,
         reason: reason.trim(),
         points: negativePoints,
       })
-      .select('id, exam_attempt_id, reason, points, created_at')
+      .select('id, exam_attempt_id, criteria_id, reason, points, created_at')
       .single()
 
     if (insertErr || !inserted) {
@@ -269,10 +275,10 @@ export async function submitAssessmentAction(
       graded_by_prof_id,
     } = payload
 
-    if ((!student_id && !matricule) || !exam_id || !station_id) {
+    if ((!student_id && !matricule) || !station_id) {
       return {
         success: false,
-        error: 'student_id or matricule, exam_id, and station_id are required.',
+        error: 'student_id or matricule and station_id are required.',
       }
     }
 
@@ -291,7 +297,7 @@ export async function submitAssessmentAction(
       return { success: false, error: 'Student record could not be found.' }
     }
 
-    // 2. Calculate scores
+    // 2. Calculate scores dynamically
     const earnedScore = answers.reduce((sum, a) => {
       const pts = Number(a.points_awarded) || 0
       return sum + (pts >= 0 ? pts : 0)
@@ -303,17 +309,17 @@ export async function submitAssessmentAction(
 
     const finalScore = Math.max(0, Math.round((earnedScore - totalDeductions) * 100) / 100)
 
-    // 3. Upsert exam_attempts record with onConflict: 'student_id, exam_id'
+    // 3. Upsert exam_attempts record with onConflict: 'student_id, station_id'
+    // Status is standardized to 'completed'
     const { data: attemptRecord, error: attErr } = await supabaseAdmin
       .from('exam_attempts')
       .upsert(
         {
           student_id: targetStudentId,
-          exam_id: exam_id,
-          final_score: finalScore,
-          status: 'passed',
+          station_id: station_id,
+          status: 'completed',
         },
-        { onConflict: 'student_id, exam_id' }
+        { onConflict: 'student_id, station_id' }
       )
       .select('id')
       .single()
@@ -325,12 +331,11 @@ export async function submitAssessmentAction(
 
     const attemptId = attemptRecord.id
 
-    // 4. Clear and batch insert student_answers for this attempt and station
+    // 4. Clear and batch insert student_answers for this attempt
     await supabaseAdmin
       .from('student_answers')
       .delete()
       .eq('attempt_id', attemptId)
-      .eq('station_id', station_id)
 
     if (answers.length > 0) {
       const answerRows = answers.map((ans) => ({
@@ -367,6 +372,7 @@ export async function submitAssessmentAction(
           const negativePts = rawPts > 0 ? -rawPts : rawPts === 0 ? -0.5 : rawPts
           return {
             exam_attempt_id: attemptId,
+            criteria_id: p.criteria_id || null,
             reason: p.reason.trim(),
             points: negativePts,
           }

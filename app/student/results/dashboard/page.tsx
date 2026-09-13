@@ -236,7 +236,9 @@ function StudentResultsDashboardContent() {
           <div className="space-y-8">
             {modules.map((modGroup) => {
               const sessionLabel =
-                modGroup.session_type === 'makeup' ? 'Makeup Session (Rattrapage)' : 'Regular Session'
+                modGroup.session_type === 'retake' || modGroup.session_type === 'makeup'
+                  ? 'Retake Exam'
+                  : 'Regular Session'
 
               return (
                 <section

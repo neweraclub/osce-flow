@@ -107,7 +107,7 @@ export default function ProfessorStationsPage() {
   const [formStationNumber, setFormStationNumber] = useState<number>(1)
   const [formAccessPin, setFormAccessPin] = useState('')
   const [formShowPin, setFormShowPin] = useState(true)
-  const [formWeightage, setFormWeightage] = useState<number>(10)
+  const [formWeightage, setFormWeightage] = useState<number>(50)
   const [formError, setFormError] = useState('')
 
   // Calculate cumulative module weightage map across all stations
@@ -233,7 +233,7 @@ export default function ProfessorStationsPage() {
     setFormStationNumber(nextNum)
     setFormAccessPin(Math.floor(100000 + Math.random() * 900000).toString())
     setFormShowPin(true)
-    setFormWeightage(10)
+    setFormWeightage(50)
     setFormError('')
     setIsCreateOpen(true)
   }

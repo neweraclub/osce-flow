@@ -16,14 +16,19 @@ import {
   Edit2,
   Eye,
   EyeOff,
+  FileText,
   GraduationCap,
+  Hash,
   Key,
+  KeyRound,
   Layers,
   Loader2,
+  Percent,
   Plus,
   RefreshCw,
   Search,
   ShieldCheck,
+  Sparkles,
   Trash2,
   X,
 } from 'lucide-react'
@@ -1141,149 +1146,216 @@ export default function ProfessorStationsPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 2: CREATE CLINICAL STATION MODAL                                    */}
+      {/* MODAL 2: CREATE CLINICAL STATION MODAL (Premium Redesign)                  */}
       {/* ========================================================================= */}
       {isCreateStationOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-5 animate-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="flex size-9 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-500/20">
-                  <ClipboardCheck className="size-4" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    Create Clinical Station
-                  </h3>
-                  <p className="text-[11px] font-semibold text-slate-400">
-                    {activeModule?.module_name} • {activeExam?.session_type === 'retake' ? 'Retake' : 'Regular'} Session
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsCreateStationOpen(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
+          <div className="relative w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl animate-in zoom-in-95 overflow-hidden">
+            {/* Decorative top gradient bar */}
+            <div className="h-1 w-full bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600" />
 
-            {stationError && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-bold flex items-center gap-2">
-                <AlertTriangle className="size-4 shrink-0" />
-                <span>{stationError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleCreateStationSubmit} className="space-y-4">
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Station # *
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={formStationNumber}
-                    onChange={(e) => setFormStationNumber(Number(e.target.value) || 1)}
-                    className="w-full px-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold"
-                    required
-                  />
-                </div>
-
-                <div className="col-span-2 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                      Weightage % *
-                    </label>
-                    <span className="text-[10px] text-slate-400 font-mono">
-                      Avail: {availableWeightage}%
-                    </span>
+            <div className="p-6 space-y-5">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25">
+                    <ClipboardCheck className="size-5" />
                   </div>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min={0.01}
-                    max={100}
-                    value={formWeightage}
-                    onChange={(e) => setFormWeightage(Number(e.target.value) || 0)}
-                    className="w-full px-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold"
-                    required
-                  />
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                      Create Clinical Station
+                    </h3>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800">
+                        {activeModule?.module_name}
+                      </span>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                        activeExam?.session_type === 'retake'
+                          ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400 border-purple-200/60 dark:border-purple-800'
+                          : 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border-blue-200/60 dark:border-blue-800'
+                      }`}>
+                        {activeExam?.session_type === 'retake' ? 'Retake Session' : 'Regular Session'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Station Title *
-                </label>
-                <input
-                  type="text"
-                  value={formTitle}
-                  onChange={(e) => setFormTitle(e.target.value)}
-                  placeholder="e.g. Station 1: Cardiovascular OSCE"
-                  className="w-full px-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 font-medium"
-                  required
-                />
-              </div>
-
-              {/* Live Scoring Access PIN */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Live Scoring Tablet PIN *
-                  </label>
-                  <button
-                    type="button"
-                    onClick={generateRandomPin}
-                    className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700"
-                  >
-                    Generate Random
-                  </button>
-                </div>
-                <div className="relative">
-                  <input
-                    type={formShowPin ? 'text' : 'password'}
-                    value={formAccessPin}
-                    onChange={(e) => setFormAccessPin(e.target.value)}
-                    placeholder="e.g. 748291"
-                    className="w-full pl-3.5 pr-10 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold tracking-wider"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setFormShowPin(!formShowPin)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  >
-                    {formShowPin ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
-                  type="button"
                   onClick={() => setIsCreateStationOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingStation}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/25 hover:bg-emerald-700 transition-all disabled:opacity-50"
-                >
-                  {submittingStation ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" />
-                      <span>Creating...</span>
-                    </>
-                  ) : (
-                    <span>Create Station</span>
-                  )}
+                  <X className="size-5" />
                 </button>
               </div>
-            </form>
+
+              {stationError && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-bold flex items-center gap-2">
+                  <AlertTriangle className="size-4 shrink-0" />
+                  <span>{stationError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleCreateStationSubmit} className="space-y-4">
+                {/* Station # & Weightage Row */}
+                <div className="grid grid-cols-5 gap-3">
+                  <div className="col-span-2 space-y-1.5">
+                    <label className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
+                      <Hash className="size-3 text-slate-400" />
+                      Station Number *
+                    </label>
+                    <div className="relative">
+                      <Hash className="size-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="number"
+                        min={1}
+                        value={formStationNumber}
+                        onChange={(e) => setFormStationNumber(Number(e.target.value) || 1)}
+                        className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="col-span-3 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
+                        <Percent className="size-3 text-slate-400" />
+                        Weightage *
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setFormWeightage(availableWeightage)}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer transition-colors border border-transparent hover:border-emerald-200/60"
+                        title="Click to auto-fill remaining weightage"
+                      >
+                        Avail: {availableWeightage}%
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <Percent className="size-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="number"
+                        step="0.01"
+                        min={0.01}
+                        max={100}
+                        value={formWeightage}
+                        onChange={(e) => setFormWeightage(Number(e.target.value) || 0)}
+                        className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Station Title */}
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
+                    <FileText className="size-3 text-slate-400" />
+                    Station Title *
+                  </label>
+                  <div className="relative">
+                    <FileText className="size-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={formTitle}
+                      onChange={(e) => setFormTitle(e.target.value)}
+                      placeholder="e.g. Station 1: Cardiovascular OSCE"
+                      className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Live Scoring Access PIN */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
+                      <KeyRound className="size-3 text-slate-400" />
+                      Live Scoring Tablet PIN *
+                    </label>
+                    <button
+                      type="button"
+                      onClick={generateRandomPin}
+                      className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
+                    >
+                      <Sparkles className="size-3" />
+                      <span>Generate Random</span>
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <KeyRound className="size-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type={formShowPin ? 'text' : 'password'}
+                      value={formAccessPin}
+                      onChange={(e) => setFormAccessPin(e.target.value)}
+                      placeholder="e.g. 748291"
+                      className="w-full pl-9 pr-10 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold tracking-wider focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setFormShowPin(!formShowPin)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                    >
+                      {formShowPin ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Live Station Preview Card */}
+                {formTitle.trim() && (
+                  <div className="p-3.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 space-y-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Preview</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[10px] font-black shadow-sm shrink-0">
+                          <ClipboardCheck className="size-2.5" />
+                          #{formStationNumber}
+                        </span>
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">
+                          {formTitle.trim()}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800 tabular-nums">
+                          {formWeightage}%
+                        </span>
+                        <span className="font-mono text-[10px] text-slate-400">
+                          PIN: {formShowPin ? (formAccessPin || '—') : '••••••'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateStationOpen(false)}
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingStation}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/30 hover:from-emerald-700 hover:to-teal-700 transition-all disabled:opacity-50 active:scale-[0.98]"
+                  >
+                    {submittingStation ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin" />
+                        <span>Creating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="size-4" />
+                        <span>Create Station</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
       answers,
       graded_by_prof_id,
       penalty_total,
+      penalties = [],
     } = body
 
     if ((!student_id && !matricule) || !exam_id || !station_id) {
@@ -48,7 +49,12 @@ export async function POST(req: NextRequest) {
       return sum + (pts >= 0 ? pts : 0)
     }, 0)
 
-    const deductions = Math.abs(Number(penalty_total) || 0)
+    const penaltyList: Array<{ reason: string; points: number }> = Array.isArray(penalties)
+      ? penalties
+      : []
+
+    const deductionsFromList = penaltyList.reduce((sum, p) => sum + Math.abs(Number(p.points) || 0), 0)
+    const deductions = penaltyList.length > 0 ? deductionsFromList : Math.abs(Number(penalty_total) || 0)
     const finalScore = Math.max(0, Math.round((earnedScore - deductions) * 100) / 100)
 
     // 2. Check or create exam_attempts record
@@ -122,12 +128,44 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // 5. Clear and batch insert candidate_penalties for this attempt
+    await supabaseAdmin
+      .from('candidate_penalties')
+      .delete()
+      .eq('exam_attempt_id', attemptId)
+
+    if (penaltyList.length > 0) {
+      const penaltyRows = penaltyList
+        .filter((p) => p.reason && p.reason.trim())
+        .map((p) => {
+          const rawPts = Number(p.points) || 0
+          const negativePts = rawPts > 0 ? -rawPts : rawPts === 0 ? -0.5 : rawPts
+          return {
+            exam_attempt_id: attemptId,
+            reason: p.reason.trim(),
+            points: negativePts,
+          }
+        })
+
+      if (penaltyRows.length > 0) {
+        const { error: penErr } = await supabaseAdmin
+          .from('candidate_penalties')
+          .insert(penaltyRows)
+
+        if (penErr) {
+          console.error('Error batch inserting candidate_penalties:', penErr)
+          throw penErr
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Attempt submitted and scored successfully.',
       attempt_id: attemptId,
       final_score: finalScore,
       answers_count: answerList.length,
+      penalties_count: penaltyList.length,
     })
   } catch (error: any) {
     console.error('submit-attempt error:', error)

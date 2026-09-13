@@ -3,26 +3,16 @@
 import React, { useState, useEffect } from 'react'
 import {
   AlertCircle,
-  AlertTriangle,
-  Loader2,
-  Minus,
   Plus,
   ShieldAlert,
   X,
 } from 'lucide-react'
-import {
-  addCandidatePenaltyAction,
-  CandidatePenaltyItem,
-} from '@/app/actions/candidatePenalties'
 
 interface CreateCandidatePenaltyModalProps {
   isOpen: boolean
   onClose: () => void
   studentName: string
-  studentId: string
-  examId: string
-  examAttemptId?: string | null
-  onPenaltyAdded: (penalty: CandidatePenaltyItem, updatedAttemptId?: string | null) => void
+  onAddPenalty: (penalty: { id: string; reason: string; points: number }) => void
 }
 
 const PRESET_DEDUCTIONS = [-0.5, -1.0, -1.5, -2.0]
@@ -31,21 +21,16 @@ export function CreateCandidatePenaltyModal({
   isOpen,
   onClose,
   studentName,
-  studentId,
-  examId,
-  examAttemptId,
-  onPenaltyAdded,
+  onAddPenalty,
 }: CreateCandidatePenaltyModalProps) {
   const [reason, setReason] = useState('')
   const [pointsInput, setPointsInput] = useState('-0.5')
-  const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
     if (isOpen) {
       setReason('')
       setPointsInput('-0.5')
-      setSubmitting(false)
       setErrorMessage(null)
     }
   }, [isOpen])
@@ -61,7 +46,7 @@ export function CreateCandidatePenaltyModal({
       : parsed
     : -0.5
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMessage(null)
 
@@ -75,29 +60,22 @@ export function CreateCandidatePenaltyModal({
       return
     }
 
-    setSubmitting(true)
+    const newId =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `penalty-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
-    try {
-      const res = await addCandidatePenaltyAction({
-        exam_attempt_id: examAttemptId,
-        student_id: studentId,
-        exam_id: examId,
-        reason: reason.trim(),
-        points: effectivePoints,
-      })
+    // Add directly to local React state via parent callback with sanitized negative points
+    onAddPenalty({
+      id: newId,
+      reason: reason.trim(),
+      points: -Math.abs(effectivePoints),
+    })
 
-      if (!res.success || !res.penalty) {
-        setErrorMessage(res.error || 'Failed to record candidate penalty.')
-        setSubmitting(false)
-        return
-      }
-
-      onPenaltyAdded(res.penalty, res.exam_attempt_id)
-      onClose()
-    } catch (err: any) {
-      setErrorMessage(err?.message || 'Error saving penalty.')
-      setSubmitting(false)
-    }
+    // Reset input fields and close modal
+    setReason('')
+    setPointsInput('-0.5')
+    onClose()
   }
 
   return (
@@ -221,27 +199,16 @@ export function CreateCandidatePenaltyModal({
             <button
               type="button"
               onClick={onClose}
-              disabled={submitting}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={submitting}
-              className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 shadow-md shadow-rose-500/20 active:scale-95 transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+              className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 shadow-md shadow-rose-500/20 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              {submitting ? (
-                <>
-                  <Loader2 className="size-3.5 animate-spin" />
-                  <span>Logging Deduction...</span>
-                </>
-              ) : (
-                <>
-                  <Plus className="size-3.5 stroke-[2.5]" />
-                  <span>Record Deduction</span>
-                </>
-              )}
+              <Plus className="size-3.5 stroke-[2.5]" />
+              <span>Record Deduction</span>
             </button>
           </div>
         </form>

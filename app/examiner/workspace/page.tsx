@@ -53,7 +53,7 @@ import { CreateCandidatePenaltyModal } from '@/components/examiner/CreateCandida
 import {
   CandidatePenaltyItem,
   getCandidatePenaltiesAction,
-  deleteCandidatePenaltyAction,
+  submitAssessmentAction,
 } from '@/app/actions/candidatePenalties'
 
 interface StudentAnswerItem {
@@ -212,9 +212,8 @@ function ExaminerWorkspaceContent() {
       }
     >
   >({})
-  const [candidatePenalties, setCandidatePenalties] = useState<Record<string, CandidatePenaltyItem[]>>({})
+  const [candidatePenalties, setCandidatePenalties] = useState<CandidatePenaltyItem[]>([])
   const [loadingCandidatePenalties, setLoadingCandidatePenalties] = useState<boolean>(false)
-  const [deletingPenaltyId, setDeletingPenaltyId] = useState<string | null>(null)
   const [isCreatePenaltyOpen, setIsCreatePenaltyOpen] = useState(false)
   const [submittingAttempt, setSubmittingAttempt] = useState(false)
 
@@ -316,15 +315,7 @@ function ExaminerWorkspaceContent() {
       setGroups(data.groups || [])
       setStudents(data.students || [])
 
-      // Seed candidatePenalties cache with preloaded candidate penalties
-      const initialPenaltiesMap: Record<string, CandidatePenaltyItem[]> = {}
-      ;(data.students || []).forEach((st: any) => {
-        const key = st.id || st.matricule
-        if (st.penalties && Array.isArray(st.penalties)) {
-          initialPenaltiesMap[key] = st.penalties
-        }
-      })
-      setCandidatePenalties(initialPenaltiesMap)
+      setCandidatePenalties([])
     } catch (err: any) {
       showError(err?.message || 'Error fetching examiner data.')
     } finally {
@@ -338,7 +329,7 @@ function ExaminerWorkspaceContent() {
     setActiveExamId(newExamId)
     setActiveStudent(null)
     setAnswersState({})
-    setCandidatePenalties({})
+    setCandidatePenalties([])
     loadDashboardData(station.id, newExamId)
   }
 
@@ -457,31 +448,22 @@ function ExaminerWorkspaceContent() {
     setActiveStudent(student)
     setActiveTab('roster')
 
-    // Immediate isolated feed: clear penalties for this candidate view and re-fetch if attempt exists
-    const studentKey = student.id || student.matricule
+    // Populate local candidate penalties for this candidate view
     if (student.penalties && student.penalties.length > 0) {
-      setCandidatePenalties((prev) => ({
-        ...prev,
-        [studentKey]: student.penalties || [],
-      }))
+      setCandidatePenalties(student.penalties)
     } else if (student.attempt_id) {
+      setCandidatePenalties([])
       setLoadingCandidatePenalties(true)
       getCandidatePenaltiesAction(student.attempt_id)
         .then((res) => {
-          if (res.success) {
-            setCandidatePenalties((prev) => ({
-              ...prev,
-              [studentKey]: res.penalties || [],
-            }))
+          if (res.success && res.penalties) {
+            setCandidatePenalties(res.penalties)
           }
         })
         .catch((err) => console.error('Error fetching candidate penalties:', err))
         .finally(() => setLoadingCandidatePenalties(false))
     } else {
-      setCandidatePenalties((prev) => ({
-        ...prev,
-        [studentKey]: [],
-      }))
+      setCandidatePenalties([])
     }
 
     // Initialize answer state, populating with existing answers if available
@@ -591,85 +573,37 @@ function ExaminerWorkspaceContent() {
     return { earned: Math.round(earned * 100) / 100, max }
   }, [questions, answersState])
 
-  // Active Candidate Penalties & Net Score
-  const activeCandidateKey = activeStudent ? (activeStudent.id || activeStudent.matricule) : ''
-
-  // Isolated per-candidate penalty list strictly from candidate_penalties
-  const activeStudentPenalties: CandidatePenaltyItem[] = useMemo(() => {
-    if (!activeCandidateKey) return []
-    return candidatePenalties[activeCandidateKey] || []
-  }, [activeCandidateKey, candidatePenalties])
-
-  // Total negative points accumulated strictly by active candidate
-  const totalCandidateDeductions = useMemo(() => {
-    return activeStudentPenalties.reduce((sum, p) => sum + (Number(p.points) || 0), 0)
-  }, [activeStudentPenalties])
+  // Deductions calculation strictly from local candidatePenalties state array
+  const totalDeductions = useMemo(() => {
+    return candidatePenalties.reduce((sum, p) => sum + Number(p.points), 0)
+  }, [candidatePenalties])
 
   // Net score awarded to active candidate
   const netScore = useMemo(() => {
-    return Math.max(0, Math.round((calculatedPoints.earned + totalCandidateDeductions) * 100) / 100)
-  }, [calculatedPoints.earned, totalCandidateDeductions])
+    return Math.max(0, Math.round((calculatedPoints.earned + totalDeductions) * 100) / 100)
+  }, [calculatedPoints.earned, totalDeductions])
 
-  // Ad-hoc penalty added callback
-  const handlePenaltyAdded = (newPenalty: CandidatePenaltyItem, updatedAttemptId?: string | null) => {
-    if (!activeCandidateKey) return
-
-    setCandidatePenalties((prev) => ({
+  // Modal Submit Handler (+ Record Deduction): appends directly to local component state array
+  const handleAddLocalPenalty = (newPenalty: { id: string; reason: string; points: number }) => {
+    setCandidatePenalties((prev) => [
       ...prev,
-      [activeCandidateKey]: [...(prev[activeCandidateKey] || []), newPenalty],
-    }))
-
-    if (updatedAttemptId && activeStudent) {
-      setActiveStudent((prev) => (prev ? { ...prev, attempt_id: updatedAttemptId } : null))
-      setStudents((prev) =>
-        prev.map((s) =>
-          (activeStudent.id ? s.id === activeStudent.id : s.matricule === activeStudent.matricule)
-            ? { ...s, attempt_id: updatedAttemptId }
-            : s
-        )
-      )
-    }
-
-    showSuccess(`Recorded deduction: "${newPenalty.reason}" (${newPenalty.points} pts)`)
+      {
+        id: newPenalty.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `penalty-${Date.now()}`),
+        exam_attempt_id: activeStudent?.attempt_id || '',
+        reason: newPenalty.reason,
+        points: -Math.abs(newPenalty.points),
+      },
+    ])
+    showSuccess(`Recorded deduction: "${newPenalty.reason}" (${-Math.abs(newPenalty.points)} pts)`)
   }
 
-  // Delete candidate penalty action
-  const handleDeletePenalty = async (penaltyId: string) => {
-    if (!activeCandidateKey) return
-
-    setDeletingPenaltyId(penaltyId)
-    const prevList = candidatePenalties[activeCandidateKey] || []
-
-    // Optimistic removal
-    setCandidatePenalties((prev) => ({
-      ...prev,
-      [activeCandidateKey]: (prev[activeCandidateKey] || []).filter((p) => p.id !== penaltyId),
-    }))
-
-    try {
-      const res = await deleteCandidatePenaltyAction(penaltyId)
-      if (!res.success) {
-        // Rollback
-        setCandidatePenalties((prev) => ({
-          ...prev,
-          [activeCandidateKey]: prevList,
-        }))
-        showError(res.error || 'Failed to remove deduction.')
-      } else {
-        showSuccess('Deduction removed.')
-      }
-    } catch (err: any) {
-      setCandidatePenalties((prev) => ({
-        ...prev,
-        [activeCandidateKey]: prevList,
-      }))
-      showError(err?.message || 'Error deleting penalty.')
-    } finally {
-      setDeletingPenaltyId(null)
-    }
+  // Delete candidate penalty from local state array
+  const handleDeletePenalty = (targetId: string) => {
+    setCandidatePenalties((prev) => prev.filter((p) => p.id !== targetId))
+    showSuccess('Deduction removed.')
   }
 
-  // Submit Completed Assessment
+  // Submit Completed Assessment (Submit & Next Candidate)
   const handleSubmitAttempt = async () => {
     if (!activeStudent || !activeExamId || !station) return
 
@@ -708,23 +642,19 @@ function ExaminerWorkspaceContent() {
         }
       })
 
-      const res = await fetch('/api/examiner/submit-attempt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          student_id: activeStudent.id,
-          matricule: activeStudent.matricule,
-          exam_id: activeExamId,
-          station_id: station.id,
-          answers: answersPayload,
-          penalty_total: Math.abs(totalCandidateDeductions),
-        }),
+      // Unified Server Action commits answers AND local penalties in a single atomic payload
+      const res = await submitAssessmentAction({
+        student_id: activeStudent.id,
+        matricule: activeStudent.matricule,
+        exam_id: activeExamId,
+        station_id: station.id,
+        answers: answersPayload,
+        penalties: candidatePenalties,
+        graded_by_prof_id: undefined,
       })
 
-      const data = await res.json()
-
-      if (!res.ok || !data.success) {
-        showError(data.error || 'Failed to submit candidate score.')
+      if (!res.success) {
+        showError(res.error || 'Failed to submit candidate score.')
         return
       }
 
@@ -736,7 +666,7 @@ function ExaminerWorkspaceContent() {
       }))
 
       const wasAlreadyCompleted = activeStudent.status === 'completed'
-      const finalRecordedScore = typeof data.final_score === 'number' ? data.final_score : netScore
+      const finalRecordedScore = typeof res.final_score === 'number' ? res.final_score : netScore
 
       if (wasAlreadyCompleted) {
         showSuccess(`Marksheet successfully updated for ${activeStudent.full_name}: ${finalRecordedScore} pts`)
@@ -746,7 +676,8 @@ function ExaminerWorkspaceContent() {
 
       const currentStudentId = activeStudent.id
       const currentMatricule = activeStudent.matricule
-      const resolvedAttemptId = data.attempt_id || activeStudent.attempt_id
+      const resolvedAttemptId = res.attempt_id || activeStudent.attempt_id
+      const savedPenaltiesForStudent = [...candidatePenalties]
 
       setStudents((prev) =>
         prev.map((s) =>
@@ -757,11 +688,14 @@ function ExaminerWorkspaceContent() {
                 final_score: finalRecordedScore,
                 attempt_id: resolvedAttemptId,
                 saved_answers: updatedSavedAnswers,
-                penalties: activeStudentPenalties,
+                penalties: savedPenaltiesForStudent,
               }
             : s
         )
       )
+
+      // Clear local state when transitioning to the next student
+      setCandidatePenalties([])
 
       // Auto-advance to next pending candidate only if not re-evaluating
       const remainingPending = filteredStudents.filter(
@@ -776,11 +710,14 @@ function ExaminerWorkspaceContent() {
             ? {
                 ...prev,
                 status: 'completed',
-                final_score: data.final_score,
+                final_score: finalRecordedScore,
                 saved_answers: updatedSavedAnswers,
+                penalties: savedPenaltiesForStudent,
+                attempt_id: resolvedAttemptId,
               }
             : null
         )
+        setCandidatePenalties(savedPenaltiesForStudent)
       }
     } catch (err: any) {
       showError(err?.message || 'Network error submitting candidate assessment.')
@@ -1375,14 +1312,14 @@ function ExaminerWorkspaceContent() {
                         {/* Dedicated Red Penalty Badge */}
                         <div
                           className={`flex items-center gap-2 px-3 py-2 rounded-2xl border transition-all ${
-                            totalCandidateDeductions < 0
+                            totalDeductions < 0
                               ? 'bg-rose-50 dark:bg-rose-950/70 border-rose-300 dark:border-rose-800/80 text-rose-700 dark:text-rose-300 shadow-sm shadow-rose-500/10 ring-1 ring-rose-400/30'
                               : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200/70 dark:border-slate-700/60 text-slate-400'
                           }`}
                         >
                           <AlertTriangle
                             className={`size-4 shrink-0 ${
-                              totalCandidateDeductions < 0
+                              totalDeductions < 0
                                 ? 'text-rose-600 dark:text-rose-400 animate-pulse'
                                 : 'text-slate-400'
                             }`}
@@ -1393,12 +1330,12 @@ function ExaminerWorkspaceContent() {
                             </span>
                             <span
                               className={`text-sm font-black font-mono ${
-                                totalCandidateDeductions < 0
+                                totalDeductions < 0
                                   ? 'text-rose-600 dark:text-rose-400'
                                   : 'text-slate-400'
                               }`}
                             >
-                              {totalCandidateDeductions < 0 ? `${totalCandidateDeductions.toFixed(1)} pts` : '0.0 pts'}
+                              {totalDeductions < 0 ? `${totalDeductions.toFixed(1)} pts` : '0.0 pts'}
                             </span>
                           </div>
                         </div>
@@ -1548,12 +1485,11 @@ function ExaminerWorkspaceContent() {
 
                   {/* Clinical Deductions & Penalties Section (Candidate-Isolated Feed) */}
                   <ClinicalPenaltiesCard
-                    penalties={activeStudentPenalties}
+                    penalties={candidatePenalties}
                     studentName={activeStudent.full_name}
-                    totalDeductionPoints={totalCandidateDeductions}
+                    totalDeductionPoints={totalDeductions}
                     onOpenAddModal={() => setIsCreatePenaltyOpen(true)}
                     onDeletePenalty={handleDeletePenalty}
-                    deletingPenaltyId={deletingPenaltyId}
                     isLoading={loadingCandidatePenalties}
                   />
 
@@ -1563,10 +1499,7 @@ function ExaminerWorkspaceContent() {
                       isOpen={isCreatePenaltyOpen}
                       onClose={() => setIsCreatePenaltyOpen(false)}
                       studentName={activeStudent.full_name}
-                      studentId={activeStudent.id || ''}
-                      examId={activeExamId}
-                      examAttemptId={activeStudent.attempt_id}
-                      onPenaltyAdded={handlePenaltyAdded}
+                      onAddPenalty={handleAddLocalPenalty}
                     />
                   )}
 
@@ -1599,8 +1532,8 @@ function ExaminerWorkspaceContent() {
                           <span className="text-slate-300 dark:text-slate-600">|</span>
                           <span className="text-slate-700 dark:text-slate-200">
                             Deductions:{' '}
-                            <strong className={totalCandidateDeductions < 0 ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-400 font-bold'}>
-                              {totalCandidateDeductions < 0 ? `${totalCandidateDeductions.toFixed(1)}` : '-0.0'}
+                            <strong className={totalDeductions < 0 ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-400 font-bold'}>
+                              {totalDeductions < 0 ? `${totalDeductions.toFixed(1)}` : '-0.0'}
                             </strong>
                           </span>
                           <span className="text-slate-300 dark:text-slate-600">|</span>

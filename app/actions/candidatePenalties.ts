@@ -11,6 +11,41 @@ export interface CandidatePenaltyItem {
   created_at?: string
 }
 
+export interface AssessmentAnswerPayload {
+  question_id: string
+  selected_options?: string[]
+  evaluation_score?: number | null
+  points_awarded: number
+  comment?: string
+}
+
+export interface CandidatePenaltyPayload {
+  id?: string
+  reason: string
+  points: number
+}
+
+export interface SubmitAssessmentPayload {
+  student_id?: string
+  matricule?: string
+  exam_id: string
+  station_id: string
+  answers: AssessmentAnswerPayload[]
+  penalties: CandidatePenaltyPayload[]
+  graded_by_prof_id?: string | null
+}
+
+export interface SubmitAssessmentResult {
+  success: boolean
+  error?: string
+  attempt_id?: string
+  final_score?: number
+  earned_score?: number
+  total_deductions?: number
+  answers_count?: number
+  penalties_count?: number
+}
+
 export interface AddCandidatePenaltyInput {
   exam_attempt_id?: string | null
   student_id: string
@@ -212,3 +247,174 @@ export async function deleteCandidatePenaltyAction(
     }
   }
 }
+
+/**
+ * Unified Server Action: Commits both student checklist answers and local candidate penalties
+ * in a single atomic payload to Supabase on "Submit & Next Candidate".
+ */
+export async function submitAssessmentAction(
+  payload: SubmitAssessmentPayload
+): Promise<SubmitAssessmentResult> {
+  try {
+    const {
+      student_id,
+      matricule,
+      exam_id,
+      station_id,
+      answers = [],
+      penalties = [],
+      graded_by_prof_id,
+    } = payload
+
+    if ((!student_id && !matricule) || !exam_id || !station_id) {
+      return {
+        success: false,
+        error: 'student_id or matricule, exam_id, and station_id are required.',
+      }
+    }
+
+    // 1. Resolve student ID
+    let targetStudentId = student_id
+    if (!targetStudentId && matricule) {
+      const { data: st } = await supabaseAdmin
+        .from('students')
+        .select('id')
+        .eq('matricule', matricule.trim())
+        .maybeSingle()
+      targetStudentId = st?.id
+    }
+
+    if (!targetStudentId) {
+      return { success: false, error: 'Student record could not be found.' }
+    }
+
+    // 2. Calculate scores
+    const earnedScore = answers.reduce((sum, a) => {
+      const pts = Number(a.points_awarded) || 0
+      return sum + (pts >= 0 ? pts : 0)
+    }, 0)
+
+    const totalDeductions = penalties.reduce((sum, p) => {
+      return sum + Math.abs(Number(p.points) || 0)
+    }, 0)
+
+    const finalScore = Math.max(0, Math.round((earnedScore - totalDeductions) * 100) / 100)
+
+    // 3. Find or create exam_attempts record
+    const { data: existingAttempt } = await supabaseAdmin
+      .from('exam_attempts')
+      .select('id')
+      .eq('student_id', targetStudentId)
+      .eq('exam_id', exam_id)
+      .maybeSingle()
+
+    let attemptId = existingAttempt?.id
+
+    if (existingAttempt?.id) {
+      const { data: updated, error: updErr } = await supabaseAdmin
+        .from('exam_attempts')
+        .update({
+          final_score: finalScore,
+          status: 'passed',
+        })
+        .eq('id', existingAttempt.id)
+        .select('id')
+        .single()
+
+      if (updErr) throw updErr
+      attemptId = updated.id
+    } else {
+      const { data: inserted, error: insErr } = await supabaseAdmin
+        .from('exam_attempts')
+        .insert({
+          student_id: targetStudentId,
+          exam_id: exam_id,
+          final_score: finalScore,
+          status: 'passed',
+        })
+        .select('id')
+        .single()
+
+      if (insErr) throw insErr
+      attemptId = inserted.id
+    }
+
+    // 4. Clear and batch insert student_answers for this attempt and station
+    await supabaseAdmin
+      .from('student_answers')
+      .delete()
+      .eq('attempt_id', attemptId)
+      .eq('station_id', station_id)
+
+    if (answers.length > 0) {
+      const answerRows = answers.map((ans) => ({
+        attempt_id: attemptId,
+        station_id: station_id,
+        question_id: ans.question_id,
+        selected_options: Array.isArray(ans.selected_options) ? ans.selected_options : [],
+        evaluation_score: typeof ans.evaluation_score === 'number' ? ans.evaluation_score : null,
+        points_awarded: Math.max(0, Number(ans.points_awarded) || 0),
+        graded_by_prof_id: graded_by_prof_id || null,
+      }))
+
+      const { error: ansErr } = await supabaseAdmin
+        .from('student_answers')
+        .insert(answerRows)
+
+      if (ansErr) {
+        console.error('Error inserting student_answers:', ansErr)
+        throw ansErr
+      }
+    }
+
+    // 5. Clear and batch insert candidate_penalties for this attempt
+    await supabaseAdmin
+      .from('candidate_penalties')
+      .delete()
+      .eq('exam_attempt_id', attemptId)
+
+    if (penalties.length > 0) {
+      const penaltyRows = penalties
+        .filter((p) => p.reason && p.reason.trim())
+        .map((p) => {
+          const rawPts = Number(p.points) || 0
+          const negativePts = rawPts > 0 ? -rawPts : rawPts === 0 ? -0.5 : rawPts
+          return {
+            exam_attempt_id: attemptId,
+            reason: p.reason.trim(),
+            points: negativePts,
+          }
+        })
+
+      if (penaltyRows.length > 0) {
+        const { error: penErr } = await supabaseAdmin
+          .from('candidate_penalties')
+          .insert(penaltyRows)
+
+        if (penErr) {
+          console.error('Error batch inserting candidate_penalties:', penErr)
+          throw penErr
+        }
+      }
+    }
+
+    revalidatePath('/examiner/workspace')
+
+    return {
+      success: true,
+      attempt_id: attemptId,
+      final_score: finalScore,
+      earned_score: earnedScore,
+      total_deductions: totalDeductions,
+      answers_count: answers.length,
+      penalties_count: penalties.length,
+    }
+  } catch (err: any) {
+    console.error('submitAssessmentAction exception:', err)
+    return {
+      success: false,
+      error: err?.message || 'Server error submitting assessment attempt.',
+    }
+  }
+}
+

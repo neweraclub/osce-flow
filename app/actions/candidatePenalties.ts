@@ -152,14 +152,17 @@ export async function addCandidatePenaltyAction(
       if (existingAttempt?.id) {
         attemptId = existingAttempt.id
       } else {
-        // Create an in-progress attempt for this student
+        // Create/ensure an in-progress attempt for this student
         const { data: newAttempt, error: createAttErr } = await supabaseAdmin
           .from('exam_attempts')
-          .insert({
-            student_id,
-            exam_id,
-            status: 'in_progress',
-          })
+          .upsert(
+            {
+              student_id,
+              exam_id,
+              status: 'in_progress',
+            },
+            { onConflict: 'student_id, exam_id' }
+          )
           .select('id')
           .single()
 
@@ -300,44 +303,27 @@ export async function submitAssessmentAction(
 
     const finalScore = Math.max(0, Math.round((earnedScore - totalDeductions) * 100) / 100)
 
-    // 3. Find or create exam_attempts record
-    const { data: existingAttempt } = await supabaseAdmin
+    // 3. Upsert exam_attempts record with onConflict: 'student_id, exam_id'
+    const { data: attemptRecord, error: attErr } = await supabaseAdmin
       .from('exam_attempts')
-      .select('id')
-      .eq('student_id', targetStudentId)
-      .eq('exam_id', exam_id)
-      .maybeSingle()
-
-    let attemptId = existingAttempt?.id
-
-    if (existingAttempt?.id) {
-      const { data: updated, error: updErr } = await supabaseAdmin
-        .from('exam_attempts')
-        .update({
-          final_score: finalScore,
-          status: 'passed',
-        })
-        .eq('id', existingAttempt.id)
-        .select('id')
-        .single()
-
-      if (updErr) throw updErr
-      attemptId = updated.id
-    } else {
-      const { data: inserted, error: insErr } = await supabaseAdmin
-        .from('exam_attempts')
-        .insert({
+      .upsert(
+        {
           student_id: targetStudentId,
           exam_id: exam_id,
           final_score: finalScore,
           status: 'passed',
-        })
-        .select('id')
-        .single()
+        },
+        { onConflict: 'student_id, exam_id' }
+      )
+      .select('id')
+      .single()
 
-      if (insErr) throw insErr
-      attemptId = inserted.id
+    if (attErr) {
+      console.error('Error upserting exam_attempts record:', attErr)
+      throw attErr
     }
+
+    const attemptId = attemptRecord.id
 
     // 4. Clear and batch insert student_answers for this attempt and station
     await supabaseAdmin

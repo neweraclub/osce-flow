@@ -27,73 +27,41 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Student not found.' }, { status: 404 })
     }
 
-    // Check if an attempt already exists
-    const { data: existingAttempt } = await supabaseAdmin
-      .from('exam_attempts')
-      .select('id, status')
-      .eq('student_id', targetStudentId)
-      .eq('exam_id', exam_id)
-      .maybeSingle()
-
     let attemptResult = null
 
-    if (existingAttempt) {
-      // Try updating with status: 'absent'
-      let updateRes = await supabaseAdmin
-        .from('exam_attempts')
-        .update({
-          final_score: 0.0,
-          status: 'absent',
-        })
-        .eq('id', existingAttempt.id)
-        .select()
-        .single()
-
-      if (updateRes.error && updateRes.error.message.includes('attempt_status_enum')) {
-        // Fallback for DB where 'absent' is not in attempt_status_enum
-        updateRes = await supabaseAdmin
-          .from('exam_attempts')
-          .update({
-            final_score: 0.0,
-            status: 'passed',
-          })
-          .eq('id', existingAttempt.id)
-          .select()
-          .single()
-      }
-
-      if (updateRes.error) throw updateRes.error
-      attemptResult = updateRes.data
-    } else {
-      // Try inserting with status: 'absent'
-      let insertRes = await supabaseAdmin
-        .from('exam_attempts')
-        .insert({
+    let upsertRes = await supabaseAdmin
+      .from('exam_attempts')
+      .upsert(
+        {
           student_id: targetStudentId,
           exam_id: exam_id,
           final_score: 0.0,
           status: 'absent',
-        })
-        .select()
-        .single()
+        },
+        { onConflict: 'student_id, exam_id' }
+      )
+      .select()
+      .single()
 
-      if (insertRes.error && insertRes.error.message.includes('attempt_status_enum')) {
-        // Fallback for DB where 'absent' is not in attempt_status_enum
-        insertRes = await supabaseAdmin
-          .from('exam_attempts')
-          .insert({
+    if (upsertRes.error && upsertRes.error.message.includes('attempt_status_enum')) {
+      // Fallback for DB where 'absent' is not in attempt_status_enum
+      upsertRes = await supabaseAdmin
+        .from('exam_attempts')
+        .upsert(
+          {
             student_id: targetStudentId,
             exam_id: exam_id,
             final_score: 0.0,
             status: 'passed',
-          })
-          .select()
-          .single()
-      }
-
-      if (insertRes.error) throw insertRes.error
-      attemptResult = insertRes.data
+          },
+          { onConflict: 'student_id, exam_id' }
+        )
+        .select()
+        .single()
     }
+
+    if (upsertRes.error) throw upsertRes.error
+    attemptResult = upsertRes.data
 
     return NextResponse.json({
       success: true,

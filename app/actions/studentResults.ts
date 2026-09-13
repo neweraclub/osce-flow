@@ -94,9 +94,9 @@ export async function verifyStudentCredentialsAction(
   input: StudentVerificationInput
 ): Promise<StudentVerificationResult> {
   try {
-    const cleanMatricule = input.matricule?.trim() || ''
-    const cleanFirstName = input.first_name?.trim() || ''
-    const cleanLastName = input.last_name?.trim() || ''
+    const cleanMatricule = input.matricule?.trim().replace(/\s+/g, ' ') || ''
+    const cleanFirstName = input.first_name?.trim().replace(/\s+/g, ' ') || ''
+    const cleanLastName = input.last_name?.trim().replace(/\s+/g, ' ') || ''
 
     if (!cleanMatricule || !cleanFirstName || !cleanLastName) {
       return {
@@ -105,7 +105,8 @@ export async function verifyStudentCredentialsAction(
       }
     }
 
-    const { data: student, error } = await supabaseAdmin
+    // 1. Case-insensitive lookup using ILIKE
+    let { data: student, error } = await supabaseAdmin
       .from('students')
       .select('id, matricule, first_name, last_name, group_id')
       .ilike('matricule', cleanMatricule)
@@ -113,6 +114,22 @@ export async function verifyStudentCredentialsAction(
       .ilike('last_name', cleanLastName)
       .limit(1)
       .maybeSingle()
+
+    // 2. Fallback: Check if first_name and last_name were entered in reverse order
+    if (!student && !error) {
+      const { data: swappedStudent } = await supabaseAdmin
+        .from('students')
+        .select('id, matricule, first_name, last_name, group_id')
+        .ilike('matricule', cleanMatricule)
+        .ilike('first_name', cleanLastName)
+        .ilike('last_name', cleanFirstName)
+        .limit(1)
+        .maybeSingle()
+
+      if (swappedStudent) {
+        student = swappedStudent
+      }
+    }
 
     if (error) {
       console.error('Database error verifying student credentials:', error)

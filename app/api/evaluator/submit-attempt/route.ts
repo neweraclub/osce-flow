@@ -57,44 +57,27 @@ export async function POST(req: NextRequest) {
     const deductions = penaltyList.length > 0 ? deductionsFromList : Math.abs(Number(penalty_total) || 0)
     const finalScore = Math.max(0, Math.round((earnedScore - deductions) * 100) / 100)
 
-    // 2. Check or create exam_attempts record
-    const { data: existingAttempt } = await supabaseAdmin
+    // 2. Upsert exam_attempts record with onConflict: 'student_id, exam_id'
+    const { data: attemptRecord, error: attErr } = await supabaseAdmin
       .from('exam_attempts')
-      .select('id, status')
-      .eq('student_id', targetStudentId)
-      .eq('exam_id', exam_id)
-      .maybeSingle()
-
-    let attemptId = existingAttempt?.id
-
-    if (existingAttempt) {
-      const { data: updated, error: updErr } = await supabaseAdmin
-        .from('exam_attempts')
-        .update({
-          final_score: finalScore,
-          status: 'passed',
-        })
-        .eq('id', existingAttempt.id)
-        .select('id')
-        .single()
-
-      if (updErr) throw updErr
-      attemptId = updated.id
-    } else {
-      const { data: inserted, error: insErr } = await supabaseAdmin
-        .from('exam_attempts')
-        .insert({
+      .upsert(
+        {
           student_id: targetStudentId,
           exam_id: exam_id,
           final_score: finalScore,
           status: 'passed',
-        })
-        .select('id')
-        .single()
+        },
+        { onConflict: 'student_id, exam_id' }
+      )
+      .select('id')
+      .single()
 
-      if (insErr) throw insErr
-      attemptId = inserted.id
+    if (attErr) {
+      console.error('Error upserting exam_attempts:', attErr)
+      throw attErr
     }
+
+    const attemptId = attemptRecord.id
 
     // 3. Clear any existing student_answers for this attempt and station to avoid duplicates
     await supabaseAdmin

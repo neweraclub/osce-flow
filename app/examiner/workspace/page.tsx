@@ -196,6 +196,7 @@ function ExaminerWorkspaceContent() {
   }, [])
 
   // Filter & Search States
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed'>('pending')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedSection, setSelectedSection] = useState('ALL')
   const [selectedGroupName, setSelectedGroupName] = useState('ALL')
@@ -349,7 +350,14 @@ function ExaminerWorkspaceContent() {
   const filteredStudents = useMemo(() => {
     let list = [...students]
 
-    // 1. Search Query Filter
+    // 1. Status Tab Filter
+    if (statusFilter === 'pending') {
+      list = list.filter((s) => s.status !== 'completed')
+    } else if (statusFilter === 'completed') {
+      list = list.filter((s) => s.status === 'completed')
+    }
+
+    // 2. Search Query Filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim()
       list = list.filter(
@@ -361,17 +369,17 @@ function ExaminerWorkspaceContent() {
       )
     }
 
-    // 2. Section Filter
+    // 3. Section Filter
     if (selectedSection !== 'ALL') {
       list = list.filter((s) => s.section_id === selectedSection)
     }
 
-    // 3. Deduplicated Group Filter
+    // 4. Deduplicated Group Filter
     if (selectedGroupName !== 'ALL') {
       list = list.filter((s) => s.group_name === selectedGroupName)
     }
 
-    // 4. Sort Order
+    // 5. Sort Order
     if (sortField === 'name_asc') {
       list.sort((a, b) => a.full_name.localeCompare(b.full_name))
     } else if (sortField === 'name_desc') {
@@ -385,12 +393,22 @@ function ExaminerWorkspaceContent() {
       }
       list.sort((a, b) => (statusWeight[a.status] ?? 99) - (statusWeight[b.status] ?? 99))
     } else {
-      // Default: Preserve Excel import order
-      list.sort((a, b) => (a.import_index ?? 0) - (b.import_index ?? 0))
+      // Default: Separate pending from completed candidates, then sort predictably by import sequence or matricule
+      list.sort((a, b) => {
+        const isACompleted = a.status === 'completed' ? 1 : 0
+        const isBCompleted = b.status === 'completed' ? 1 : 0
+        if (isACompleted !== isBCompleted) {
+          return isACompleted - isBCompleted
+        }
+        if (a.import_index !== undefined && b.import_index !== undefined && a.import_index !== b.import_index) {
+          return (a.import_index ?? 0) - (b.import_index ?? 0)
+        }
+        return a.matricule.localeCompare(b.matricule, undefined, { numeric: true })
+      })
     }
 
     return list
-  }, [students, searchQuery, selectedSection, selectedGroupName, sortField])
+  }, [students, statusFilter, searchQuery, selectedSection, selectedGroupName, sortField])
 
   // Aggregate Counts (Strictly Completed & Pending)
   const completedCount = useMemo(
@@ -448,6 +466,11 @@ function ExaminerWorkspaceContent() {
   const handleStartExamination = (student: StudentItem) => {
     setActiveStudent(student)
     setActiveTab('roster')
+
+    // If viewing/editing a completed candidate while on the pending tab, switch to completed tab
+    if (student.status === 'completed' && statusFilter === 'pending') {
+      setStatusFilter('completed')
+    }
 
     // Populate local candidate penalties for this candidate view
     if (student.penalties && student.penalties.length > 0) {
@@ -1085,6 +1108,70 @@ function ExaminerWorkspaceContent() {
             <aside className="w-full md:w-96 lg:w-[410px] border-r border-slate-200/80 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900/60 shrink-0">
               {/* Search & Header Controls */}
               <div className="p-3.5 border-b border-slate-100 dark:border-slate-800 space-y-2.5 bg-slate-50/50 dark:bg-slate-900/50">
+                {/* Status Tabs Filter */}
+                <div className="flex items-center p-1 bg-slate-200/60 dark:bg-slate-800/80 rounded-xl gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('pending')}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      statusFilter === 'pending'
+                        ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <span>Pending</span>
+                    <span
+                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                        statusFilter === 'pending'
+                          ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300'
+                          : 'bg-slate-300/70 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      {pendingCount}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('completed')}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      statusFilter === 'completed'
+                        ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <span>Completed</span>
+                    <span
+                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                        statusFilter === 'completed'
+                          ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300'
+                          : 'bg-slate-300/70 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      {completedCount}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('all')}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      statusFilter === 'all'
+                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <span>All</span>
+                    <span
+                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                        statusFilter === 'all'
+                          ? 'bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200'
+                          : 'bg-slate-300/70 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      {students.length}
+                    </span>
+                  </button>
+                </div>
+
                 {/* Search Input */}
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />

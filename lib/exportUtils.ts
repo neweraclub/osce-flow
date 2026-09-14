@@ -924,7 +924,8 @@ export function exportBulkStudentsToPDF(
     doc.setTextColor(100, 116, 139)
     doc.text('Passing Rate:', leftMargin + 375, cardY + 38)
     doc.setFont('helvetica', 'bold')
-    doc.setTextColor(passRate >= 50 ? emeraldColor : roseColor)
+    const passRateColor: [number, number, number] = passRate >= 50 ? emeraldColor : roseColor
+    doc.setTextColor(...passRateColor)
     doc.text(`${passRate}%`, leftMargin + 435, cardY + 38)
 
     // 3. MASTER GRADEBOOK TABLE

@@ -10,9 +10,13 @@ const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-jakart
 const orbitron = Orbitron({ subsets: ['latin'], variable: '--font-orbitron' })
 
 export const metadata: Metadata = {
-  title: 'NEW ERA live ecos platform (NE-ECOS)',
-  description: 'A calm, connected workspace for medical assessment, examination, and administration.',
-  generator: 'v0.app',
+  title: 'OSCE-Flow • New Era Ecos',
+  description: 'Official OSCE Academic Transcript & Performance Marksheet Platform',
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg',
+  },
 }
 
 export const viewport: Viewport = {

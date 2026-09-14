@@ -526,3 +526,100 @@ export async function GET(req: NextRequest) {
     )
   }
 }
+
+export async function POST(req: NextRequest) {
+  try {
+    const prof = await getAuthenticatedProfessor(req)
+    if (!prof) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized. Professor access required.' },
+        { status: 401 }
+      )
+    }
+
+    const body = await req.json()
+    const studentIds: string[] = Array.isArray(body?.student_ids) ? body.student_ids : []
+    const moduleIdParam: string | undefined = body?.module_id
+
+    if (studentIds.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'No student IDs provided for batch transcript retrieval.' },
+        { status: 400 }
+      )
+    }
+
+    // Query modules assigned to this professor
+    let { data: rawProfModules, error: modErr } = await supabaseAdmin
+      .from('modules')
+      .select('id, module_name, level_id, responsible_prof_id, created_at')
+      .or(`responsible_prof_id.eq.${prof.professorId},responsible_prof_id.eq.${prof.userId}`)
+      .order('module_name', { ascending: true })
+
+    if (modErr) throw modErr
+
+    if (!rawProfModules || rawProfModules.length === 0) {
+      const { data: facModules } = await supabaseAdmin
+        .from('modules')
+        .select('id, module_name, level_id, responsible_prof_id, created_at')
+        .order('module_name', { ascending: true })
+      rawProfModules = facModules || []
+    }
+
+    const assignedModuleIds = (rawProfModules || []).map((m) => m.id)
+
+    // Fetch transcripts in parallel
+    const transcripts = await Promise.all(
+      studentIds.map(async (studentId) => {
+        try {
+          const result = await getStudentResultsDashboardDataAction(studentId)
+          if (!result.success || !result.data) return null
+
+          let scopedModules = result.data.modules.filter((m) => assignedModuleIds.includes(m.module_id))
+          if (moduleIdParam) {
+            scopedModules = scopedModules.filter((m) => m.module_id === moduleIdParam)
+          }
+
+          if (scopedModules.length === 0) {
+            scopedModules = moduleIdParam
+              ? result.data.modules.filter((m) => m.module_id === moduleIdParam)
+              : result.data.modules
+          }
+
+          if (scopedModules.length === 0) return null
+
+          return {
+            student: result.data.student,
+            modules: scopedModules,
+            total_modules_count: scopedModules.length,
+            passed_modules_count: scopedModules.filter((m) => m.is_passed).length,
+          } as StudentResultsDashboardData
+        } catch {
+          return null
+        }
+      })
+    )
+
+    const validTranscripts = transcripts.filter(Boolean)
+
+    return NextResponse.json({
+      success: true,
+      transcripts: validTranscripts,
+      count: validTranscripts.length,
+      professor: {
+        id: prof.professorId,
+        fullName: prof.fullName,
+        firstName: prof.firstName,
+        lastName: prof.lastName,
+        facultyName: prof.facultyName,
+        email: prof.email,
+      },
+    })
+  } catch (err: any) {
+    console.error('Error in POST /api/professor/students:', err)
+    return NextResponse.json(
+      { success: false, error: err?.message || 'Server error processing batch transcript request.' },
+      { status: 500 }
+    )
+  }
+}
+

@@ -15,13 +15,16 @@ import {
   BookOpen,
   Calendar,
   Check,
+  CheckCheck,
   CheckCircle,
   CheckCircle2,
+  CheckSquare,
   ChevronDown,
   ChevronRight,
   ChevronUp,
   Clock,
   Download,
+  DownloadCloud,
   FileDown,
   FileSpreadsheet,
   FileText,
@@ -41,7 +44,9 @@ import {
   ShieldAlert,
   ShieldCheck,
   Sliders,
+  SlidersHorizontal,
   Sparkles,
+  Square,
   Stethoscope,
   TrendingDown,
   TrendingUp,
@@ -55,9 +60,14 @@ import { useToast } from '@/context/ToastContext'
 import {
   exportStudentTranscriptToPDF,
   exportStudentTranscriptToExcel,
+  exportBulkStudentsToPDF,
+  exportBulkStudentsToExcel,
+  formatPreciseTimestamp,
   StudentTranscriptData,
+  StudentResultsDashboardData,
   ModuleResultsGroup,
   EvaluatedStationBreakdown,
+  BulkExportReportOptions,
 } from '@/lib/exportUtils'
 
 interface StudentDirectoryRecord {
@@ -139,9 +149,30 @@ function ProfessorStudentsContent() {
   // Filter States
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedModuleId, setSelectedModuleId] = useState<string>('all')
+  const [selectedSection, setSelectedSection] = useState<string>('all')
+  const [selectedGroup, setSelectedGroup] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [sortOrder, setSortOrder] = useState<SortOrder>('name_asc')
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('grid')
+
+  // Multi-Candidate Selection State
+  const [selectedCandidateIds, setSelectedCandidateIds] = useState<Set<string>>(new Set())
+
+  // Export Granularity State ('general' = High-level final scores & stations vs 'detailed' = Full rubrics & deductions)
+  const [exportGranularity, setExportGranularity] = useState<'general' | 'detailed'>('detailed')
+
+  // Export Modal Dialog State
+  const [exportModal, setExportModal] = useState<{
+    isOpen: boolean
+    mode: 'single' | 'bulk'
+    student?: StudentResultsDashboardData['student']
+    activeModule?: ModuleResultsGroup
+    candidateIds?: string[]
+    scopeTitle?: string
+  }>({
+    isOpen: false,
+    mode: 'bulk',
+  })
 
   // Export Loading States
   const [exportingPdf, setExportingPdf] = useState(false)
@@ -178,10 +209,14 @@ function ProfessorStudentsContent() {
 
   // Custom Popover States & Refs
   const [moduleDropdownOpen, setModuleDropdownOpen] = useState(false)
+  const [sectionDropdownOpen, setSectionDropdownOpen] = useState(false)
+  const [groupDropdownOpen, setGroupDropdownOpen] = useState(false)
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false)
   const [sortDropdownOpen, setSortDropdownOpen] = useState(false)
 
   const moduleDropdownRef = useRef<HTMLDivElement>(null)
+  const sectionDropdownRef = useRef<HTMLDivElement>(null)
+  const groupDropdownRef = useRef<HTMLDivElement>(null)
   const statusDropdownRef = useRef<HTMLDivElement>(null)
   const sortDropdownRef = useRef<HTMLDivElement>(null)
 
@@ -199,6 +234,12 @@ function ProfessorStudentsContent() {
       if (moduleDropdownRef.current && !moduleDropdownRef.current.contains(target)) {
         setModuleDropdownOpen(false)
       }
+      if (sectionDropdownRef.current && !sectionDropdownRef.current.contains(target)) {
+        setSectionDropdownOpen(false)
+      }
+      if (groupDropdownRef.current && !groupDropdownRef.current.contains(target)) {
+        setGroupDropdownOpen(false)
+      }
       if (statusDropdownRef.current && !statusDropdownRef.current.contains(target)) {
         setStatusDropdownOpen(false)
       }
@@ -210,6 +251,8 @@ function ProfessorStudentsContent() {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         setModuleDropdownOpen(false)
+        setSectionDropdownOpen(false)
+        setGroupDropdownOpen(false)
         setStatusDropdownOpen(false)
         setSortDropdownOpen(false)
       }
@@ -385,7 +428,218 @@ function ProfessorStudentsContent() {
     }
   }
 
-  // Export PDF Handler
+  // Computed Filters: Derived unique sections and groups
+  const availableSections = useMemo(() => {
+    const set = new Set<string>()
+    students.forEach((s) => {
+      if (s.section_name && s.section_name !== 'Unassigned') {
+        set.add(s.section_name)
+      }
+    })
+    return Array.from(set).sort()
+  }, [students])
+
+  const availableGroups = useMemo(() => {
+    const set = new Set<string>()
+    students.forEach((s) => {
+      if (selectedSection === 'all' || s.section_name === selectedSection) {
+        if (s.group_name && s.group_name !== 'Unassigned') {
+          set.add(s.group_name)
+        }
+      }
+    })
+    return Array.from(set).sort()
+  }, [students, selectedSection])
+
+  // Filtered students list based on section and group selections
+  const displayedStudents = useMemo(() => {
+    return students.filter((s) => {
+      if (selectedSection !== 'all' && s.section_name !== selectedSection) {
+        return false
+      }
+      if (selectedGroup !== 'all' && s.group_name !== selectedGroup) {
+        return false
+      }
+      return true
+    })
+  }, [students, selectedSection, selectedGroup])
+
+  // Multi-Candidate Selection Helpers
+  const toggleSelectCandidate = (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    setSelectedCandidateIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const selectAllDisplayed = () => {
+    setSelectedCandidateIds(new Set(displayedStudents.map((s) => s.id)))
+  }
+
+  const clearSelection = () => {
+    setSelectedCandidateIds(new Set())
+  }
+
+  const isAllDisplayedSelected =
+    displayedStudents.length > 0 &&
+    displayedStudents.every((s) => selectedCandidateIds.has(s.id))
+
+  const isSomeDisplayedSelected =
+    displayedStudents.some((s) => selectedCandidateIds.has(s.id)) && !isAllDisplayedSelected
+
+  // Modal Dialog Openers
+  const openBulkExportModal = (targetIds?: string[]) => {
+    const ids =
+      targetIds && targetIds.length > 0
+        ? targetIds
+        : selectedCandidateIds.size > 0
+        ? Array.from(selectedCandidateIds)
+        : displayedStudents.map((s) => s.id)
+
+    const scopeTitle =
+      ids.length === 1
+        ? `1 Candidate Selected`
+        : `${ids.length} Candidates Selected${selectedSection !== 'all' ? ` (${selectedSection})` : ''}`
+
+    setExportModal({
+      isOpen: true,
+      mode: 'bulk',
+      candidateIds: ids,
+      scopeTitle,
+    })
+  }
+
+  const openSingleExportModal = (st?: any, activeMod?: any) => {
+    const studentObj = st || transcriptData?.student
+    const modObj = activeMod || activeTranscriptModule
+    if (!studentObj) return
+
+    setExportModal({
+      isOpen: true,
+      mode: 'single',
+      student: studentObj,
+      activeModule: modObj,
+      scopeTitle: `Candidate: ${studentObj.full_name} (${studentObj.matricule})`,
+    })
+  }
+
+  const closeExportModal = () => {
+    if (!exportingPdf && !exportingExcel) {
+      setExportModal((prev) => ({ ...prev, isOpen: false }))
+    }
+  }
+
+  // Execute Export from Modal (Single or Bulk)
+  const executeModalExport = async (format: 'pdf' | 'excel') => {
+    if (format === 'pdf') setExportingPdf(true)
+    else setExportingExcel(true)
+
+    try {
+      if (exportModal.mode === 'single') {
+        let student = exportModal.student
+        let activeMod = exportModal.activeModule
+
+        if (!student || !activeMod) {
+          if (transcriptData && activeTranscriptModule) {
+            student = transcriptData.student
+            activeMod = activeTranscriptModule
+          }
+        }
+
+        if (!student || !activeMod) {
+          throw new Error('No candidate marksheet data available to export.')
+        }
+
+        if (format === 'pdf') {
+          showInfo(`Generating ${exportGranularity === 'detailed' ? 'detailed' : 'general summary'} PDF marksheet...`)
+          await exportStudentTranscriptToPDF(student, activeMod, undefined, {
+            evaluatingProfessorName: professorName,
+            facultyName,
+            granularity: exportGranularity,
+          })
+          showSuccess(`PDF marksheet for ${student.full_name} exported successfully.`)
+        } else {
+          showInfo(`Generating ${exportGranularity === 'detailed' ? 'multi-sheet' : 'general summary'} Excel marksheet...`)
+          await exportStudentTranscriptToExcel(student, activeMod, undefined, {
+            evaluatingProfessorName: professorName,
+            facultyName,
+            granularity: exportGranularity,
+          })
+          showSuccess(`Excel marksheet for ${student.full_name} exported successfully.`)
+        }
+      } else {
+        // BULK EXPORT
+        const targetIds =
+          exportModal.candidateIds && exportModal.candidateIds.length > 0
+            ? exportModal.candidateIds
+            : selectedCandidateIds.size > 0
+            ? Array.from(selectedCandidateIds)
+            : displayedStudents.map((s) => s.id)
+
+        if (targetIds.length === 0) {
+          throw new Error('No candidates selected for bulk export.')
+        }
+
+        const targetStudents = students.filter((s) => targetIds.includes(s.id))
+        const bulkOptions: BulkExportReportOptions = {
+          evaluatingProfessorName: professorName,
+          facultyName,
+          granularity: exportGranularity,
+          sectionName: selectedSection !== 'all' ? selectedSection : null,
+          groupName: selectedGroup !== 'all' ? selectedGroup : null,
+          moduleName: selectedModuleName,
+          cohortName: selectedYear?.name || 'Academic Session',
+          totalStudentsCount: targetStudents.length,
+        }
+
+        if (exportGranularity === 'detailed') {
+          showInfo(`Retrieving detailed station rubrics for ${targetStudents.length} candidates...`)
+          const res = await fetch('/api/professor/students', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              student_ids: targetIds,
+              module_id: selectedModuleId !== 'all' ? selectedModuleId : undefined,
+            }),
+          })
+          const json = await res.json()
+          if (!res.ok || !json.success) {
+            throw new Error(json.error || 'Failed to retrieve detailed transcripts for bulk export.')
+          }
+
+          if (format === 'pdf') {
+            await exportBulkStudentsToPDF(targetStudents, json.transcripts, bulkOptions)
+            showSuccess(`Bulk PDF marksheet book exported for ${targetStudents.length} candidates.`)
+          } else {
+            await exportBulkStudentsToExcel(targetStudents, json.transcripts, bulkOptions)
+            showSuccess(`Bulk Excel workbook exported for ${targetStudents.length} candidates.`)
+          }
+        } else {
+          // General Summary export is instant on client
+          if (format === 'pdf') {
+            await exportBulkStudentsToPDF(targetStudents, null, bulkOptions)
+            showSuccess(`Cohort Master Gradebook PDF exported for ${targetStudents.length} candidates.`)
+          } else {
+            await exportBulkStudentsToExcel(targetStudents, null, bulkOptions)
+            showSuccess(`Cohort Master Gradebook Excel exported for ${targetStudents.length} candidates.`)
+          }
+        }
+      }
+
+      setExportModal((prev) => ({ ...prev, isOpen: false }))
+    } catch (err: any) {
+      console.error('Export error:', err)
+      showError(err?.message || 'Failed to complete export.')
+    } finally {
+      setExportingPdf(false)
+      setExportingExcel(false)
+    }
+  }
+
+  // Export PDF Handler (Direct from Detailed View)
   const handleExportPDF = async () => {
     if (!transcriptData || !activeTranscriptModule) {
       showError('No transcript data available to export.')
@@ -394,7 +648,7 @@ function ProfessorStudentsContent() {
 
     try {
       setExportingPdf(true)
-      showInfo('Generating certified PDF transcript marksheet...')
+      showInfo(`Generating ${exportGranularity === 'detailed' ? 'detailed' : 'general summary'} PDF marksheet...`)
       await exportStudentTranscriptToPDF(
         transcriptData.student,
         activeTranscriptModule,
@@ -402,6 +656,7 @@ function ProfessorStudentsContent() {
         {
           evaluatingProfessorName: professorName,
           facultyName: facultyName,
+          granularity: exportGranularity,
         }
       )
       showSuccess(`PDF marksheet for ${transcriptData.student.full_name} downloaded.`)
@@ -413,7 +668,7 @@ function ProfessorStudentsContent() {
     }
   }
 
-  // Export Excel Handler
+  // Export Excel Handler (Direct from Detailed View)
   const handleExportExcel = async () => {
     if (!transcriptData || !activeTranscriptModule) {
       showError('No transcript data available to export.')
@@ -422,7 +677,7 @@ function ProfessorStudentsContent() {
 
     try {
       setExportingExcel(true)
-      showInfo('Generating multi-sheet Excel marksheet workbook...')
+      showInfo(`Generating ${exportGranularity === 'detailed' ? 'multi-sheet' : 'general summary'} Excel workbook...`)
       await exportStudentTranscriptToExcel(
         transcriptData.student,
         activeTranscriptModule,
@@ -430,6 +685,7 @@ function ProfessorStudentsContent() {
         {
           evaluatingProfessorName: professorName,
           facultyName: facultyName,
+          granularity: exportGranularity,
         }
       )
       showSuccess(`Excel workbook for ${transcriptData.student.full_name} downloaded.`)
@@ -448,6 +704,9 @@ function ProfessorStudentsContent() {
       showInfo(`Retrieving candidate marksheet for ${format.toUpperCase()} export...`)
       const params = new URLSearchParams()
       params.set('student_id', studentId)
+      if (selectedModuleId && selectedModuleId !== 'all') {
+        params.set('module_id', selectedModuleId)
+      }
       const res = await fetch(`/api/professor/students?${params.toString()}`)
       const json = await res.json()
       if (!res.ok || !json.success || !json.transcript || json.transcript.modules.length === 0) {
@@ -462,12 +721,14 @@ function ProfessorStudentsContent() {
         await exportStudentTranscriptToPDF(json.transcript.student, targetMod, undefined, {
           evaluatingProfessorName: profName,
           facultyName: facName,
+          granularity: exportGranularity,
         })
         showSuccess(`PDF marksheet exported for ${json.transcript.student.full_name}.`)
       } else {
         await exportStudentTranscriptToExcel(json.transcript.student, targetMod, undefined, {
           evaluatingProfessorName: profName,
           facultyName: facName,
+          granularity: exportGranularity,
         })
         showSuccess(`Excel workbook exported for ${json.transcript.student.full_name}.`)
       }
@@ -560,15 +821,43 @@ function ProfessorStudentsContent() {
             )}
           </nav>
 
-          {/* Action Export Buttons */}
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* Action Export Buttons & Granularity Toggle */}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Export Granularity Segmented Switch */}
+            <div className="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-0.5 border border-slate-200/80 dark:border-slate-700/80">
+              <button
+                type="button"
+                onClick={() => setExportGranularity('general')}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  exportGranularity === 'general'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+                title="General Summary: High-level scores and station totals"
+              >
+                General
+              </button>
+              <button
+                type="button"
+                onClick={() => setExportGranularity('detailed')}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  exportGranularity === 'detailed'
+                    ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-2xs'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+                title="Detailed Breakdown: Itemized checklist rubrics and clinical deductions"
+              >
+                Detailed
+              </button>
+            </div>
+
             {/* Export PDF Button */}
             <button
               type="button"
               onClick={handleExportPDF}
               disabled={exportingPdf}
               className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white transition-all shadow-xs disabled:opacity-50 cursor-pointer"
-              title="Export complete marksheet to PDF"
+              title={`Export complete marksheet to PDF (${exportGranularity === 'detailed' ? 'Detailed Breakdown' : 'General Summary'})`}
             >
               {exportingPdf ? (
                 <Loader2 className="size-3.5 animate-spin" />
@@ -584,7 +873,7 @@ function ProfessorStudentsContent() {
               onClick={handleExportExcel}
               disabled={exportingExcel}
               className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs disabled:opacity-50 cursor-pointer"
-              title="Export complete marksheet to Excel (.xlsx)"
+              title={`Export complete marksheet to Excel (.xlsx) (${exportGranularity === 'detailed' ? 'Detailed Breakdown' : 'General Summary'})`}
             >
               {exportingExcel ? (
                 <Loader2 className="size-3.5 animate-spin" />
@@ -592,6 +881,17 @@ function ProfessorStudentsContent() {
                 <FileSpreadsheet className="size-3.5" />
               )}
               <span>{exportingExcel ? 'Exporting Excel...' : 'Export Excel'}</span>
+            </button>
+
+            {/* Configure Options Modal */}
+            <button
+              type="button"
+              onClick={() => openSingleExportModal(student, activeTranscriptModule)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-800 transition-colors cursor-pointer"
+              title="Configure export options dialog"
+            >
+              <Download className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span className="hidden md:inline">Options</span>
             </button>
 
             {/* Print Marksheet */}
@@ -1155,7 +1455,8 @@ function ProfessorStudentsContent() {
       </div>
 
       {/* 3. Search & Custom Popover Filters Toolbar */}
-      <div className="p-4 md:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
+      <div className="p-4 md:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+        {/* Row 1: Search, Module, and Status Filters */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
           {/* Search Box */}
           <div className="md:col-span-4 relative">
@@ -1164,7 +1465,7 @@ function ProfessorStudentsContent() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by student name or matricule..."
+              placeholder="Search candidate name or matricule..."
               className="w-full pl-10 pr-9 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium"
             />
             {searchQuery && (
@@ -1179,11 +1480,13 @@ function ProfessorStudentsContent() {
           </div>
 
           {/* Module Filter Custom Popover Dropdown */}
-          <div className="md:col-span-3 relative" ref={moduleDropdownRef}>
+          <div className="md:col-span-4 relative" ref={moduleDropdownRef}>
             <button
               type="button"
               onClick={() => {
                 setModuleDropdownOpen((prev) => !prev)
+                setSectionDropdownOpen(false)
+                setGroupDropdownOpen(false)
                 setStatusDropdownOpen(false)
                 setSortDropdownOpen(false)
               }}
@@ -1265,12 +1568,14 @@ function ProfessorStudentsContent() {
           </div>
 
           {/* Status Filter Custom Popover Dropdown */}
-          <div className="md:col-span-3 relative" ref={statusDropdownRef}>
+          <div className="md:col-span-4 relative" ref={statusDropdownRef}>
             <button
               type="button"
               onClick={() => {
                 setStatusDropdownOpen((prev) => !prev)
                 setModuleDropdownOpen(false)
+                setSectionDropdownOpen(false)
+                setGroupDropdownOpen(false)
                 setSortDropdownOpen(false)
               }}
               className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold bg-slate-50 dark:bg-slate-800/80 border transition-all cursor-pointer ${
@@ -1324,14 +1629,195 @@ function ProfessorStudentsContent() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Row 2: Section Filter, Group Filter, and Sort Order */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+          {/* Section Filter Popover Dropdown */}
+          <div className="md:col-span-4 relative" ref={sectionDropdownRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setSectionDropdownOpen((prev) => !prev)
+                setModuleDropdownOpen(false)
+                setGroupDropdownOpen(false)
+                setStatusDropdownOpen(false)
+                setSortDropdownOpen(false)
+              }}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold bg-slate-50 dark:bg-slate-800/80 border transition-all cursor-pointer ${
+                sectionDropdownOpen
+                  ? 'border-emerald-500 ring-2 ring-emerald-500/20 text-slate-900 dark:text-white'
+                  : 'border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-200'
+              }`}
+            >
+              <div className="flex items-center gap-2 min-w-0 pr-2">
+                <GraduationCap className="size-3.5 text-slate-400 shrink-0" />
+                <span className="truncate">
+                  {selectedSection === 'all'
+                    ? `All Sections (${availableSections.length})`
+                    : selectedSection}
+                </span>
+              </div>
+              <ChevronDown
+                className={`size-4 text-slate-400 shrink-0 transition-transform duration-200 ${
+                  sectionDropdownOpen ? 'rotate-180 text-emerald-500' : ''
+                }`}
+              />
+            </button>
+
+            {sectionDropdownOpen && (
+              <div className="absolute left-0 top-full mt-1.5 z-50 w-full sm:min-w-[220px] max-h-60 overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl backdrop-blur-md p-1.5 space-y-0.5 animate-in fade-in zoom-in-95">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedSection('all')
+                    setSectionDropdownOpen(false)
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer text-left ${
+                    selectedSection === 'all'
+                      ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/20'
+                      : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300 font-medium border border-transparent'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Layers className="size-3 text-slate-400" />
+                    <span>All Sections</span>
+                  </div>
+                  {selectedSection === 'all' && (
+                    <Check className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                  )}
+                </button>
+
+                {availableSections.map((sec) => {
+                  const isSelected = selectedSection === sec
+                  const count = students.filter((s) => s.section_name === sec).length
+                  return (
+                    <button
+                      key={sec}
+                      type="button"
+                      onClick={() => {
+                        setSelectedSection(sec)
+                        setSectionDropdownOpen(false)
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer text-left ${
+                        isSelected
+                          ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/20'
+                          : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300 font-medium border border-transparent'
+                      }`}
+                    >
+                      <span className="truncate">{sec}</span>
+                      <div className="flex items-center gap-1.5 ml-2 shrink-0">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500">
+                          {count}
+                        </span>
+                        {isSelected && (
+                          <Check className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Group Filter Popover Dropdown */}
+          <div className="md:col-span-4 relative" ref={groupDropdownRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setGroupDropdownOpen((prev) => !prev)
+                setModuleDropdownOpen(false)
+                setSectionDropdownOpen(false)
+                setStatusDropdownOpen(false)
+                setSortDropdownOpen(false)
+              }}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold bg-slate-50 dark:bg-slate-800/80 border transition-all cursor-pointer ${
+                groupDropdownOpen
+                  ? 'border-emerald-500 ring-2 ring-emerald-500/20 text-slate-900 dark:text-white'
+                  : 'border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-200'
+              }`}
+            >
+              <div className="flex items-center gap-2 min-w-0 pr-2">
+                <Users className="size-3.5 text-slate-400 shrink-0" />
+                <span className="truncate">
+                  {selectedGroup === 'all'
+                    ? `All Groups (${availableGroups.length})`
+                    : selectedGroup}
+                </span>
+              </div>
+              <ChevronDown
+                className={`size-4 text-slate-400 shrink-0 transition-transform duration-200 ${
+                  groupDropdownOpen ? 'rotate-180 text-emerald-500' : ''
+                }`}
+              />
+            </button>
+
+            {groupDropdownOpen && (
+              <div className="absolute left-0 top-full mt-1.5 z-50 w-full sm:min-w-[200px] max-h-60 overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl backdrop-blur-md p-1.5 space-y-0.5 animate-in fade-in zoom-in-95">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedGroup('all')
+                    setGroupDropdownOpen(false)
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer text-left ${
+                    selectedGroup === 'all'
+                      ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/20'
+                      : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300 font-medium border border-transparent'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Users className="size-3 text-slate-400" />
+                    <span>All Groups</span>
+                  </div>
+                  {selectedGroup === 'all' && (
+                    <Check className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                  )}
+                </button>
+
+                {availableGroups.map((grp) => {
+                  const isSelected = selectedGroup === grp
+                  const count = displayedStudents.filter((s) => s.group_name === grp).length
+                  return (
+                    <button
+                      key={grp}
+                      type="button"
+                      onClick={() => {
+                        setSelectedGroup(grp)
+                        setGroupDropdownOpen(false)
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer text-left ${
+                        isSelected
+                          ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/20'
+                          : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300 font-medium border border-transparent'
+                      }`}
+                    >
+                      <span className="truncate">{grp}</span>
+                      <div className="flex items-center gap-1.5 ml-2 shrink-0">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500">
+                          {count}
+                        </span>
+                        {isSelected && (
+                          <Check className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
 
           {/* Sort Order Custom Popover Dropdown */}
-          <div className="md:col-span-2 relative" ref={sortDropdownRef}>
+          <div className="md:col-span-4 relative" ref={sortDropdownRef}>
             <button
               type="button"
               onClick={() => {
                 setSortDropdownOpen((prev) => !prev)
                 setModuleDropdownOpen(false)
+                setSectionDropdownOpen(false)
+                setGroupDropdownOpen(false)
                 setStatusDropdownOpen(false)
               }}
               className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold bg-slate-50 dark:bg-slate-800/80 border transition-all cursor-pointer ${
@@ -1343,7 +1829,7 @@ function ProfessorStudentsContent() {
               <div className="flex items-center gap-2 min-w-0 pr-2">
                 <ArrowUpDown className="size-3.5 text-slate-400 shrink-0" />
                 <span className="truncate">
-                  {SORT_OPTIONS.find((s) => s.value === sortOrder)?.label.split(' ')[0] || 'Sort'}
+                  {SORT_OPTIONS.find((s) => s.value === sortOrder)?.label || 'Sort Candidates'}
                 </span>
               </div>
               <ChevronDown
@@ -1354,7 +1840,7 @@ function ProfessorStudentsContent() {
             </button>
 
             {sortDropdownOpen && (
-              <div className="absolute right-0 top-full mt-1.5 z-50 w-full sm:min-w-[200px] rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl backdrop-blur-md p-1.5 space-y-0.5 animate-in fade-in zoom-in-95">
+              <div className="absolute right-0 top-full mt-1.5 z-50 w-full sm:min-w-[220px] rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl backdrop-blur-md p-1.5 space-y-0.5 animate-in fade-in zoom-in-95">
                 {SORT_OPTIONS.map((opt) => {
                   const isSelected = sortOrder === opt.value
                   const Icon = opt.icon
@@ -1387,18 +1873,55 @@ function ProfessorStudentsContent() {
           </div>
         </div>
 
-        {/* Layout Switcher and Active Filters Summary */}
-        <div className="flex items-center justify-between pt-1 text-xs text-slate-400 border-t border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-2">
+        {/* Controls, Selection Counter & Bulk Export Row */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 text-xs text-slate-400 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Select All Checkbox Button */}
+            <button
+              type="button"
+              onClick={isAllDisplayedSelected ? clearSelection : selectAllDisplayed}
+              className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-bold hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer"
+            >
+              <div
+                className={`size-4 rounded-md border flex items-center justify-center transition-colors ${
+                  isAllDisplayedSelected
+                    ? 'bg-emerald-600 border-emerald-600 text-white'
+                    : isSomeDisplayedSelected
+                    ? 'bg-emerald-100 dark:bg-emerald-950 border-emerald-500 text-emerald-600'
+                    : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
+                }`}
+              >
+                {(isAllDisplayedSelected || isSomeDisplayedSelected) && (
+                  <Check className="size-3 stroke-[3]" />
+                )}
+              </div>
+              <span>Select All</span>
+            </button>
+
+            <span>·</span>
+
             <span>
-              Showing <span className="font-bold text-slate-700 dark:text-slate-200">{students.length}</span> candidates
+              Showing <span className="font-bold text-slate-700 dark:text-slate-200">{displayedStudents.length}</span> of {students.length} candidates
             </span>
-            {(searchQuery || selectedModuleId !== 'all' || statusFilter !== 'all') && (
+
+            {selectedCandidateIds.size > 0 && (
+              <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-200 dark:border-emerald-800">
+                {selectedCandidateIds.size} Selected
+              </span>
+            )}
+
+            {(searchQuery ||
+              selectedModuleId !== 'all' ||
+              statusFilter !== 'all' ||
+              selectedSection !== 'all' ||
+              selectedGroup !== 'all') && (
               <button
                 onClick={() => {
                   setSearchQuery('')
                   setSelectedModuleId('all')
                   setStatusFilter('all')
+                  setSelectedSection('all')
+                  setSelectedGroup('all')
                 }}
                 className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 font-semibold underline underline-offset-2 ml-1 cursor-pointer"
               >
@@ -1407,31 +1930,52 @@ function ProfessorStudentsContent() {
             )}
           </div>
 
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+          <div className="flex items-center gap-2.5 self-end sm:self-auto">
+            {/* Bulk / Cohort Export Action Button */}
             <button
               type="button"
-              onClick={() => setViewLayout('grid')}
-              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                viewLayout === 'grid'
-                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs'
-                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-              }`}
-              title="Grid View"
+              onClick={() => openBulkExportModal()}
+              disabled={displayedStudents.length === 0}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+              title="Export marksheets for current cohort, section, or selection"
             >
-              <LayoutGrid className="size-3.5" />
+              <Download className="size-3.5" />
+              <span>
+                {selectedCandidateIds.size > 0
+                  ? `Export Selected (${selectedCandidateIds.size})`
+                  : selectedSection !== 'all'
+                  ? `Export ${selectedSection}`
+                  : 'Export Cohort'}
+              </span>
             </button>
-            <button
-              type="button"
-              onClick={() => setViewLayout('list')}
-              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                viewLayout === 'list'
-                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs'
-                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-              }`}
-              title="List View"
-            >
-              <List className="size-3.5" />
-            </button>
+
+            {/* Layout Switcher */}
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setViewLayout('grid')}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                  viewLayout === 'grid'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs'
+                    : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                }`}
+                title="Grid View"
+              >
+                <LayoutGrid className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewLayout('list')}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                  viewLayout === 'list'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs'
+                    : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                }`}
+                title="List View"
+              >
+                <List className="size-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1455,28 +1999,33 @@ function ProfessorStudentsContent() {
             </div>
           ))}
         </div>
-      ) : students.length === 0 ? (
+      ) : displayedStudents.length === 0 ? (
         <div className="p-12 text-center rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3">
           <Users className="size-10 text-slate-400 mx-auto stroke-1" />
           <h2 className="text-base font-bold text-slate-800 dark:text-slate-200">
             No Candidate Records Found
           </h2>
           <p className="text-xs text-slate-400 max-w-sm mx-auto">
-            No students matching your filter criteria were found in your assigned modules. Try clearing the search or switching module/status filters.
+            No students matching your filter criteria were found in your assigned modules. Try clearing the search or switching section, module, or status filters.
           </p>
         </div>
       ) : viewLayout === 'grid' ? (
         /* GRID VIEW */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {students.map((st: StudentDirectoryRecord) => {
+          {displayedStudents.map((st: StudentDirectoryRecord) => {
             const hasEvaluations = st.evaluated_stations_count > 0
             const isPassed = st.is_passed
+            const isSelected = selectedCandidateIds.has(st.id)
 
             return (
               <div
                 key={st.id}
                 onClick={() => handleSelectStudent(st.id)}
-                className="group p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:shadow-md hover:border-emerald-400/80 dark:hover:border-emerald-500/60 transition-all cursor-pointer flex flex-col justify-between space-y-4 relative overflow-hidden"
+                className={`group p-5 rounded-3xl bg-white dark:bg-slate-900 border shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 relative overflow-hidden ${
+                  isSelected
+                    ? 'border-emerald-500 ring-2 ring-emerald-500/20 dark:border-emerald-500'
+                    : 'border-slate-200/80 dark:border-slate-800 hover:border-emerald-400/80 dark:hover:border-emerald-500/60'
+                }`}
               >
                 {/* Top Accent Stripe */}
                 <div
@@ -1492,12 +2041,27 @@ function ProfessorStudentsContent() {
                 />
 
                 <div className="space-y-3">
-                  {/* Candidate Identification */}
+                  {/* Candidate Identification & Selection Checkbox */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="size-11 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center text-white font-bold text-sm shadow-xs shrink-0">
-                        {st.first_name[0] || 'S'}
-                      </div>
+                      {/* Checkbox */}
+                      <button
+                        type="button"
+                        onClick={(e) => toggleSelectCandidate(st.id, e)}
+                        className={`size-8 rounded-xl flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+                          isSelected
+                            ? 'bg-emerald-600 text-white shadow-xs'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 border border-slate-200/80 dark:border-slate-700'
+                        }`}
+                        title={isSelected ? 'Deselect candidate' : 'Select candidate for bulk export'}
+                      >
+                        {isSelected ? (
+                          <Check className="size-4 stroke-[3]" />
+                        ) : (
+                          <div className="size-3 rounded-xs border-2 border-slate-300 dark:border-slate-600" />
+                        )}
+                      </button>
+
                       <div className="min-w-0">
                         <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                           {st.full_name}
@@ -1595,7 +2159,7 @@ function ProfessorStudentsContent() {
                         type="button"
                         onClick={(e) => handleQuickExport(st.id, 'pdf', e)}
                         className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                        title="Quick Export PDF"
+                        title={`Quick Export PDF (${exportGranularity === 'detailed' ? 'Detailed' : 'General'})`}
                       >
                         <FileDown className="size-3.5" />
                       </button>
@@ -1603,7 +2167,7 @@ function ProfessorStudentsContent() {
                         type="button"
                         onClick={(e) => handleQuickExport(st.id, 'excel', e)}
                         className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer"
-                        title="Quick Export Excel"
+                        title={`Quick Export Excel (${exportGranularity === 'detailed' ? 'Detailed' : 'General'})`}
                       >
                         <FileSpreadsheet className="size-3.5" />
                       </button>
@@ -1621,6 +2185,24 @@ function ProfessorStudentsContent() {
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 font-bold border-b border-slate-200/80 dark:border-slate-800">
                 <tr>
+                  <th className="px-4 py-3.5 w-12 text-center">
+                    <button
+                      type="button"
+                      onClick={isAllDisplayedSelected ? clearSelection : selectAllDisplayed}
+                      className={`size-4.5 rounded-md border flex items-center justify-center transition-colors cursor-pointer mx-auto ${
+                        isAllDisplayedSelected
+                          ? 'bg-emerald-600 border-emerald-600 text-white'
+                          : isSomeDisplayedSelected
+                          ? 'bg-emerald-100 dark:bg-emerald-950 border-emerald-500 text-emerald-600'
+                          : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
+                      }`}
+                      title={isAllDisplayedSelected ? 'Deselect all' : 'Select all displayed'}
+                    >
+                      {(isAllDisplayedSelected || isSomeDisplayedSelected) && (
+                        <Check className="size-3 stroke-[3]" />
+                      )}
+                    </button>
+                  </th>
                   <th className="px-5 py-3.5">Candidate</th>
                   <th className="px-5 py-3.5">Cohort / Group</th>
                   <th className="px-5 py-3.5 text-center">Stations</th>
@@ -1630,16 +2212,33 @@ function ProfessorStudentsContent() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {students.map((st: StudentDirectoryRecord) => {
+                {displayedStudents.map((st: StudentDirectoryRecord) => {
                   const hasEvaluations = st.evaluated_stations_count > 0
                   const isPassed = st.is_passed
+                  const isSelected = selectedCandidateIds.has(st.id)
 
                   return (
                     <tr
                       key={st.id}
                       onClick={() => handleSelectStudent(st.id)}
-                      className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors cursor-pointer"
+                      className={`hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors cursor-pointer ${
+                        isSelected ? 'bg-emerald-500/5 dark:bg-emerald-950/20' : ''
+                      }`}
                     >
+                      <td className="px-4 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={(e) => toggleSelectCandidate(st.id, e)}
+                          className={`size-4.5 rounded-md border flex items-center justify-center transition-colors cursor-pointer mx-auto ${
+                            isSelected
+                              ? 'bg-emerald-600 border-emerald-600 text-white'
+                              : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-emerald-500'
+                          }`}
+                          title={isSelected ? 'Deselect candidate' : 'Select candidate'}
+                        >
+                          {isSelected && <Check className="size-3 stroke-[3]" />}
+                        </button>
+                      </td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
                           <div className="size-8 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center text-white font-bold text-xs shadow-2xs shrink-0">
@@ -1714,7 +2313,7 @@ function ProfessorStudentsContent() {
                                 type="button"
                                 onClick={(e) => handleQuickExport(st.id, 'pdf', e)}
                                 className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                                title="Export PDF"
+                                title={`Export PDF (${exportGranularity === 'detailed' ? 'Detailed' : 'General'})`}
                               >
                                 <FileDown className="size-3.5" />
                               </button>
@@ -1722,7 +2321,7 @@ function ProfessorStudentsContent() {
                                 type="button"
                                 onClick={(e) => handleQuickExport(st.id, 'excel', e)}
                                 className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer"
-                                title="Export Excel"
+                                title={`Export Excel (${exportGranularity === 'detailed' ? 'Detailed' : 'General'})`}
                               >
                                 <FileSpreadsheet className="size-3.5" />
                               </button>
@@ -1739,6 +2338,220 @@ function ProfessorStudentsContent() {
                 })}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Bulk Action Dock Bar */}
+      {selectedCandidateIds.size > 0 && !selectedStudentId && (
+        <div className="fixed bottom-6 inset-x-0 mx-auto max-w-xl z-40 px-4 animate-in slide-in-from-bottom-5 duration-200">
+          <div className="p-3.5 sm:p-4 rounded-3xl bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md border border-slate-700/80 shadow-2xl flex items-center justify-between gap-4 text-white">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-400 font-mono font-bold text-xs border border-emerald-500/30">
+                  {selectedCandidateIds.size} Selected
+                </span>
+                <span className="text-xs text-slate-300 hidden sm:inline">
+                  of {displayedStudents.length} candidates
+                </span>
+              </div>
+              <div className="h-4 w-px bg-slate-700 hidden sm:block" />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={selectAllDisplayed}
+                  className="text-xs font-semibold text-slate-300 hover:text-white transition-colors cursor-pointer"
+                >
+                  Select All
+                </button>
+                <span className="text-slate-600">·</span>
+                <button
+                  type="button"
+                  onClick={clearSelection}
+                  className="text-xs font-semibold text-rose-400 hover:text-rose-300 transition-colors cursor-pointer"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => openBulkExportModal(Array.from(selectedCandidateIds))}
+                className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition-all cursor-pointer"
+              >
+                <Download className="size-3.5" />
+                <span>Bulk Export</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Export Granularity & Format Selector Modal Dialog */}
+      {exportModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200 relative overflow-hidden">
+            {/* Emerald Top Strip Accent */}
+            <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-400" />
+
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3 pt-1">
+              <div className="flex items-center gap-3">
+                <div className="size-11 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                  <Download className="size-5.5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Export Academic Marksheet
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    {exportModal.scopeTitle || 'Select export options and report granularity'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={closeExportModal}
+                disabled={exportingPdf || exportingExcel}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            {/* Professor Attribution & Exact Timestamp Banner */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-1.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 dark:text-slate-400 font-medium">Evaluating Examiner:</span>
+                <span className="font-bold text-slate-900 dark:text-white">{professorName}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 dark:text-slate-400 font-medium">Faculty Workspace:</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-300">{facultyName}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 dark:text-slate-400 font-medium">Exact Timestamp:</span>
+                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                  {formatPreciseTimestamp()}
+                </span>
+              </div>
+            </div>
+
+            {/* Granularity Selector Choice */}
+            <div className="space-y-2.5">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Report Granularity & Content Scope
+              </label>
+
+              <div className="grid grid-cols-1 gap-3">
+                {/* Choice 1: General Summary */}
+                <div
+                  onClick={() => setExportGranularity('general')}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer select-none ${
+                    exportGranularity === 'general'
+                      ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-500/80 ring-2 ring-emerald-500/20'
+                      : 'bg-white dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className={`size-4 rounded-full border flex items-center justify-center ${
+                          exportGranularity === 'general'
+                            ? 'border-emerald-600 bg-emerald-600 text-white'
+                            : 'border-slate-300 dark:border-slate-600'
+                        }`}
+                      >
+                        {exportGranularity === 'general' && <Check className="size-2.5" />}
+                      </div>
+                      <span className="text-sm font-bold text-slate-900 dark:text-white">
+                        General Summary
+                      </span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                      Official Gradebook
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 pl-6">
+                    High-level final scores, module statuses, stations completed, and cohort net totals. Ideal for faculty board submission and master gradebook recording.
+                  </p>
+                </div>
+
+                {/* Choice 2: Detailed Breakdown */}
+                <div
+                  onClick={() => setExportGranularity('detailed')}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer select-none ${
+                    exportGranularity === 'detailed'
+                      ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-500/80 ring-2 ring-emerald-500/20'
+                      : 'bg-white dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className={`size-4 rounded-full border flex items-center justify-center ${
+                          exportGranularity === 'detailed'
+                            ? 'border-emerald-600 bg-emerald-600 text-white'
+                            : 'border-slate-300 dark:border-slate-600'
+                        }`}
+                      >
+                        {exportGranularity === 'detailed' && <Check className="size-2.5" />}
+                      </div>
+                      <span className="text-sm font-bold text-slate-900 dark:text-white">
+                        Detailed Breakdown
+                      </span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                      Full Itemized Rubrics
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 pl-6">
+                    Full station breakdowns, itemized question rubrics, points awarded, and recorded clinical protocol infractions. Ideal for audits, candidate counseling, and dispute reviews.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={closeExportModal}
+                disabled={exportingPdf || exportingExcel}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={() => executeModalExport('pdf')}
+                disabled={exportingPdf || exportingExcel}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white transition-all shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                {exportingPdf ? (
+                  <Loader2 className="size-3.5 animate-spin text-emerald-400" />
+                ) : (
+                  <FileDown className="size-3.5 text-rose-400" />
+                )}
+                <span>{exportingPdf ? 'Exporting PDF...' : 'Download PDF'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => executeModalExport('excel')}
+                disabled={exportingPdf || exportingExcel}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-md shadow-emerald-500/20 cursor-pointer disabled:opacity-50"
+              >
+                {exportingExcel ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="size-3.5" />
+                )}
+                <span>{exportingExcel ? 'Exporting Excel...' : 'Download Excel (.xlsx)'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

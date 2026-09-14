@@ -1,11 +1,13 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import {
   ArrowUpRight,
   Building2,
+  Check,
   CheckCircle2,
+  ChevronDown,
   Clock,
   GraduationCap,
   Plus,
@@ -34,6 +36,7 @@ export interface AnalyticsKPIs {
   vacantDeans: number
   totalProfessors: number
   totalStudents: number
+  totalCohorts: number
   totalExams: number
   totalModules: number
 }
@@ -52,8 +55,15 @@ export interface FacultyCapacity {
   studentsCount: number
   professorsCount: number
   modulesCount: number
+  cohortsCount: number
+  examsCount?: number
   hasDean: boolean
   deanName?: string
+}
+
+export interface FacultyOption {
+  id: string
+  name: string
 }
 
 export default function SuperadminAnalyticsDashboard() {
@@ -61,12 +71,19 @@ export default function SuperadminAnalyticsDashboard() {
   const [refreshing, setRefreshing] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
+  // Scope Filter & Dropdown State
+  const [selectedFacultyFilter, setSelectedFacultyFilter] = useState<string>('all')
+  const [facultyDropdownOpen, setFacultyDropdownOpen] = useState(false)
+  const [facultiesList, setFacultiesList] = useState<FacultyOption[]>([])
+  const facultyDropdownRef = useRef<HTMLDivElement>(null)
+
   const [kpis, setKpis] = useState<AnalyticsKPIs>({
     totalFaculties: 0,
     assignedDeans: 0,
     vacantDeans: 0,
     totalProfessors: 0,
     totalStudents: 0,
+    totalCohorts: 0,
     totalExams: 0,
     totalModules: 0,
   })
@@ -79,18 +96,26 @@ export default function SuperadminAnalyticsDashboard() {
 
   const [facultyData, setFacultyData] = useState<FacultyCapacity[]>([])
 
-  const fetchAnalyticsData = async (isManualRefresh = false) => {
+  const fetchAnalyticsData = async (isManualRefresh = false, facultyId = selectedFacultyFilter) => {
     if (isManualRefresh) setRefreshing(true)
     else setLoading(true)
 
     try {
-      const res = await fetch('/api/superadmin/analytics')
+      const params = new URLSearchParams()
+      if (facultyId && facultyId !== 'all') {
+        params.set('faculty_id', facultyId)
+      }
+
+      const res = await fetch(`/api/superadmin/analytics?${params.toString()}`)
       if (res.ok) {
         const data = await res.json()
         if (data.success) {
           setKpis(data.kpis)
           setStudyLevels(data.studyLevelDistribution || [])
           setFacultyData(data.facultyCapacity || [])
+          if (data.facultiesList) {
+            setFacultiesList(data.facultiesList)
+          }
         }
       }
     } catch {
@@ -105,6 +130,34 @@ export default function SuperadminAnalyticsDashboard() {
     fetchAnalyticsData()
   }, [])
 
+  // Outside click & Escape listener for faculty dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (facultyDropdownRef.current && !facultyDropdownRef.current.contains(event.target as Node)) {
+        setFacultyDropdownOpen(false)
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setFacultyDropdownOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [])
+
+  const handleSelectFaculty = (facultyId: string) => {
+    setSelectedFacultyFilter(facultyId)
+    setFacultyDropdownOpen(false)
+    fetchAnalyticsData(false, facultyId)
+  }
+
   const filteredFaculties = facultyData.filter((f) =>
     f.facultyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     f.shortName.toLowerCase().includes(searchQuery.toLowerCase())
@@ -112,7 +165,7 @@ export default function SuperadminAnalyticsDashboard() {
 
   return (
     <div className="space-y-8">
-      {/* Top Banner & Refresh Action */}
+      {/* Top Banner & Filter Action */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 rounded-3xl p-6 sm:p-8 text-white shadow-xl shadow-blue-600/15">
         <div>
           <div className="flex items-center gap-2">
@@ -128,18 +181,92 @@ export default function SuperadminAnalyticsDashboard() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Custom Popover: Faculty Scope Selector */}
+          <div className="relative" ref={facultyDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setFacultyDropdownOpen((prev) => !prev)}
+              className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/15 hover:bg-white/25 text-white font-bold text-xs backdrop-blur-md border border-white/20 transition-all cursor-pointer shadow-sm"
+              title="Scope analytics by institution"
+            >
+              <Building2 className="size-4 text-cyan-300 shrink-0" />
+              <span className="max-w-[170px] sm:max-w-[210px] truncate">
+                {selectedFacultyFilter === 'all'
+                  ? `All Institutions (${facultiesList.length})`
+                  : facultiesList.find((f) => f.id === selectedFacultyFilter)?.name || 'Selected Faculty'}
+              </span>
+              <ChevronDown
+                className={`size-4 text-white/70 shrink-0 transition-transform duration-200 ${
+                  facultyDropdownOpen ? 'rotate-180 text-cyan-300' : ''
+                }`}
+              />
+            </button>
+
+            {facultyDropdownOpen && (
+              <div className="absolute right-0 top-full mt-2 z-50 w-72 sm:w-80 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl backdrop-blur-md p-1.5 space-y-0.5 animate-in fade-in zoom-in-95 max-h-72 overflow-y-auto">
+                <button
+                  type="button"
+                  onClick={() => handleSelectFaculty('all')}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs transition-all cursor-pointer text-left ${
+                    selectedFacultyFilter === 'all'
+                      ? 'bg-blue-500/10 text-blue-700 dark:text-blue-300 font-bold border border-blue-500/20'
+                      : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300 font-medium border border-transparent'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Building2 className="size-4 text-blue-500 shrink-0" />
+                    <span className="truncate">All Medical Faculties</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                      {facultiesList.length}
+                    </span>
+                    {selectedFacultyFilter === 'all' && (
+                      <Check className="size-3.5 text-blue-600 dark:text-blue-400" />
+                    )}
+                  </div>
+                </button>
+
+                {facultiesList.map((fac) => {
+                  const isSelected = selectedFacultyFilter === fac.id
+                  return (
+                    <button
+                      key={fac.id}
+                      type="button"
+                      onClick={() => handleSelectFaculty(fac.id)}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs transition-all cursor-pointer text-left ${
+                        isSelected
+                          ? 'bg-blue-500/10 text-blue-700 dark:text-blue-300 font-bold border border-blue-500/20'
+                          : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300 font-medium border border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <Building2 className="size-3.5 text-slate-400 shrink-0" />
+                        <span className="truncate">{fac.name}</span>
+                      </div>
+                      {isSelected && (
+                        <Check className="size-3.5 text-blue-600 dark:text-blue-400 shrink-0 ml-2" />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
           <button
-            onClick={() => fetchAnalyticsData(true)}
+            onClick={() => fetchAnalyticsData(true, selectedFacultyFilter)}
             disabled={refreshing}
-            className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/15 hover:bg-white/25 text-white font-bold text-xs backdrop-blur-md border border-white/20 transition-all disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/15 hover:bg-white/25 text-white font-bold text-xs backdrop-blur-md border border-white/20 transition-all disabled:opacity-50 cursor-pointer"
+            title="Refresh analytics data"
           >
             <RefreshCw className={`size-4 ${refreshing ? 'animate-spin' : ''}`} />
             <span>Update</span>
           </button>
           <Link
             href="/superadmin/faculties"
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-white text-blue-700 font-bold text-xs shadow-lg hover:bg-blue-50 transition-all"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-white text-blue-700 font-bold text-xs shadow-lg hover:bg-blue-50 transition-all cursor-pointer"
           >
             <Plus className="size-4" />
             Add Faculty
@@ -149,7 +276,7 @@ export default function SuperadminAnalyticsDashboard() {
 
       {/* Top Row: 4 Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* KPI 1: Faculties */}
+        {/* KPI 1: Faculties / Registered Institutions */}
         <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Faculties</span>
@@ -172,7 +299,7 @@ export default function SuperadminAnalyticsDashboard() {
           </div>
         </div>
 
-        {/* KPI 2: Provisioned Deans */}
+        {/* KPI 2: Assigned Deans / Unassigned Faculties */}
         <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Assigned Deans</span>
@@ -185,7 +312,9 @@ export default function SuperadminAnalyticsDashboard() {
               <div className="h-8 w-24 bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse" />
             ) : (
               <>
-                <span className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">{kpis.assignedDeans} / {kpis.totalFaculties}</span>
+                <span className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                  {kpis.assignedDeans} / {kpis.totalFaculties}
+                </span>
                 <div className="mt-1 flex items-center gap-1 text-xs text-slate-500 font-medium">
                   <span>{kpis.vacantDeans} unassigned faculties</span>
                 </div>
@@ -194,7 +323,7 @@ export default function SuperadminAnalyticsDashboard() {
           </div>
         </div>
 
-        {/* KPI 3: Active Professors */}
+        {/* KPI 3: Active Professors / Registered Evaluators */}
         <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Professors</span>
@@ -207,7 +336,9 @@ export default function SuperadminAnalyticsDashboard() {
               <div className="h-8 w-24 bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse" />
             ) : (
               <>
-                <span className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">{kpis.totalProfessors.toLocaleString()}</span>
+                <span className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                  {kpis.totalProfessors.toLocaleString()}
+                </span>
                 <div className="mt-1 flex items-center gap-1 text-xs text-slate-500 font-medium">
                   <span>Registered Evaluators</span>
                 </div>
@@ -216,10 +347,10 @@ export default function SuperadminAnalyticsDashboard() {
           </div>
         </div>
 
-        {/* KPI 4: Enrolled Students */}
+        {/* KPI 4: Active Cohorts / Enrolled Students */}
         <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Enrolled Students</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Cohorts</span>
             <div className="size-11 rounded-2xl bg-cyan-50 dark:bg-cyan-950/60 text-cyan-600 dark:text-cyan-400 flex items-center justify-center">
               <Users className="size-5" />
             </div>
@@ -229,9 +360,11 @@ export default function SuperadminAnalyticsDashboard() {
               <div className="h-8 w-24 bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse" />
             ) : (
               <>
-                <span className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">{kpis.totalStudents.toLocaleString()}</span>
+                <span className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                  {kpis.totalCohorts.toLocaleString()}
+                </span>
                 <div className="mt-1 flex items-center gap-1 text-xs text-slate-500 font-medium">
-                  <span>Active Cohorts</span>
+                  <span>{kpis.totalStudents.toLocaleString()} Enrolled Students</span>
                 </div>
               </>
             )}
@@ -241,13 +374,19 @@ export default function SuperadminAnalyticsDashboard() {
 
       {/* Middle Row: Visual Analytics Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-
         {/* Left Chart: Donut Chart - Students by Study Level */}
         <div className="lg:col-span-5 p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
           <div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
-              Students by Study Level
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
+                Students by Study Level
+              </h3>
+              {selectedFacultyFilter !== 'all' && (
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-900/50">
+                  Filtered
+                </span>
+              )}
+            </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Distribution across 4th Year, 5th Year & 6th Year
             </p>
@@ -274,7 +413,7 @@ export default function SuperadminAnalyticsDashboard() {
                   </Pie>
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                      backgroundColor: 'rgba(15, 23, 42, 0.95)',
                       borderColor: 'rgba(51, 65, 85, 0.6)',
                       borderRadius: '0.75rem',
                       color: '#ffffff',
@@ -285,7 +424,12 @@ export default function SuperadminAnalyticsDashboard() {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="text-center text-xs text-slate-400">No student records enrolled yet.</div>
+              <div className="text-center space-y-2">
+                <div className="size-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
+                  <Users className="size-6" />
+                </div>
+                <p className="text-xs font-semibold text-slate-400">No student records enrolled yet.</p>
+              </div>
             )}
           </div>
 
@@ -325,19 +469,27 @@ export default function SuperadminAnalyticsDashboard() {
                 <BarChart data={facultyData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.2} />
                   <XAxis dataKey="shortName" stroke="#94a3b8" fontSize={11} tickLine={false} />
-                  <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
+                  <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} allowDecimals={false} />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                      backgroundColor: 'rgba(15, 23, 42, 0.95)',
                       borderColor: 'rgba(51, 65, 85, 0.6)',
                       borderRadius: '0.75rem',
                       color: '#ffffff',
                       fontSize: '12px',
                     }}
+                    formatter={(value: any, name: any) => [
+                      `${Number(value).toLocaleString()} ${name}`,
+                      name,
+                    ]}
+                    labelFormatter={(label) => {
+                      const matched = facultyData.find((f) => f.shortName === label)
+                      return matched ? matched.facultyName : label
+                    }}
                   />
                   <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                  <Bar dataKey="studentsCount" name="Students" fill="#0284c7" radius={[6, 6, 0, 0]} />
                   <Bar dataKey="professorsCount" name="Professors" fill="#10b981" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="studentsCount" name="Students" fill="#0284c7" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -347,7 +499,6 @@ export default function SuperadminAnalyticsDashboard() {
             )}
           </div>
         </div>
-
       </div>
 
       {/* Bottom Section: Medical Faculties Overview */}
@@ -358,7 +509,7 @@ export default function SuperadminAnalyticsDashboard() {
               Medical Faculties Overview
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Institutional details and assigned deans
+              Institutional details, assigned deans, and active resource counts
             </p>
           </div>
 
@@ -382,6 +533,7 @@ export default function SuperadminAnalyticsDashboard() {
                 <th className="px-6 py-4">Assigned Dean</th>
                 <th className="px-6 py-4">Modules</th>
                 <th className="px-6 py-4">Students</th>
+                <th className="px-6 py-4">Professors</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4 text-right">Actions</th>
               </tr>
@@ -406,6 +558,9 @@ export default function SuperadminAnalyticsDashboard() {
                     </td>
                     <td className="px-6 py-4 font-mono font-semibold text-slate-900 dark:text-white">
                       {f.studentsCount.toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 font-mono font-semibold text-slate-900 dark:text-white">
+                      {f.professorsCount.toLocaleString()}
                     </td>
                     <td className="px-6 py-4">
                       {f.hasDean ? (
@@ -432,7 +587,7 @@ export default function SuperadminAnalyticsDashboard() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
                     No medical faculties found.
                   </td>
                 </tr>

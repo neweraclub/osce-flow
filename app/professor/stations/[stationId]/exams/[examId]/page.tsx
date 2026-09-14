@@ -425,6 +425,14 @@ export default function ProfessorExamQuestionsPage({
     }
   }
 
+  const mcqCount = questions.filter((q) => q.question_type === 'MCQ').length
+  const scqCount = questions.filter((q) => q.question_type === 'SCQ').length
+  const qaCount = questions.filter((q) => q.question_type === 'Q&A').length
+  const totalScalePoints = questions.reduce(
+    (sum, q) => sum + (Number(q.max_scale_value) || 10),
+    0
+  )
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Breadcrumb Navigation */}
@@ -551,6 +559,51 @@ export default function ProfessorExamQuestionsPage({
             </div>
           </div>
 
+          {/* Station Scoring Setup Status Bar / Progress Indicator */}
+          <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="size-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-200/60 dark:border-emerald-800/60 shadow-xs">
+                <Sliders className="size-5" />
+              </div>
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-xs font-bold text-slate-900 dark:text-white">
+                    Station Questions & Scoring Status
+                  </h3>
+                  <span
+                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                      questions.length > 0
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                        : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                    }`}
+                  >
+                    {questions.length > 0 ? (
+                      <>
+                        <CheckCircle2 className="size-3 text-emerald-500" />
+                        <span>{questions.length} Items Configured</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="size-3 text-amber-500" />
+                        <span>0 Items Configured</span>
+                      </>
+                    )}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Total Max Scale: <strong className="text-slate-700 dark:text-slate-200">{totalScalePoints} pts</strong> • {mcqCount} MCQ • {scqCount} SCQ • {qaCount} Q&A
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-start md:self-auto">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                <ClipboardCheck className="size-3.5 text-emerald-500" />
+                <span>{questions.length > 0 ? 'Ready for Tablet Scoring' : 'Needs Questions'}</span>
+              </div>
+            </div>
+          </div>
+
           {/* Question List Section */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -569,7 +622,7 @@ export default function ProfessorExamQuestionsPage({
                 className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold shadow-md shadow-emerald-500/25 hover:from-emerald-700 hover:to-teal-700 transition-all active:scale-[0.98]"
               >
                 <Plus className="size-4" />
-                <span>+ Add Question</span>
+                <span>Add Question</span>
               </button>
             </div>
 
@@ -582,7 +635,7 @@ export default function ProfessorExamQuestionsPage({
                   No Questions Authored Yet
                 </h3>
                 <p className="text-xs text-slate-400 max-w-md mx-auto">
-                  Click "+ Add Question" to create your first multiple choice question, single choice question, or clinical scoring task.
+                  Click "Add Question" to create your first multiple choice question, single choice question, or clinical scoring task.
                 </p>
                 <button
                   onClick={handleOpenAddQuestion}
@@ -716,270 +769,269 @@ export default function ProfessorExamQuestionsPage({
         </>
       )}
 
-      {/* --- Add / Edit Question Slide-Over / Modal --- */}
+      {/* --- Add / Edit Question Modal --- */}
       {isQuestionModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-2xl rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-5 animate-in zoom-in-95 max-h-[90vh] flex flex-col">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
-              <div className="flex items-center gap-2.5">
-                <div className="flex size-9 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-500/20">
-                  <ListPlus className="size-4" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <div className="relative w-full max-w-2xl max-h-[85vh] rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95">
+            {/* Modal Header (Fixed, never scrolls) */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="flex size-10 items-center justify-center rounded-full bg-emerald-600 text-white shadow-md shadow-emerald-600/25 shrink-0">
+                  <ListPlus className="size-5" />
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">
                     {editingQuestion ? 'Edit Question & Scoring Criteria' : 'Add Question & Scoring Criteria'}
                   </h3>
-                  <p className="text-[11px] font-semibold text-slate-400">
+                  <p className="text-xs font-medium text-slate-400">
                     Station #{station?.station_number} • {station?.title}
                   </p>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setIsQuestionModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                aria-label="Close"
               >
                 <X className="size-5" />
               </button>
             </div>
 
-            {formError && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-bold flex items-center gap-2 shrink-0">
-                <AlertTriangle className="size-4 shrink-0" />
-                <span>{formError}</span>
-              </div>
-            )}
-
             {/* Scrollable Form Body */}
-            <form onSubmit={handleSubmitQuestion} className="flex flex-col flex-1 min-h-0">
-              <div className="flex-1 overflow-y-auto space-y-4 pr-1 py-1">
-                {/* Question Text */}
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Question Prompt / Clinical Task Instructions *
-                </label>
-                <textarea
-                  rows={3}
-                  value={formText}
-                  onChange={(e) => setFormText(e.target.value)}
-                  placeholder="e.g. Which of the following is the first-line medication for acute pulmonary edema with hypertension?"
-                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  required
-                />
-              </div>
-
-              {/* Question Type & Scale */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {/* Custom Styled Question Type Dropdown */}
-                <div className="sm:col-span-2 space-y-1 relative" ref={typeDropdownRef}>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Question Type *
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setTypeDropdownOpen((prev) => !prev)}
-                    className={`w-full flex items-center justify-between px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border ${
-                      typeDropdownOpen
-                        ? 'border-emerald-500 ring-2 ring-emerald-500/20'
-                        : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                    } rounded-xl text-xs font-semibold text-slate-900 dark:text-white transition-all text-left`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                      <span className={`flex size-6 items-center justify-center rounded-lg ${selectedTypeConfig.iconBg} shrink-0`}>
-                        <selectedTypeConfig.icon className="size-3.5" />
-                      </span>
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-bold text-slate-900 dark:text-white truncate">
-                          {selectedTypeConfig.title}
-                        </span>
-                        <span className="text-[10px] text-slate-400 truncate">
-                          {selectedTypeConfig.description}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${selectedTypeConfig.badgeColor}`}>
-                        {selectedTypeConfig.badge}
-                      </span>
-                      <ChevronDown
-                        className={`size-4 text-slate-400 transition-transform duration-200 ${
-                          typeDropdownOpen ? 'rotate-180 text-emerald-500' : ''
-                        }`}
-                      />
-                    </div>
-                  </button>
-
-                  {/* Custom Dropdown Menu Popover */}
-                  {typeDropdownOpen && (
-                    <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl backdrop-blur-md p-2 space-y-1 animate-in fade-in zoom-in-95">
-                      {QUESTION_TYPES.map((t) => {
-                        const isSelected = formType === t.value
-                        const Icon = t.icon
-                        return (
-                          <button
-                            key={t.value}
-                            type="button"
-                            onClick={() => {
-                              setFormType(t.value)
-                              setTypeDropdownOpen(false)
-                            }}
-                            className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs transition-all ${
-                              isSelected
-                                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/20'
-                                : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0 text-left">
-                              <span className={`flex size-7 items-center justify-center rounded-lg ${t.iconBg} shrink-0`}>
-                                <Icon className="size-4" />
-                              </span>
-                              <div className="flex flex-col min-w-0">
-                                <span className="font-bold text-slate-900 dark:text-white truncate">
-                                  {t.title}
-                                </span>
-                                <span className="text-[10px] text-slate-400 truncate">
-                                  {t.description}
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-2 shrink-0 pl-2">
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${t.badgeColor}`}>
-                                {t.badge}
-                              </span>
-                              {isSelected && <Check className="size-4 text-emerald-600 dark:text-emerald-400" />}
-                            </div>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {/* Maximum Scale / Points Input */}
-                <div className="space-y-1 sm:col-span-1">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 truncate" title="Points (1 - 100)">
-                    {formType === 'Q&A' ? 'Max Scale *' : 'Max Points *'}
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      min={1}
-                      max={100}
-                      value={formMaxScale}
-                      onChange={(e) => setFormMaxScale(parseInt(e.target.value) || 10)}
-                      className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      required
-                    />
-                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      pts
-                    </span>
+            <form onSubmit={handleSubmitQuestion} noValidate className="flex flex-col flex-1 min-h-0">
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 custom-scrollbar min-h-0">
+                {formError && (
+                  <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-bold flex items-center gap-2.5">
+                    <AlertTriangle className="size-4 shrink-0" />
+                    <span>{formError}</span>
                   </div>
+                )}
+
+                {/* Question Text */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Question Prompt / Clinical Task Instructions *
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={formText}
+                    onChange={(e) => setFormText(e.target.value)}
+                    placeholder="e.g. Which of the following is the first-line medication for acute pulmonary edema with hypertension?"
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all resize-none"
+                  />
                 </div>
-              </div>
 
-              {/* Conditional Options Builder for MCQ / SCQ */}
-              {(formType === 'MCQ' || formType === 'SCQ') && (
-                <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                        Answer Choices & Correct Key *
-                      </label>
-                      <p className="text-[10px] text-slate-400">
-                        {formType === 'SCQ'
-                          ? 'Select the single correct radio choice'
-                          : 'Check all choices that are correct'}
-                      </p>
-                    </div>
-
+                {/* Question Type & Scale */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                  {/* Custom Styled Question Type Dropdown */}
+                  <div className="sm:col-span-2 space-y-1.5 relative" ref={typeDropdownRef}>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Question Type *
+                    </label>
                     <button
                       type="button"
-                      onClick={handleAddOption}
-                      className="flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 transition-colors"
+                      onClick={() => setTypeDropdownOpen((prev) => !prev)}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border ${
+                        typeDropdownOpen
+                          ? 'border-emerald-500 ring-2 ring-emerald-500/20'
+                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                      } rounded-2xl text-xs font-semibold text-slate-900 dark:text-white transition-all text-left`}
                     >
-                      <Plus className="size-3.5" />
-                      <span>Add Option</span>
-                    </button>
-                  </div>
-
-                  <div className="space-y-2">
-                    {formOptions.map((opt, idx) => (
-                      <div
-                        key={opt.id}
-                        className="flex items-center gap-2 p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700"
-                      >
-                        <span className="size-6 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[10px] font-black flex items-center justify-center shrink-0">
-                          {String.fromCharCode(65 + idx)}
+                      <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                        <span className={`flex size-7 items-center justify-center rounded-xl ${selectedTypeConfig.iconBg} shrink-0`}>
+                          <selectedTypeConfig.icon className="size-4" />
                         </span>
-
-                        <input
-                          type="text"
-                          value={opt.text}
-                          onChange={(e) => handleOptionTextChange(opt.id, e.target.value)}
-                          placeholder={`Option ${String.fromCharCode(65 + idx)} text...`}
-                          className="flex-1 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                          required
-                        />
-
-                        {/* Correct Selector Checkbox / Radio */}
-                        <label className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 cursor-pointer text-xs font-semibold select-none">
-                          <input
-                            type={formType === 'SCQ' ? 'radio' : 'checkbox'}
-                            name="correct_choice"
-                            checked={opt.is_correct}
-                            onChange={() => handleToggleCorrect(opt.id)}
-                            className="size-3.5 text-emerald-600 rounded focus:ring-emerald-500"
-                          />
-                          <span className={opt.is_correct ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-400'}>
-                            Correct
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-bold text-slate-900 dark:text-white truncate">
+                            {selectedTypeConfig.title}
                           </span>
-                        </label>
-
-                        {formOptions.length > 2 && (
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveOption(opt.id)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 transition-colors"
-                            aria-label="Remove Choice"
-                          >
-                            <Trash2 className="size-3.5" />
-                          </button>
-                        )}
+                          <span className="text-[10px] text-slate-400 truncate">
+                            {selectedTypeConfig.description}
+                          </span>
+                        </div>
                       </div>
-                    ))}
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${selectedTypeConfig.badgeColor}`}>
+                          {selectedTypeConfig.badge}
+                        </span>
+                        <ChevronDown
+                          className={`size-4 text-slate-400 transition-transform duration-200 ${
+                            typeDropdownOpen ? 'rotate-180 text-emerald-500' : ''
+                          }`}
+                        />
+                      </div>
+                    </button>
+
+                    {/* Custom Dropdown Menu Popover */}
+                    {typeDropdownOpen && (
+                      <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl backdrop-blur-md p-2 space-y-1 animate-in fade-in zoom-in-95">
+                        {QUESTION_TYPES.map((t) => {
+                          const isSelected = formType === t.value
+                          const Icon = t.icon
+                          return (
+                            <button
+                              key={t.value}
+                              type="button"
+                              onClick={() => {
+                                setFormType(t.value)
+                                setTypeDropdownOpen(false)
+                              }}
+                              className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs transition-all ${
+                                isSelected
+                                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/20'
+                                  : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0 text-left">
+                                <span className={`flex size-7 items-center justify-center rounded-lg ${t.iconBg} shrink-0`}>
+                                  <Icon className="size-4" />
+                                </span>
+                                <div className="flex flex-col min-w-0">
+                                  <span className="font-bold text-slate-900 dark:text-white truncate">
+                                    {t.title}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 truncate">
+                                    {t.description}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0 pl-2">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${t.badgeColor}`}>
+                                  {t.badge}
+                                </span>
+                                {isSelected && <Check className="size-4 text-emerald-600 dark:text-emerald-400" />}
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Maximum Scale / Points Input */}
+                  <div className="space-y-1.5 sm:col-span-1">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 truncate">
+                      {formType === 'Q&A' ? 'Max Scale *' : 'Max Points *'}
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={formMaxScale}
+                        onChange={(e) => setFormMaxScale(parseInt(e.target.value) || 10)}
+                        className="w-full pl-3.5 pr-11 py-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                      />
+                      <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        PTS
+                      </span>
+                    </div>
                   </div>
                 </div>
-              )}
 
-              {/* Conditional Guidelines for Q&A */}
-              {formType === 'Q&A' && (
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-2 text-xs">
-                  <h4 className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                    <Sliders className="size-4 text-emerald-500" />
-                    <span>Clinical Competency Scale (0 – {formMaxScale} pts)</span>
-                  </h4>
-                  <p className="text-slate-500 dark:text-slate-400 leading-relaxed">
-                    Evaluator professors grade the student live during the examination using an incremental sliding scale.
-                  </p>
-                </div>
-              )}
+                {/* Conditional Options Builder for MCQ / SCQ */}
+                {(formType === 'MCQ' || formType === 'SCQ') && (
+                  <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                          Answer Choices & Correct Key *
+                        </label>
+                        <p className="text-[10px] text-slate-400">
+                          {formType === 'SCQ'
+                            ? 'Select the single correct radio choice'
+                            : 'Check all choices that are correct'}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleAddOption}
+                        className="flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 transition-colors"
+                      >
+                        <Plus className="size-3.5" />
+                        <span>Add Option</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {formOptions.map((opt, idx) => (
+                        <div
+                          key={opt.id}
+                          className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 transition-all hover:border-slate-300 dark:hover:border-slate-600"
+                        >
+                          <span className="size-7 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-black text-slate-700 dark:text-slate-200 flex items-center justify-center shrink-0 shadow-xs">
+                            {String.fromCharCode(65 + idx)}
+                          </span>
+
+                          <input
+                            type="text"
+                            value={opt.text}
+                            onChange={(e) => handleOptionTextChange(opt.id, e.target.value)}
+                            placeholder={`Option ${String.fromCharCode(65 + idx)} text...`}
+                            className="flex-1 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                          />
+
+                          {/* Correct Selector Checkbox / Radio */}
+                          <label className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 cursor-pointer text-xs font-semibold select-none transition-colors">
+                            <input
+                              type={formType === 'SCQ' ? 'radio' : 'checkbox'}
+                              name="correct_choice"
+                              checked={opt.is_correct}
+                              onChange={() => handleToggleCorrect(opt.id)}
+                              className="size-4 text-emerald-600 rounded focus:ring-emerald-500 accent-emerald-600"
+                            />
+                            <span className={opt.is_correct ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-400'}>
+                              Correct
+                            </span>
+                          </label>
+
+                          {formOptions.length > 2 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveOption(opt.id)}
+                              className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+                              aria-label="Remove Choice"
+                            >
+                              <Trash2 className="size-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Conditional Guidelines for Q&A */}
+                {formType === 'Q&A' && (
+                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-2 text-xs">
+                    <h4 className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <Sliders className="size-4 text-emerald-500" />
+                      <span>Clinical Competency Scale (0 – {formMaxScale} pts)</span>
+                    </h4>
+                    <p className="text-slate-500 dark:text-slate-400 leading-relaxed">
+                      Evaluator professors grade the student live during the examination using an incremental sliding scale.
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {/* Modal Submit Footer */}
-              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800 shrink-0">
+              {/* Fixed Modal Submit Footer */}
+              <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-slate-100 dark:border-slate-800 shrink-0 bg-slate-50/50 dark:bg-slate-900/50">
                 <button
                   type="button"
                   onClick={() => setIsQuestionModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/25 hover:bg-emerald-700 transition-all disabled:opacity-50"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/25 hover:bg-emerald-700 transition-all disabled:opacity-50 active:scale-[0.98]"
                 >
                   {submitting ? (
                     <>

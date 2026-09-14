@@ -29,6 +29,7 @@ import {
   RefreshCw,
   Search,
   ShieldCheck,
+  Sliders,
   Sparkles,
   Trash2,
   X,
@@ -1020,8 +1021,8 @@ export default function ProfessorStationsPage() {
       {/* ========================================================================= */}
       {isCreateSessionOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-5 animate-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div className="relative w-full max-w-md max-h-[85vh] rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="flex size-9 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-500/20">
                   <Calendar className="size-4" />
@@ -1036,97 +1037,101 @@ export default function ProfessorStationsPage() {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setIsCreateSessionOpen(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                aria-label="Close"
               >
                 <X className="size-5" />
               </button>
             </div>
 
-            {sessionError && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-bold flex items-center gap-2">
-                <AlertTriangle className="size-4 shrink-0" />
-                <span>{sessionError}</span>
-              </div>
-            )}
+            <form onSubmit={handleCreateSessionSubmit} noValidate className="flex flex-col flex-1 min-h-0">
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 custom-scrollbar min-h-0">
+                {sessionError && (
+                  <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-bold flex items-center gap-2">
+                    <AlertTriangle className="size-4 shrink-0" />
+                    <span>{sessionError}</span>
+                  </div>
+                )}
 
-            <form onSubmit={handleCreateSessionSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Session Type *
-                  </label>
-                  <span className="text-[10px] text-slate-400 font-semibold">
-                    1 Regular + 1 Retake max
-                  </span>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Session Type *
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-semibold">
+                      1 Regular + 1 Retake max
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      disabled={hasRegularSession}
+                      onClick={() => setSessionType('regular')}
+                      className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl border text-xs font-bold transition-all relative ${
+                        hasRegularSession
+                          ? 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60'
+                          : sessionType === 'regular'
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500/20'
+                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle2 className={`size-4 ${hasRegularSession ? 'text-slate-400' : 'text-emerald-500'}`} />
+                        <span>Regular Session</span>
+                      </div>
+                      {hasRegularSession && (
+                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
+                          (Already Created)
+                        </span>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={hasRetakeSession}
+                      onClick={() => setSessionType('retake')}
+                      className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl border text-xs font-bold transition-all relative ${
+                        hasRetakeSession
+                          ? 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60'
+                          : sessionType === 'retake'
+                          ? 'bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 ring-2 ring-purple-500/20'
+                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <Layers className={`size-4 ${hasRetakeSession ? 'text-slate-400' : 'text-purple-500'}`} />
+                        <span>Retake Session</span>
+                      </div>
+                      {hasRetakeSession && (
+                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
+                          (Already Created)
+                        </span>
+                      )}
+                    </button>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    disabled={hasRegularSession}
-                    onClick={() => setSessionType('regular')}
-                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl border text-xs font-bold transition-all relative ${
-                      hasRegularSession
-                        ? 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60'
-                        : sessionType === 'regular'
-                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500/20'
-                        : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <CheckCircle2 className={`size-4 ${hasRegularSession ? 'text-slate-400' : 'text-emerald-500'}`} />
-                      <span>Regular Session</span>
-                    </div>
-                    {hasRegularSession && (
-                      <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
-                        (Already Created)
-                      </span>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={hasRetakeSession}
-                    onClick={() => setSessionType('retake')}
-                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl border text-xs font-bold transition-all relative ${
-                      hasRetakeSession
-                        ? 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60'
-                        : sessionType === 'retake'
-                        ? 'bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 ring-2 ring-purple-500/20'
-                        : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <Layers className={`size-4 ${hasRetakeSession ? 'text-slate-400' : 'text-purple-500'}`} />
-                      <span>Retake Session</span>
-                    </div>
-                    {hasRetakeSession && (
-                      <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
-                        (Already Created)
-                      </span>
-                    )}
-                  </button>
-                </div>
+                {/* Exam Date Picker */}
+                <DatePicker
+                  label="Exam Date"
+                  required
+                  value={examDate}
+                  onChange={(newDate) => setExamDate(newDate)}
+                  disablePastDates={true}
+                  placeholder="Select upcoming exam date..."
+                  variant="emerald"
+                  format="MMM DD, YYYY"
+                />
               </div>
 
-              {/* Exam Date Picker */}
-              <DatePicker
-                label="Exam Date"
-                required
-                value={examDate}
-                onChange={(newDate) => setExamDate(newDate)}
-                disablePastDates={true}
-                placeholder="Select upcoming exam date..."
-                variant="emerald"
-                format="MMM DD, YYYY"
-              />
-
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-slate-100 dark:border-slate-800 shrink-0 bg-slate-50/50 dark:bg-slate-900/50">
                 <button
                   type="button"
                   onClick={() => setIsCreateSessionOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
                 >
                   Cancel
                 </button>
@@ -1151,216 +1156,292 @@ export default function ProfessorStationsPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 2: CREATE CLINICAL STATION MODAL (Premium Redesign)                  */}
+      {/* MODAL 2: CREATE CLINICAL STATION MODAL (With Dedicated Capacity Sidebar)  */}
       {/* ========================================================================= */}
       {isCreateStationOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl animate-in zoom-in-95 overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <div className="relative w-full max-w-3xl max-h-[85vh] rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95">
             {/* Decorative top gradient bar */}
-            <div className="h-1 w-full bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600" />
+            <div className="h-1 w-full bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 shrink-0" />
 
-            <div className="p-6 space-y-5">
-              {/* Header */}
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25">
-                    <ClipboardCheck className="size-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                      Create Clinical Station
-                    </h3>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800">
-                        {activeModule?.module_name}
-                      </span>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
-                        activeExam?.session_type === 'retake'
-                          ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400 border-purple-200/60 dark:border-purple-800'
-                          : 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border-blue-200/60 dark:border-blue-800'
-                      }`}>
-                        {activeExam?.session_type === 'retake' ? 'Retake Session' : 'Regular Session'}
-                      </span>
-                    </div>
+            {/* Fixed Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25 shrink-0">
+                  <ClipboardCheck className="size-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Create Clinical Station
+                  </h3>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800">
+                      {activeModule?.module_name}
+                    </span>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                      activeExam?.session_type === 'retake'
+                        ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400 border-purple-200/60 dark:border-purple-800'
+                        : 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border-blue-200/60 dark:border-blue-800'
+                    }`}>
+                      {activeExam?.session_type === 'retake' ? 'Retake Session' : 'Regular Session'}
+                    </span>
                   </div>
                 </div>
-                <button
-                  onClick={() => setIsCreateStationOpen(false)}
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-                >
-                  <X className="size-5" />
-                </button>
               </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateStationOpen(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                aria-label="Close"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
 
-              {stationError && (
-                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-bold flex items-center gap-2">
-                  <AlertTriangle className="size-4 shrink-0" />
-                  <span>{stationError}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleCreateStationSubmit} className="space-y-4">
-                {/* Station # & Weightage Row */}
-                <div className="grid grid-cols-5 gap-3">
-                  <div className="col-span-2 space-y-1.5">
-                    <label className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
-                      <Hash className="size-3 text-slate-400" />
-                      Station Number *
-                    </label>
-                    <div className="relative">
-                      <Hash className="size-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input
-                        type="number"
-                        min={1}
-                        value={formStationNumber}
-                        onChange={(e) => setFormStationNumber(Number(e.target.value) || 1)}
-                        className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="col-span-3 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
-                        <Percent className="size-3 text-slate-400" />
-                        Weightage *
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setFormWeightage(availableWeightage)}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer transition-colors border border-transparent hover:border-emerald-200/60"
-                        title="Click to auto-fill remaining weightage"
-                      >
-                        Avail: {availableWeightage}%
-                      </button>
-                    </div>
-                    <div className="relative">
-                      <Percent className="size-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input
-                        type="number"
-                        step="0.01"
-                        min={0.01}
-                        max={100}
-                        value={formWeightage}
-                        onChange={(e) => setFormWeightage(Number(e.target.value) || 0)}
-                        className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
-                        required
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Station Title */}
-                <div className="space-y-1.5">
-                  <label className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
-                    <FileText className="size-3 text-slate-400" />
-                    Station Title *
-                  </label>
-                  <div className="relative">
-                    <FileText className="size-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="text"
-                      value={formTitle}
-                      onChange={(e) => setFormTitle(e.target.value)}
-                      placeholder="e.g. Station 1: Cardiovascular OSCE"
-                      className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Live Scoring Access PIN */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
-                      <KeyRound className="size-3 text-slate-400" />
-                      Live Scoring Tablet PIN *
-                    </label>
-                    <button
-                      type="button"
-                      onClick={generateRandomPin}
-                      className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
-                    >
-                      <Sparkles className="size-3" />
-                      <span>Generate Random</span>
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <KeyRound className="size-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type={formShowPin ? 'text' : 'password'}
-                      value={formAccessPin}
-                      onChange={(e) => setFormAccessPin(e.target.value)}
-                      placeholder="e.g. 748291"
-                      className="w-full pl-9 pr-10 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold tracking-wider focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setFormShowPin(!formShowPin)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-                    >
-                      {formShowPin ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Live Station Preview Card */}
-                {formTitle.trim() && (
-                  <div className="p-3.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 space-y-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Preview</span>
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[10px] font-black shadow-sm shrink-0">
-                          <ClipboardCheck className="size-2.5" />
-                          #{formStationNumber}
-                        </span>
-                        <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">
-                          {formTitle.trim()}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800 tabular-nums">
-                          {formWeightage}%
-                        </span>
-                        <span className="font-mono text-[10px] text-slate-400">
-                          PIN: {formShowPin ? (formAccessPin || '—') : '••••••'}
-                        </span>
-                      </div>
-                    </div>
+            {/* Form wrapping scrollable content and fixed footer */}
+            <form onSubmit={handleCreateStationSubmit} noValidate className="flex flex-col flex-1 min-h-0">
+              <div className="flex-1 overflow-y-auto px-6 py-5 custom-scrollbar min-h-0">
+                {stationError && (
+                  <div className="mb-4 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-bold flex items-center gap-2">
+                    <AlertTriangle className="size-4 shrink-0" />
+                    <span>{stationError}</span>
                   </div>
                 )}
 
-                {/* Action Buttons */}
-                <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800">
-                  <button
-                    type="button"
-                    onClick={() => setIsCreateStationOpen(false)}
-                    className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submittingStation}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/30 hover:from-emerald-700 hover:to-teal-700 transition-all disabled:opacity-50 active:scale-[0.98]"
-                  >
-                    {submittingStation ? (
-                      <>
-                        <Loader2 className="size-4 animate-spin" />
-                        <span>Creating...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="size-4" />
-                        <span>Create Station</span>
-                      </>
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                  {/* Left Dedicated Sidebar / Status & Capacity Indicator */}
+                  <div className="md:col-span-5 space-y-4">
+                    <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
+                          Session Capacity
+                        </span>
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                            isFullyAllocated
+                              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                              : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                          }`}
+                        >
+                          {isFullyAllocated ? (
+                            <CheckCircle2 className="size-3 text-emerald-500" />
+                          ) : (
+                            <AlertCircle className="size-3 text-amber-500" />
+                          )}
+                          <span>{isFullyAllocated ? '100% Full' : `${availableWeightage}% Left`}</span>
+                        </span>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="space-y-1.5">
+                        <div className="h-2.5 w-full bg-slate-200/80 dark:bg-slate-700 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              isFullyAllocated
+                                ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
+                                : 'bg-gradient-to-r from-amber-500 to-orange-500'
+                            }`}
+                            style={{ width: `${Math.min(100, totalSessionWeightage)}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
+                          <span>Allocated: {totalSessionWeightage}%</span>
+                          <span>Remaining: {availableWeightage}%</span>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500 dark:text-slate-400">Stations Configured:</span>
+                          <span className="font-bold text-slate-900 dark:text-white">
+                            {activeSessionStations.length}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500 dark:text-slate-400">Next Recommended:</span>
+                          <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                            Station #{formStationNumber}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/40 text-[11px] text-emerald-800 dark:text-emerald-300 space-y-1.5">
+                      <p className="font-bold flex items-center gap-1.5">
+                        <Sliders className="size-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <span>Weightage Distribution</span>
+                      </p>
+                      <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-[10px]">
+                        The entire session requires a 100.00% total weightage. You can click the "Avail" button in the form to automatically fill the remaining available percentage.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Right Form Fields */}
+                  <div className="md:col-span-7 space-y-4">
+                    {/* Station # & Weightage Row */}
+                    <div className="grid grid-cols-5 gap-3">
+                      <div className="col-span-2 space-y-1.5">
+                        <label className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
+                          <Hash className="size-3 text-slate-400" />
+                          Station Number *
+                        </label>
+                        <div className="relative">
+                          <Hash className="size-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="number"
+                            min={1}
+                            value={formStationNumber}
+                            onChange={(e) => setFormStationNumber(Number(e.target.value) || 1)}
+                            className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="col-span-3 space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <label className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
+                            <Percent className="size-3 text-slate-400" />
+                            Weightage *
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setFormWeightage(availableWeightage)}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer transition-colors border border-transparent hover:border-emerald-200/60"
+                            title="Click to auto-fill remaining weightage"
+                          >
+                            Avail: {availableWeightage}%
+                          </button>
+                        </div>
+                        <div className="relative">
+                          <Percent className="size-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="number"
+                            step="0.01"
+                            min={0.01}
+                            max={100}
+                            value={formWeightage}
+                            onChange={(e) => setFormWeightage(Number(e.target.value) || 0)}
+                            className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                            required
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Station Title */}
+                    <div className="space-y-1.5">
+                      <label className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
+                        <FileText className="size-3 text-slate-400" />
+                        Station Title *
+                      </label>
+                      <div className="relative">
+                        <FileText className="size-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          value={formTitle}
+                          onChange={(e) => setFormTitle(e.target.value)}
+                          placeholder="e.g. Station 1: Cardiovascular OSCE"
+                          className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Live Scoring Access PIN */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
+                          <KeyRound className="size-3 text-slate-400" />
+                          Live Scoring Tablet PIN *
+                        </label>
+                        <button
+                          type="button"
+                          onClick={generateRandomPin}
+                          className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
+                        >
+                          <Sparkles className="size-3" />
+                          <span>Generate Random</span>
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <KeyRound className="size-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type={formShowPin ? 'text' : 'password'}
+                          value={formAccessPin}
+                          onChange={(e) => setFormAccessPin(e.target.value)}
+                          placeholder="e.g. 748291"
+                          className="w-full pl-9 pr-10 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold tracking-wider focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setFormShowPin(!formShowPin)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                        >
+                          {formShowPin ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Live Station Preview Card */}
+                    {formTitle.trim() && (
+                      <div className="p-3.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 space-y-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Preview</span>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[10px] font-black shadow-sm shrink-0">
+                              <ClipboardCheck className="size-2.5" />
+                              #{formStationNumber}
+                            </span>
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">
+                              {formTitle.trim()}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800 tabular-nums">
+                              {formWeightage}%
+                            </span>
+                            <span className="font-mono text-[10px] text-slate-400">
+                              PIN: {formShowPin ? (formAccessPin || '—') : '••••••'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     )}
-                  </button>
+                  </div>
                 </div>
-              </form>
-            </div>
+              </div>
+
+              {/* Fixed Modal Action Buttons Footer */}
+              <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-slate-100 dark:border-slate-800 shrink-0 bg-slate-50/50 dark:bg-slate-900/50">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateStationOpen(false)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingStation}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/30 hover:from-emerald-700 hover:to-teal-700 transition-all disabled:opacity-50 active:scale-[0.98]"
+                >
+                  {submittingStation ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      <span>Creating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="size-4" />
+                      <span>Create Station</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -1370,8 +1451,8 @@ export default function ProfessorStationsPage() {
       {/* ========================================================================= */}
       {editingStation && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-5 animate-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div className="relative w-full max-w-md max-h-[85vh] rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/20">
                   <Edit2 className="size-4" />
@@ -1391,71 +1472,75 @@ export default function ProfessorStationsPage() {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setEditingStation(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                aria-label="Close"
               >
                 <X className="size-5" />
               </button>
             </div>
 
-            {editError && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-bold flex items-center gap-2">
-                <AlertTriangle className="size-4 shrink-0" />
-                <span>{editError}</span>
-              </div>
-            )}
+            <form onSubmit={handleEditStationSubmit} noValidate className="flex flex-col flex-1 min-h-0">
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 custom-scrollbar min-h-0">
+                {editError && (
+                  <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-bold flex items-center gap-2">
+                    <AlertTriangle className="size-4 shrink-0" />
+                    <span>{editError}</span>
+                  </div>
+                )}
 
-            <form onSubmit={handleEditStationSubmit} className="space-y-4">
-              <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Station # *
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={editStationNumber}
+                      onChange={(e) => setEditStationNumber(Number(e.target.value) || 1)}
+                      className="w-full px-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold"
+                      required
+                    />
+                  </div>
+
+                  <div className="col-span-2 space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Weightage % *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min={0.01}
+                      max={100}
+                      value={editWeightage}
+                      onChange={(e) => setEditWeightage(Number(e.target.value) || 0)}
+                      className="w-full px-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold"
+                      required
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Station # *
+                    Station Title *
                   </label>
                   <input
-                    type="number"
-                    min={1}
-                    value={editStationNumber}
-                    onChange={(e) => setEditStationNumber(Number(e.target.value) || 1)}
-                    className="w-full px-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold"
-                    required
-                  />
-                </div>
-
-                <div className="col-span-2 space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Weightage % *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min={0.01}
-                    max={100}
-                    value={editWeightage}
-                    onChange={(e) => setEditWeightage(Number(e.target.value) || 0)}
-                    className="w-full px-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold"
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
                     required
                   />
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Station Title *
-                </label>
-                <input
-                  type="text"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
-                  required
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-slate-100 dark:border-slate-800 shrink-0 bg-slate-50/50 dark:bg-slate-900/50">
                 <button
                   type="button"
                   onClick={() => setEditingStation(null)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
                 >
                   Cancel
                 </button>

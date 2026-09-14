@@ -401,13 +401,9 @@ export async function GET(req: NextRequest) {
       const totalScore = evaluatedStations.reduce((sum, s) => sum + s.contribution, 0)
       const finalScore = Math.min(20, Math.round(totalScore * 100) / 100)
 
-      let status: 'passed' | 'failed' | 'in_progress' | 'pending' = 'pending'
+      let status: 'passed' | 'failed' | 'pending' = 'pending'
       if (evaluatedCount > 0) {
-        if (totalStationsCount > 0 && evaluatedCount >= totalStationsCount) {
-          status = finalScore >= 10.0 ? 'passed' : 'failed'
-        } else {
-          status = 'in_progress'
-        }
+        status = finalScore >= 10.0 ? 'passed' : 'failed'
       }
 
       // Latest attempt date
@@ -455,8 +451,6 @@ export async function GET(req: NextRequest) {
         filteredStudents = filteredStudents.filter((s) => s.status === 'passed')
       } else if (statusParam === 'failed') {
         filteredStudents = filteredStudents.filter((s) => s.status === 'failed')
-      } else if (statusParam === 'in_progress') {
-        filteredStudents = filteredStudents.filter((s) => s.status === 'in_progress')
       } else if (statusParam === 'pending') {
         filteredStudents = filteredStudents.filter((s) => s.status === 'pending')
       } else if (statusParam === 'evaluated') {

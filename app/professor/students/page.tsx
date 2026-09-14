@@ -84,7 +84,7 @@ interface StudentDirectoryRecord {
   total_stations_count: number
   final_score: number | null
   is_passed: boolean
-  status: 'passed' | 'failed' | 'in_progress' | 'pending'
+  status: 'passed' | 'failed' | 'pending'
   latest_attempt_date: string | null
   assigned_modules: string[]
 }
@@ -102,7 +102,7 @@ interface FilterModuleOption {
   level_id: string
 }
 
-type StatusFilter = 'all' | 'passed' | 'failed' | 'in_progress' | 'pending'
+type StatusFilter = 'all' | 'passed' | 'failed' | 'pending'
 type SortOrder = 'name_asc' | 'name_desc' | 'score_desc' | 'score_asc' | 'matricule_asc'
 
 const SORT_OPTIONS: { value: SortOrder; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -117,7 +117,6 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string; icon: React.Componen
   { value: 'all', label: 'All Candidates', icon: Layers },
   { value: 'passed', label: 'Passed (>= 10/20)', icon: CheckCircle2 },
   { value: 'failed', label: 'Retake Required (< 10/20)', icon: AlertCircle },
-  { value: 'in_progress', label: 'In Progress', icon: Clock },
   { value: 'pending', label: 'Pending Evaluation', icon: MinusCircle },
 ]
 
@@ -2034,8 +2033,6 @@ function ProfessorStudentsContent() {
                       ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
                       : st.status === 'failed'
                       ? 'bg-gradient-to-r from-rose-500 to-amber-500'
-                      : st.status === 'in_progress'
-                      ? 'bg-gradient-to-r from-amber-400 to-yellow-500'
                       : 'bg-slate-200 dark:bg-slate-800'
                   }`}
                 />
@@ -2079,22 +2076,17 @@ function ProfessorStudentsContent() {
                           ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                           : st.status === 'failed'
                           ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
-                          : st.status === 'in_progress'
-                          ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
                           : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
                       }`}
                     >
                       {st.status === 'passed' && <CheckCircle2 className="size-3 text-emerald-500" />}
                       {st.status === 'failed' && <AlertCircle className="size-3 text-rose-500" />}
-                      {st.status === 'in_progress' && <Clock className="size-3 text-amber-500" />}
                       {st.status === 'pending' && <MinusCircle className="size-3 text-slate-400" />}
                       <span>
                         {st.status === 'passed'
                           ? 'PASSED'
                           : st.status === 'failed'
                           ? 'RETAKE'
-                          : st.status === 'in_progress'
-                          ? 'IN PROGRESS'
                           : 'PENDING'}
                       </span>
                     </span>
@@ -2285,22 +2277,17 @@ function ProfessorStudentsContent() {
                               ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                               : st.status === 'failed'
                               ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
-                              : st.status === 'in_progress'
-                              ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
                               : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
                           }`}
                         >
                           {st.status === 'passed' && <CheckCircle2 className="size-3 text-emerald-500" />}
                           {st.status === 'failed' && <AlertCircle className="size-3 text-rose-500" />}
-                          {st.status === 'in_progress' && <Clock className="size-3 text-amber-500" />}
                           {st.status === 'pending' && <MinusCircle className="size-3 text-slate-400" />}
                           <span>
                             {st.status === 'passed'
                               ? 'PASSED'
                               : st.status === 'failed'
                               ? 'RETAKE'
-                              : st.status === 'in_progress'
-                              ? 'IN PROGRESS'
                               : 'PENDING'}
                           </span>
                         </span>

@@ -937,8 +937,6 @@ export function exportBulkStudentsToPDF(
           ? 'PASSED'
           : st.status === 'failed'
           ? 'RETAKE'
-          : st.status === 'in_progress'
-          ? 'IN PROGRESS'
           : 'PENDING'
 
       const cohortStr = `${st.section_name || ''} ${st.group_name ? '• ' + st.group_name : ''}`.trim() || 'General'

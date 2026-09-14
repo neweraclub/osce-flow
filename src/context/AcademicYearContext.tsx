@@ -100,6 +100,17 @@ export function AcademicYearProvider({ children }: { children: React.ReactNode }
     loadYears()
   }, [loadYears])
 
+  // Synchronize academic year changes across browser tabs/windows
+  useEffect(() => {
+    function handleStorage(e: StorageEvent) {
+      if (e.key === 'selected_academic_year_id' && e.newValue) {
+        setSelectedYearIdState(e.newValue)
+      }
+    }
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [])
+
   const setSelectedYearId = (id: string) => {
     setSelectedYearIdState(id)
     if (typeof window !== 'undefined') {

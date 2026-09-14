@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
       academicYears.find((y) => y.is_current) ||
       (academicYears.length > 0 ? academicYears[0] : null)
 
-    const activeYearId = activeYear ? activeYear.id : null
+    const activeYearId = academicYearIdParam || (activeYear ? activeYear.id : null)
 
     // 3. Fetch Study Levels Scoped by Active Year
     let studyLevels: any[] = []
@@ -72,9 +72,9 @@ export async function GET(req: NextRequest) {
 
     if (modErr) throw modErr
 
-    // Filter modules by active academic year levels if specified
+    // Filter modules strictly by active academic year levels if specified
     const assignedModules = (rawProfModules || []).filter((m) => {
-      if (activeYearId && levelIds.length > 0) {
+      if (activeYearId) {
         return levelIds.includes(m.level_id)
       }
       return true

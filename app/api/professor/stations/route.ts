@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
       academicYears.find((y) => y.is_current) ||
       (academicYears.length > 0 ? academicYears[0] : null)
 
-    const activeYearId = activeYear ? activeYear.id : null
+    const activeYearId = academicYearIdParam || (activeYear ? activeYear.id : null)
 
     // 2. Fetch study levels scoped by active year
     let studyLevels: any[] = []
@@ -70,9 +70,9 @@ export async function GET(req: NextRequest) {
 
     if (modErr) throw modErr
 
-    // Scope to active study levels if activeYearId was provided and levels exist
+    // Scope strictly to active study levels if activeYearId was provided
     const activeModules = (rawProfModules || []).filter((m) => {
-      if (activeYearId && levelIds.length > 0) {
+      if (activeYearId) {
         return levelIds.includes(m.level_id)
       }
       return true
@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
     const activeModuleIds = activeModules.map((m) => m.id)
     const moduleMap = new Map(activeModules.map((m) => [m.id, m]))
 
-    if (activeModuleIds.length === 0 && !examIdParam && !moduleIdParam) {
+    if (activeModuleIds.length === 0 && !examIdParam) {
       return NextResponse.json({
         success: true,
         stations: [],
@@ -98,6 +98,14 @@ export async function GET(req: NextRequest) {
     if (examIdParam) {
       examsQuery = examsQuery.eq('id', examIdParam)
     } else if (moduleIdParam) {
+      if (activeYearId && !activeModuleIds.includes(moduleIdParam)) {
+        return NextResponse.json({
+          success: true,
+          stations: [],
+          academicYears,
+          activeYearId,
+        })
+      }
       examsQuery = examsQuery.eq('module_id', moduleIdParam)
     } else if (activeModuleIds.length > 0) {
       examsQuery = examsQuery.in('module_id', activeModuleIds)

@@ -168,7 +168,7 @@ export default function ProfessorStationsPage() {
       const yearQuery = targetYearId ? `?academic_year_id=${targetYearId}` : ''
       const [modulesRes, examsRes, stationsRes] = await Promise.all([
         fetch(`/api/professor/modules${yearQuery}`),
-        fetch(`/api/professor/exams`),
+        fetch(`/api/professor/exams${yearQuery}`),
         fetch(`/api/professor/stations${yearQuery}`),
       ])
 
@@ -558,7 +558,7 @@ export default function ProfessorStationsPage() {
         </div>
 
         <button
-          onClick={() => fetchData(null, true)}
+          onClick={() => fetchData(selectedYearId, true)}
           disabled={refreshing || loading}
           className="flex items-center justify-center gap-2 px-4 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-xs disabled:opacity-50 self-start sm:self-auto"
         >

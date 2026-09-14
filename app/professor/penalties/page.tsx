@@ -85,7 +85,7 @@ const SORT_OPTIONS: { value: SortField; label: string; icon: React.ComponentType
 ]
 
 export default function ProfessorPenaltiesPage() {
-  const { selectedYear } = useAcademicYear()
+  const { selectedYear, selectedYearId } = useAcademicYear()
   const { showError, showSuccess } = useToast()
 
   const [loading, setLoading] = useState(true)
@@ -155,8 +155,9 @@ export default function ProfessorPenaltiesPage() {
 
     try {
       const params = new URLSearchParams()
-      if (selectedYear?.id) {
-        params.set('academic_year_id', selectedYear.id)
+      const targetYearId = selectedYearId || selectedYear?.id
+      if (targetYearId) {
+        params.set('academic_year_id', targetYearId)
       }
       if (selectedModuleId && selectedModuleId !== 'all') {
         params.set('module_id', selectedModuleId)
@@ -198,10 +199,16 @@ export default function ProfessorPenaltiesPage() {
     }
   }
 
+  // Reset module and station selections when active academic year changes
+  useEffect(() => {
+    setSelectedModuleId('all')
+    setSelectedStationId('all')
+  }, [selectedYearId, selectedYear?.id])
+
   // Load when academic year or server-side filters change
   useEffect(() => {
     fetchPenaltiesData()
-  }, [selectedYear?.id, selectedModuleId, selectedStationId])
+  }, [selectedYearId, selectedYear?.id, selectedModuleId, selectedStationId])
 
   // Available stations filtered by selected module
   const filteredStationOptions = useMemo(() => {

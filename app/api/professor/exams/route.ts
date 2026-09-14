@@ -13,6 +13,33 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const moduleId = searchParams.get('module_id')
     const stationId = searchParams.get('station_id')
+    const academicYearIdParam = searchParams.get('academic_year_id')
+
+    // Find professor assigned modules
+    let modQuery = supabaseAdmin
+      .from('modules')
+      .select('id, level_id')
+      .or(`responsible_prof_id.eq.${prof.professorId},responsible_prof_id.eq.${prof.userId}`)
+
+    if (academicYearIdParam) {
+      const { data: levels } = await supabaseAdmin
+        .from('study_levels')
+        .select('id')
+        .eq('academic_year_id', academicYearIdParam)
+
+      const levelIds = (levels || []).map((l) => l.id)
+      if (levelIds.length === 0) {
+        return NextResponse.json({ success: true, exams: [] })
+      }
+      modQuery = modQuery.in('level_id', levelIds)
+    }
+
+    const { data: profModules } = await modQuery
+    const profModuleIds = (profModules || []).map((m) => m.id)
+
+    if (profModuleIds.length === 0 && !stationId) {
+      return NextResponse.json({ success: true, exams: [] })
+    }
 
     let query = supabaseAdmin
       .from('exams')
@@ -20,8 +47,14 @@ export async function GET(req: NextRequest) {
       .order('exam_date', { ascending: false })
 
     if (moduleId) {
+      if (!profModuleIds.includes(moduleId)) {
+        return NextResponse.json({ success: true, exams: [] })
+      }
       query = query.eq('module_id', moduleId)
+    } else if (profModuleIds.length > 0) {
+      query = query.in('module_id', profModuleIds)
     }
+
     if (stationId) {
       const { data: st } = await supabaseAdmin
         .from('stations')

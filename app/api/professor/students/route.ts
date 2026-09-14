@@ -138,6 +138,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({
         success: true,
         transcript: scopedTranscript,
+        professor: {
+          id: prof.professorId,
+          fullName: prof.fullName,
+          firstName: prof.firstName,
+          lastName: prof.lastName,
+          facultyName: prof.facultyName,
+          email: prof.email,
+        },
         filters: {
           modules: assignedModules,
           academicYears,
@@ -490,6 +498,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       students: filteredStudents,
+      professor: {
+        id: prof.professorId,
+        fullName: prof.fullName,
+        firstName: prof.firstName,
+        lastName: prof.lastName,
+        facultyName: prof.facultyName,
+        email: prof.email,
+      },
       summary: {
         total_students: allStudentsList.length,
         evaluated_students: evaluatedTotal.length,

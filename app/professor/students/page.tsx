@@ -151,6 +151,31 @@ function ProfessorStudentsContent() {
   const [selectedTranscriptModuleId, setSelectedTranscriptModuleId] = useState<string | null>(null)
   const [expandedStations, setExpandedStations] = useState<Record<string, boolean>>({})
 
+  // Evaluating Professor & Faculty Context
+  const [professorName, setProfessorName] = useState<string>('Prof. Evaluating Examiner')
+  const [facultyName, setFacultyName] = useState<string>('Faculty of Medicine')
+
+  // Load active professor session on mount
+  useEffect(() => {
+    async function loadSession() {
+      try {
+        const res = await fetch('/api/auth/session')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.authenticated && data.user) {
+            if (data.user.facultyName) setFacultyName(data.user.facultyName)
+            if (data.user.firstName || data.user.lastName) {
+              setProfessorName(`Prof. ${data.user.firstName || ''} ${data.user.lastName || ''}`.trim())
+            }
+          }
+        }
+      } catch {
+        // Fallback
+      }
+    }
+    loadSession()
+  }, [])
+
   // Custom Popover States & Refs
   const [moduleDropdownOpen, setModuleDropdownOpen] = useState(false)
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false)
@@ -222,6 +247,8 @@ function ProfessorStudentsContent() {
       setStudents(json.students || [])
       if (json.summary) setSummary(json.summary)
       if (json.filters?.modules) setModulesList(json.filters.modules)
+      if (json.professor?.fullName) setProfessorName(json.professor.fullName)
+      if (json.professor?.facultyName) setFacultyName(json.professor.facultyName)
 
       if (isManualRefresh) {
         showSuccess('Candidate records updated successfully.')
@@ -271,6 +298,8 @@ function ProfessorStudentsContent() {
       }
 
       setTranscriptData(json.transcript)
+      if (json.professor?.fullName) setProfessorName(json.professor.fullName)
+      if (json.professor?.facultyName) setFacultyName(json.professor.facultyName)
       // Auto-select first module if exists
       if (json.transcript?.modules?.length > 0) {
         setSelectedTranscriptModuleId(json.transcript.modules[0].module_id)
@@ -366,7 +395,15 @@ function ProfessorStudentsContent() {
     try {
       setExportingPdf(true)
       showInfo('Generating certified PDF transcript marksheet...')
-      await exportStudentTranscriptToPDF(transcriptData.student, activeTranscriptModule)
+      await exportStudentTranscriptToPDF(
+        transcriptData.student,
+        activeTranscriptModule,
+        undefined,
+        {
+          evaluatingProfessorName: professorName,
+          facultyName: facultyName,
+        }
+      )
       showSuccess(`PDF marksheet for ${transcriptData.student.full_name} downloaded.`)
     } catch (err: any) {
       console.error('PDF export error:', err)
@@ -386,7 +423,15 @@ function ProfessorStudentsContent() {
     try {
       setExportingExcel(true)
       showInfo('Generating multi-sheet Excel marksheet workbook...')
-      await exportStudentTranscriptToExcel(transcriptData.student, activeTranscriptModule)
+      await exportStudentTranscriptToExcel(
+        transcriptData.student,
+        activeTranscriptModule,
+        undefined,
+        {
+          evaluatingProfessorName: professorName,
+          facultyName: facultyName,
+        }
+      )
       showSuccess(`Excel workbook for ${transcriptData.student.full_name} downloaded.`)
     } catch (err: any) {
       console.error('Excel export error:', err)
@@ -410,11 +455,20 @@ function ProfessorStudentsContent() {
       }
 
       const targetMod = json.transcript.modules[0]
+      const profName = json.professor?.fullName || professorName
+      const facName = json.professor?.facultyName || facultyName
+
       if (format === 'pdf') {
-        await exportStudentTranscriptToPDF(json.transcript.student, targetMod)
+        await exportStudentTranscriptToPDF(json.transcript.student, targetMod, undefined, {
+          evaluatingProfessorName: profName,
+          facultyName: facName,
+        })
         showSuccess(`PDF marksheet exported for ${json.transcript.student.full_name}.`)
       } else {
-        await exportStudentTranscriptToExcel(json.transcript.student, targetMod)
+        await exportStudentTranscriptToExcel(json.transcript.student, targetMod, undefined, {
+          evaluatingProfessorName: profName,
+          facultyName: facName,
+        })
         showSuccess(`Excel workbook exported for ${json.transcript.student.full_name}.`)
       }
     } catch (err: any) {

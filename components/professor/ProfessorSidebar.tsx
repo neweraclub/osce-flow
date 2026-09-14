@@ -8,6 +8,7 @@ import {
   Building2,
   Calendar,
   ClipboardCheck,
+  GraduationCap,
   Layers,
   LayoutDashboard,
   LogOut,
@@ -55,6 +56,7 @@ export function ProfessorSidebar({
   const navItems = [
     { label: 'Overview Dashboard', href: '/professor/dashboard', icon: LayoutDashboard },
     { label: 'Stations', href: '/professor/stations', icon: Layers },
+    { label: 'Student Performance & Transcripts', href: '/professor/students', icon: GraduationCap },
     { label: 'Clinical Deductions & Penalties', href: '/professor/penalties', icon: ShieldAlert },
   ]
 

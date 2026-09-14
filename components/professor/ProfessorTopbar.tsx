@@ -84,6 +84,8 @@ export function ProfessorTopbar({
   const getBreadcrumbTitle = () => {
     if (pathname === '/professor/modules') return 'My Clinical Modules'
     if (pathname === '/professor/stations') return 'OSCE Stations & Checklists'
+    if (pathname.startsWith('/professor/students')) return 'Student Performance & Transcripts'
+    if (pathname.startsWith('/professor/penalties')) return 'Clinical Deductions & Penalties'
     if (pathname === '/professor/profile') return 'Profile Settings'
     return 'Professor Dashboard'
   }

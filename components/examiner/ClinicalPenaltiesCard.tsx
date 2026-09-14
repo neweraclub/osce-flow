@@ -85,7 +85,7 @@ export function ClinicalPenaltiesCard({
             No deductions logged for this candidate.
           </p>
           <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
-            Click &quot;Add Penalty Item&quot; above to record specific hygiene breaches, consent failures, or safety infractions.
+            Click &quot;Add Penalty Item&quot; above to record specific hygiene breaches, consent failures, or protocol infractions.
           </p>
         </div>
       ) : (

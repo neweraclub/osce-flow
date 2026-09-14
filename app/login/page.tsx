@@ -173,7 +173,7 @@ export default function LoginPage() {
       router.replace(targetPath)
       router.refresh()
     } catch {
-      // router error safety catch
+      // router error fallback catch
     }
 
     // Hard fallback timer after 800ms

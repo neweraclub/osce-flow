@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import {
   AlertCircle,
@@ -8,7 +8,9 @@ import {
   ArrowUpDown,
   BookOpen,
   Calendar,
+  Check,
   CheckCircle2,
+  ChevronDown,
   Clock,
   Filter,
   GraduationCap,
@@ -74,6 +76,14 @@ export interface FilterStationOption {
 
 type SortField = 'date_desc' | 'date_asc' | 'points_desc' | 'points_asc' | 'student_name'
 
+const SORT_OPTIONS: { value: SortField; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { value: 'date_desc', label: 'Date (Newest First)', icon: Clock },
+  { value: 'date_asc', label: 'Date (Oldest First)', icon: Calendar },
+  { value: 'points_desc', label: 'Points (Highest First)', icon: ArrowUpDown },
+  { value: 'points_asc', label: 'Points (Lowest First)', icon: ArrowUpDown },
+  { value: 'student_name', label: 'Student Name (A-Z)', icon: Users },
+]
+
 export default function ProfessorPenaltiesPage() {
   const { selectedYear } = useAcademicYear()
   const { showError, showSuccess } = useToast()
@@ -98,6 +108,46 @@ export default function ProfessorPenaltiesPage() {
   const [selectedModuleId, setSelectedModuleId] = useState<string>('all')
   const [selectedStationId, setSelectedStationId] = useState<string>('all')
   const [sortOrder, setSortOrder] = useState<SortField>('date_desc')
+
+  // Custom Popover Dropdown States & Refs
+  const [moduleDropdownOpen, setModuleDropdownOpen] = useState(false)
+  const [stationDropdownOpen, setStationDropdownOpen] = useState(false)
+  const [sortDropdownOpen, setSortDropdownOpen] = useState(false)
+
+  const moduleDropdownRef = useRef<HTMLDivElement>(null)
+  const stationDropdownRef = useRef<HTMLDivElement>(null)
+  const sortDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Outside click & ESC listener for custom popovers
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node
+      if (moduleDropdownRef.current && !moduleDropdownRef.current.contains(target)) {
+        setModuleDropdownOpen(false)
+      }
+      if (stationDropdownRef.current && !stationDropdownRef.current.contains(target)) {
+        setStationDropdownOpen(false)
+      }
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(target)) {
+        setSortDropdownOpen(false)
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setModuleDropdownOpen(false)
+        setStationDropdownOpen(false)
+        setSortDropdownOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [])
 
   const fetchPenaltiesData = async (isManualRefresh = false) => {
     if (isManualRefresh) setRefreshing(true)
@@ -198,11 +248,18 @@ export default function ProfessorPenaltiesPage() {
   const hasActiveFilters =
     searchQuery.trim() !== '' || selectedModuleId !== 'all' || selectedStationId !== 'all'
 
+  const selectedModule = modulesList.find((m) => m.id === selectedModuleId)
+  const selectedStation = filteredStationOptions.find((s) => s.id === selectedStationId)
+  const selectedSortOption = SORT_OPTIONS.find((s) => s.value === sortOrder) || SORT_OPTIONS[0]
+
   const handleResetFilters = () => {
     setSearchQuery('')
     setSelectedModuleId('all')
     setSelectedStationId('all')
     setSortOrder('date_desc')
+    setModuleDropdownOpen(false)
+    setStationDropdownOpen(false)
+    setSortDropdownOpen(false)
   }
 
   return (
@@ -213,7 +270,7 @@ export default function ProfessorPenaltiesPage() {
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200/80 dark:border-rose-900/60">
               <ShieldAlert className="size-3 text-rose-600 dark:text-rose-400" />
-              <span>Auditing & Safety Compliance</span>
+              <span>Auditing & Clinical Compliance</span>
             </span>
             {selectedYear && (
               <span className="text-xs font-semibold text-slate-400">
@@ -225,7 +282,7 @@ export default function ProfessorPenaltiesPage() {
             Clinical Deductions & Penalties
           </h1>
           <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 max-w-3xl">
-            Live records of candidate safety breaches, procedure protocol infractions, and scoring deductions logged during live OSCE evaluations across your assigned modules.
+            Live records of candidate protocol infractions, procedure errors, and scoring deductions logged during live OSCE evaluations across your assigned modules.
           </p>
         </div>
 
@@ -365,55 +422,245 @@ export default function ProfessorPenaltiesPage() {
             )}
           </div>
 
-          {/* Module Filter Dropdown */}
-          <div className="md:col-span-3">
-            <select
-              value={selectedModuleId}
-              onChange={(e) => {
-                setSelectedModuleId(e.target.value)
-                setSelectedStationId('all')
+          {/* Module Filter Custom Popover Dropdown */}
+          <div className="md:col-span-3 relative" ref={moduleDropdownRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setModuleDropdownOpen((prev) => !prev)
+                setStationDropdownOpen(false)
+                setSortDropdownOpen(false)
               }}
-              className="w-full px-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all cursor-pointer"
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold bg-slate-50 dark:bg-slate-800/80 border transition-all cursor-pointer ${
+                moduleDropdownOpen
+                  ? 'border-emerald-500 ring-2 ring-emerald-500/20 text-slate-900 dark:text-white'
+                  : 'border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-200'
+              }`}
             >
-              <option value="all">All Assigned Modules ({modulesList.length})</option>
-              {modulesList.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
+              <div className="flex items-center gap-2 min-w-0 pr-2">
+                <BookOpen className="size-3.5 text-slate-400 shrink-0" />
+                <span className="truncate">
+                  {selectedModule ? selectedModule.name : `All Assigned Modules (${modulesList.length})`}
+                </span>
+              </div>
+              <ChevronDown
+                className={`size-4 text-slate-400 shrink-0 transition-transform duration-200 ${
+                  moduleDropdownOpen ? 'rotate-180 text-emerald-500' : ''
+                }`}
+              />
+            </button>
+
+            {moduleDropdownOpen && (
+              <div className="absolute left-0 top-full mt-1.5 z-50 w-full sm:min-w-[260px] max-h-64 overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl backdrop-blur-md p-1.5 space-y-0.5 animate-in fade-in zoom-in-95">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedModuleId('all')
+                    setSelectedStationId('all')
+                    setModuleDropdownOpen(false)
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer text-left ${
+                    selectedModuleId === 'all'
+                      ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/20'
+                      : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300 font-medium border border-transparent'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Layers className="size-3.5 text-slate-400 shrink-0" />
+                    <span className="truncate">All Assigned Modules</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                      {modulesList.length}
+                    </span>
+                    {selectedModuleId === 'all' && (
+                      <Check className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                    )}
+                  </div>
+                </button>
+
+                {modulesList.map((m) => {
+                  const isSelected = selectedModuleId === m.id
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedModuleId(m.id)
+                        setSelectedStationId('all')
+                        setModuleDropdownOpen(false)
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer text-left ${
+                        isSelected
+                          ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/20'
+                          : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300 font-medium border border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <BookOpen className="size-3.5 text-slate-400 shrink-0" />
+                        <span className="truncate">{m.name}</span>
+                      </div>
+                      {isSelected && (
+                        <Check className="size-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 ml-2" />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
-          {/* Station Filter Dropdown */}
-          <div className="md:col-span-2">
-            <select
-              value={selectedStationId}
-              onChange={(e) => setSelectedStationId(e.target.value)}
+          {/* Station Filter Custom Popover Dropdown */}
+          <div className="md:col-span-2 relative" ref={stationDropdownRef}>
+            <button
+              type="button"
               disabled={filteredStationOptions.length === 0}
-              className="w-full px-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all cursor-pointer disabled:opacity-50"
+              onClick={() => {
+                if (filteredStationOptions.length === 0) return
+                setStationDropdownOpen((prev) => !prev)
+                setModuleDropdownOpen(false)
+                setSortDropdownOpen(false)
+              }}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold bg-slate-50 dark:bg-slate-800/80 border transition-all ${
+                filteredStationOptions.length === 0
+                  ? 'opacity-50 cursor-not-allowed border-slate-200/80 dark:border-slate-800 text-slate-400'
+                  : stationDropdownOpen
+                  ? 'border-emerald-500 ring-2 ring-emerald-500/20 text-slate-900 dark:text-white cursor-pointer'
+                  : 'border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer'
+              }`}
             >
-              <option value="all">All Stations ({filteredStationOptions.length})</option>
-              {filteredStationOptions.map((s) => (
-                <option key={s.id} value={s.id}>
-                  Station #{s.number} - {s.title}
-                </option>
-              ))}
-            </select>
+              <div className="flex items-center gap-2 min-w-0 pr-2">
+                <Hash className="size-3.5 text-slate-400 shrink-0" />
+                <span className="truncate">
+                  {selectedStation
+                    ? `Station #${selectedStation.number} - ${selectedStation.title}`
+                    : `All Stations (${filteredStationOptions.length})`}
+                </span>
+              </div>
+              <ChevronDown
+                className={`size-4 text-slate-400 shrink-0 transition-transform duration-200 ${
+                  stationDropdownOpen ? 'rotate-180 text-emerald-500' : ''
+                }`}
+              />
+            </button>
+
+            {stationDropdownOpen && filteredStationOptions.length > 0 && (
+              <div className="absolute left-0 top-full mt-1.5 z-50 w-full sm:min-w-[280px] max-h-64 overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl backdrop-blur-md p-1.5 space-y-0.5 animate-in fade-in zoom-in-95">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedStationId('all')
+                    setStationDropdownOpen(false)
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer text-left ${
+                    selectedStationId === 'all'
+                      ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/20'
+                      : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300 font-medium border border-transparent'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Layers className="size-3.5 text-slate-400 shrink-0" />
+                    <span className="truncate">All Stations</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                      {filteredStationOptions.length}
+                    </span>
+                    {selectedStationId === 'all' && (
+                      <Check className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                    )}
+                  </div>
+                </button>
+
+                {filteredStationOptions.map((s) => {
+                  const isSelected = selectedStationId === s.id
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedStationId(s.id)
+                        setStationDropdownOpen(false)
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer text-left ${
+                        isSelected
+                          ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/20'
+                          : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300 font-medium border border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="size-5 rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-black text-[10px] flex items-center justify-center shrink-0 border border-emerald-200/60 dark:border-emerald-800/60">
+                          #{s.number}
+                        </span>
+                        <span className="truncate">{s.title}</span>
+                      </div>
+                      {isSelected && (
+                        <Check className="size-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 ml-2" />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
-          {/* Sort Order Selector */}
-          <div className="md:col-span-2">
-            <select
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value as SortField)}
-              className="w-full px-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all cursor-pointer"
+          {/* Sort Order Custom Popover Dropdown */}
+          <div className="md:col-span-2 relative" ref={sortDropdownRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setSortDropdownOpen((prev) => !prev)
+                setModuleDropdownOpen(false)
+                setStationDropdownOpen(false)
+              }}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold bg-slate-50 dark:bg-slate-800/80 border transition-all cursor-pointer ${
+                sortDropdownOpen
+                  ? 'border-emerald-500 ring-2 ring-emerald-500/20 text-slate-900 dark:text-white'
+                  : 'border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-200'
+              }`}
             >
-              <option value="date_desc">Date (Newest First)</option>
-              <option value="date_asc">Date (Oldest First)</option>
-              <option value="points_desc">Points (Highest First)</option>
-              <option value="points_asc">Points (Lowest First)</option>
-              <option value="student_name">Student Name (A-Z)</option>
-            </select>
+              <div className="flex items-center gap-2 min-w-0 pr-2">
+                <selectedSortOption.icon className="size-3.5 text-slate-400 shrink-0" />
+                <span className="truncate">{selectedSortOption.label}</span>
+              </div>
+              <ChevronDown
+                className={`size-4 text-slate-400 shrink-0 transition-transform duration-200 ${
+                  sortDropdownOpen ? 'rotate-180 text-emerald-500' : ''
+                }`}
+              />
+            </button>
+
+            {sortDropdownOpen && (
+              <div className="absolute right-0 top-full mt-1.5 z-50 w-full sm:min-w-[220px] rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl backdrop-blur-md p-1.5 space-y-0.5 animate-in fade-in zoom-in-95">
+                {SORT_OPTIONS.map((opt) => {
+                  const isSelected = sortOrder === opt.value
+                  const Icon = opt.icon
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        setSortOrder(opt.value)
+                        setSortDropdownOpen(false)
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all cursor-pointer text-left ${
+                        isSelected
+                          ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/20'
+                          : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300 font-medium border border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <Icon className="size-3.5 text-slate-400 shrink-0" />
+                        <span className="truncate">{opt.label}</span>
+                      </div>
+                      {isSelected && (
+                        <Check className="size-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 ml-2" />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
 
@@ -459,7 +706,7 @@ export default function ProfessorPenaltiesPage() {
               <p className="text-xs text-slate-400">
                 {hasActiveFilters
                   ? 'No deduction records match your current search criteria or filter selections. Try adjusting or clearing your filters.'
-                  : 'All candidates in your assigned stations and modules have completed evaluations without recorded safety infractions or deductions.'}
+                  : 'All candidates in your assigned stations and modules have completed evaluations without recorded clinical infractions or deductions.'}
               </p>
             </div>
             {hasActiveFilters && (

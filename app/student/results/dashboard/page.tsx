@@ -701,7 +701,7 @@ function StudentResultsDashboardContent() {
                           <div className="p-4 rounded-2xl bg-rose-50/60 dark:bg-rose-950/30 border border-rose-200/70 dark:border-rose-900/60 space-y-2.5">
                             <div className="flex items-center gap-2 text-xs font-bold text-rose-700 dark:text-rose-300">
                               <ShieldAlert className="size-4 text-rose-500" />
-                              <span>Recorded Penalties & Safety Deductions:</span>
+                              <span>Recorded Penalties & Deductions:</span>
                             </div>
                             <div className="space-y-1.5 pl-1">
                               {st.penalties.map((pen) => (

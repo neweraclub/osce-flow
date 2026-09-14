@@ -53,6 +53,15 @@ export async function GET(
 
     if (qErr) throw qErr
 
+    // Fetch Preset Criteria / Penalties for this station (station_criteria.station_id)
+    const { data: criteria, error: cErr } = await supabaseAdmin
+      .from('station_criteria')
+      .select('*')
+      .eq('station_id', station.id)
+      .order('created_at', { ascending: true })
+
+    if (cErr) throw cErr
+
     const formattedExams = linkedExam
       ? [
           {
@@ -132,8 +141,12 @@ export async function GET(
         weightage_percentage: Number(station.weightage_percentage || 0),
         module_name: mod ? mod.module_name : 'General Module',
         level_name: levelName || 'General Level',
+        session_type: linkedExam?.session_type || 'regular',
+        exam_date: linkedExam?.exam_date || null,
         created_at: station.created_at,
       },
+      questions: questions || [],
+      criteria: criteria || [],
       exams: formattedExams,
       assigned_modules: assignedModules,
       module_weightage_map: moduleWeightageMap,

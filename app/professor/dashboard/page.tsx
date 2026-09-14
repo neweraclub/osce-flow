@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   AlertCircle,
@@ -585,7 +586,7 @@ export default function ProfessorDashboardPage() {
                   return (
                     <div
                       key={st.id}
-                      onClick={() => router.push(`/professor/stations/${stationSlug}`)}
+                      onClick={() => router.push(`/professor/stations/${st.id}`)}
                       className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4 flex flex-col justify-between hover:shadow-md hover:border-emerald-500/40 dark:hover:border-emerald-500/40 transition-all cursor-pointer group"
                     >
                       <div className="space-y-3.5">
@@ -717,16 +718,14 @@ export default function ProfessorDashboardPage() {
                       </div>
 
                       {/* Direct Navigation Action */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          router.push(`/professor/stations/${stationSlug}`)
-                        }}
+                      <Link
+                        href={`/professor/stations/${st.id}`}
+                        onClick={(e) => e.stopPropagation()}
                         className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20 group-hover:bg-emerald-700 active:scale-[0.99]"
                       >
-                        <span>Open Station</span>
+                        <span>Open Checklist</span>
                         <ArrowRight className="size-4 group-hover:translate-x-0.5 transition-transform" />
-                      </button>
+                      </Link>
                     </div>
                   )
                 })}

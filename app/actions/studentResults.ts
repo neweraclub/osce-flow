@@ -28,6 +28,12 @@ export interface StationPenaltyBreakdown {
   matched_criteria_title?: string | null
 }
 
+export interface StationQuestionAnswerOption {
+  id: string
+  text: string
+  is_correct: boolean
+}
+
 export interface StationQuestionAnswerBreakdown {
   question_id: string
   question_text: string
@@ -35,6 +41,8 @@ export interface StationQuestionAnswerBreakdown {
   max_scale_value: number
   points_awarded: number
   evaluation_score?: number | null
+  options?: StationQuestionAnswerOption[]
+  selected_options?: string[]
 }
 
 export interface EvaluatedStationBreakdown {
@@ -303,7 +311,7 @@ export async function getStudentResultsDashboardDataAction(
     if (stationIds.length > 0) {
       const { data: qData, error: qErr } = await supabaseAdmin
         .from('questions')
-        .select('id, station_id, exam_id, question_text, question_type, max_scale_value')
+        .select('id, station_id, exam_id, question_text, question_type, max_scale_value, options')
         .in('station_id', stationIds)
 
       if (!qErr && qData && qData.length > 0) {
@@ -313,7 +321,7 @@ export async function getStudentResultsDashboardDataAction(
         if (examIds.length > 0) {
           const { data: qLegacy } = await supabaseAdmin
             .from('questions')
-            .select('id, station_id, exam_id, question_text, question_type, max_scale_value')
+            .select('id, station_id, exam_id, question_text, question_type, max_scale_value, options')
             .in('exam_id', examIds)
           if (qLegacy) allQuestions = qLegacy
         }
@@ -325,7 +333,7 @@ export async function getStudentResultsDashboardDataAction(
     if (attemptIds.length > 0) {
       const { data: ansData, error: ansErr } = await supabaseAdmin
         .from('student_answers')
-        .select('id, attempt_id, question_id, evaluation_score, points_awarded')
+        .select('id, attempt_id, question_id, evaluation_score, points_awarded, selected_options')
         .in('attempt_id', attemptIds)
 
       if (!ansErr && ansData) {
@@ -446,6 +454,8 @@ export async function getStudentResultsDashboardDataAction(
           max_scale_value: Number(q.max_scale_value) || 10,
           points_awarded: foundAns ? Number(foundAns.points_awarded) || 0 : 0,
           evaluation_score: foundAns?.evaluation_score,
+          options: Array.isArray(q.options) ? q.options : [],
+          selected_options: Array.isArray(foundAns?.selected_options) ? foundAns.selected_options : [],
         }
       })
 

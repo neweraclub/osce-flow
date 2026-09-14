@@ -326,7 +326,7 @@ function HeroShowcaseCard() {
         className="absolute -top-5 -left-3 sm:-left-6 z-20 hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full backdrop-blur-md bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-700/80 shadow-lg text-xs font-bold text-slate-800 dark:text-slate-200 pointer-events-none"
       >
         <span className="flex size-2 rounded-full bg-amber-500 animate-pulse" />
-        <span className="text-amber-500">⚡</span>
+        <Zap className="size-3 text-amber-500 fill-amber-500" />
         <span>Real-time Sync</span>
         <span className="font-mono text-[10px] text-slate-400 font-normal">12ms</span>
       </motion.div>

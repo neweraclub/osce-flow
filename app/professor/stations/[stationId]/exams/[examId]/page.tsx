@@ -751,8 +751,9 @@ export default function ProfessorExamQuestionsPage({
             )}
 
             {/* Scrollable Form Body */}
-            <form onSubmit={handleSubmitQuestion} className="flex-1 overflow-y-auto space-y-4 pr-1">
-              {/* Question Text */}
+            <form onSubmit={handleSubmitQuestion} className="flex flex-col flex-1 min-h-0">
+              <div className="flex-1 overflow-y-auto space-y-4 pr-1 py-1">
+                {/* Question Text */}
               <div className="space-y-1">
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                   Question Prompt / Clinical Task Instructions *
@@ -964,9 +965,10 @@ export default function ProfessorExamQuestionsPage({
                   </p>
                 </div>
               )}
+              </div>
 
               {/* Modal Submit Footer */}
-              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsQuestionModalOpen(false)}

@@ -53,14 +53,7 @@ export async function GET(
 
     if (qErr) throw qErr
 
-    // Fetch Preset Criteria / Penalties for this station (station_criteria.station_id)
-    const { data: criteria, error: cErr } = await supabaseAdmin
-      .from('station_criteria')
-      .select('*')
-      .eq('station_id', station.id)
-      .order('created_at', { ascending: true })
-
-    if (cErr) throw cErr
+    const criteria: any[] = []
 
     const formattedExams = linkedExam
       ? [

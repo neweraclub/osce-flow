@@ -586,7 +586,7 @@ export default function ProfessorDashboardPage() {
                   return (
                     <div
                       key={st.id}
-                      onClick={() => router.push(`/professor/stations/${st.id}`)}
+                      onClick={() => router.push(`/professor/stations/${stationSlug}`)}
                       className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4 flex flex-col justify-between hover:shadow-md hover:border-emerald-500/40 dark:hover:border-emerald-500/40 transition-all cursor-pointer group"
                     >
                       <div className="space-y-3.5">
@@ -719,7 +719,7 @@ export default function ProfessorDashboardPage() {
 
                       {/* Direct Navigation Action */}
                       <Link
-                        href={`/professor/stations/${st.id}`}
+                        href={`/professor/stations/${stationSlug}`}
                         onClick={(e) => e.stopPropagation()}
                         className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20 group-hover:bg-emerald-700 active:scale-[0.99]"
                       >

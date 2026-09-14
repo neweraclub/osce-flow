@@ -805,7 +805,7 @@ export default function ProfessorStationsPage() {
                     )}
                     <span>
                       {totalSessionWeightage}% / 100%{' '}
-                      {isFullyAllocated ? '— Fully Allocated ✓' : `— ${availableWeightage}% Remaining`}
+                      {isFullyAllocated ? '— Fully Allocated' : `— ${availableWeightage}% Remaining`}
                     </span>
                   </span>
                 </div>
@@ -889,7 +889,7 @@ export default function ProfessorStationsPage() {
                     return (
                       <div
                         key={st.id}
-                        onClick={() => router.push(`/professor/stations/${st.id}`)}
+                        onClick={() => router.push(`/professor/stations/${stationSlug}`)}
                         className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4 flex flex-col justify-between hover:shadow-md hover:border-emerald-500/40 dark:hover:border-emerald-500/40 transition-all cursor-pointer group"
                       >
                         <div className="space-y-3">
@@ -997,7 +997,7 @@ export default function ProfessorStationsPage() {
                           </div>
 
                           <Link
-                            href={`/professor/stations/${st.id}`}
+                            href={`/professor/stations/${stationSlug}`}
                             onClick={(e) => e.stopPropagation()}
                             className="flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 group-hover:translate-x-1 transition-all duration-200"
                           >

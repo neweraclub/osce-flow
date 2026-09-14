@@ -166,7 +166,7 @@ export async function resolveStationRecord(
     }
   }
 
-  // B1. Exact slug match
+  // B1. Exact slug match or title / ID prefix match
   for (const st of candidateStations) {
     const ex = examMap.get(st.exam_id)
     const mod = ex ? moduleMap.get(ex.module_id) : null
@@ -175,7 +175,12 @@ export async function resolveStationRecord(
       module_name: mod?.module_name,
       id: st.id,
     })
-    if (stSlug.toLowerCase() === parsed.raw.toLowerCase()) {
+    const titleSlug = slugify(st.title)
+    if (
+      stSlug.toLowerCase() === parsed.raw.toLowerCase() ||
+      titleSlug.toLowerCase() === parsed.raw.toLowerCase() ||
+      (parsed.raw.length >= 6 && st.id.toLowerCase().startsWith(parsed.raw.toLowerCase()))
+    ) {
       return await buildResult(st)
     }
   }

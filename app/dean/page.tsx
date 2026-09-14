@@ -7,6 +7,7 @@ import {
   BookOpen,
   Building2,
   Calendar,
+  Check,
   CheckCircle2,
   ChevronRight,
   Clock,
@@ -302,8 +303,9 @@ export default function DeanOverviewPage() {
                   </p>
                 </div>
               </div>
-              <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-900/50">
-                Confirmed ✓
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-900/50">
+                <Check className="size-3.5" />
+                <span>Confirmed</span>
               </span>
             </div>
 

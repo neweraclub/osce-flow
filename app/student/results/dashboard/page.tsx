@@ -47,6 +47,7 @@ import {
 } from '@/app/actions/studentResults'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { SignOutOverlay } from '@/components/ui/SignOutOverlay'
+import { PrintMarksheet } from '@/components/transcript/PrintMarksheet'
 
 function StudentResultsDashboardContent() {
   const router = useRouter()
@@ -180,9 +181,25 @@ function StudentResultsDashboardContent() {
   }
 
   const { student, modules } = data
+  const printModule = activeModule || modules[0] || null
 
   return (
-    <div className="min-h-screen bg-slate-50/70 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col justify-between selection:bg-amber-500 selection:text-white relative font-sans">
+    <>
+      {/* Clean Marksheet for Print / PDF */}
+      {printModule && (
+        <div className="hidden print:block w-full">
+          <PrintMarksheet
+            student={student}
+            activeModule={printModule}
+            evaluatingProfessorName={(data as any).evaluating_professor_name || 'Prof. Evaluating Examiner'}
+            facultyName={(data as any).faculty_name || 'Faculty of Medicine'}
+            granularity="detailed"
+          />
+        </div>
+      )}
+
+      {/* Screen Interactive Container */}
+      <div className="min-h-screen bg-slate-50/70 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col justify-between selection:bg-amber-500 selection:text-white relative font-sans print:hidden">
       {/* 1. Academic Navigation Header (Top Navbar) */}
       <header className="w-full z-20 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md sticky top-0 print:hidden shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4">
@@ -925,7 +942,8 @@ function StudentResultsDashboardContent() {
         title="Signing out securely..."
         subtitle="Ending your student transcript verification session..."
       />
-    </div>
+      </div>
+    </>
   )
 }
 

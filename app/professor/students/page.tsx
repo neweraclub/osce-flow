@@ -69,6 +69,7 @@ import {
   EvaluatedStationBreakdown,
   BulkExportReportOptions,
 } from '@/lib/exportUtils'
+import { PrintMarksheet } from '@/components/transcript/PrintMarksheet'
 
 interface StudentDirectoryRecord {
   id: string
@@ -115,9 +116,9 @@ const SORT_OPTIONS: { value: SortOrder; label: string; icon: React.ComponentType
 
 const STATUS_OPTIONS: { value: StatusFilter; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { value: 'all', label: 'All Candidates', icon: Layers },
-  { value: 'passed', label: 'Passed (>= 10/20)', icon: CheckCircle2 },
-  { value: 'failed', label: 'Retake Required (< 10/20)', icon: AlertCircle },
   { value: 'pending', label: 'Pending Evaluation', icon: MinusCircle },
+  { value: 'passed', label: 'Completed - Passed (≥ 10/20)', icon: CheckCircle2 },
+  { value: 'failed', label: 'Completed - Retake Required (< 10/20)', icon: AlertCircle },
 ]
 
 function ProfessorStudentsContent() {
@@ -450,18 +451,63 @@ function ProfessorStudentsContent() {
     return Array.from(set).sort()
   }, [students, selectedSection])
 
-  // Filtered students list based on section and group selections
+  // Filtered students list based on section, group, status, search, and sort selections
   const displayedStudents = useMemo(() => {
-    return students.filter((s) => {
+    const result = students.filter((s) => {
       if (selectedSection !== 'all' && s.section_name !== selectedSection) {
         return false
       }
       if (selectedGroup !== 'all' && s.group_name !== selectedGroup) {
         return false
       }
+      if (statusFilter !== 'all') {
+        const isComplete = s.total_stations_count > 0 && s.evaluated_stations_count >= s.total_stations_count
+        if (statusFilter === 'pending') {
+          if (isComplete) return false
+        } else if (statusFilter === 'passed') {
+          if (!isComplete || (s.final_score !== null ? s.final_score < 10.0 : !s.is_passed)) return false
+        } else if (statusFilter === 'failed') {
+          if (!isComplete || (s.final_score !== null ? s.final_score >= 10.0 : s.is_passed)) return false
+        }
+      }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim()
+        const matchesName = s.full_name?.toLowerCase().includes(q)
+        const matchesMatricule = s.matricule?.toLowerCase().includes(q)
+        const matchesSection = s.section_name?.toLowerCase().includes(q)
+        const matchesGroup = s.group_name?.toLowerCase().includes(q)
+        if (!matchesName && !matchesMatricule && !matchesSection && !matchesGroup) {
+          return false
+        }
+      }
       return true
     })
-  }, [students, selectedSection, selectedGroup])
+
+    result.sort((a, b) => {
+      switch (sortOrder) {
+        case 'name_asc':
+          return a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name)
+        case 'name_desc':
+          return b.last_name.localeCompare(a.last_name) || b.first_name.localeCompare(a.first_name)
+        case 'score_desc': {
+          const scoreA = a.final_score !== null ? a.final_score : -1
+          const scoreB = b.final_score !== null ? b.final_score : -1
+          return scoreB - scoreA
+        }
+        case 'score_asc': {
+          const scoreA = a.final_score !== null ? a.final_score : 999
+          const scoreB = b.final_score !== null ? b.final_score : 999
+          return scoreA - scoreB
+        }
+        case 'matricule_asc':
+          return a.matricule.localeCompare(b.matricule)
+        default:
+          return 0
+      }
+    })
+
+    return result
+  }, [students, selectedSection, selectedGroup, statusFilter, searchQuery, sortOrder])
 
   // Multi-Candidate Selection Helpers
   const toggleSelectCandidate = (id: string, e?: React.MouseEvent) => {
@@ -794,8 +840,23 @@ function ProfessorStudentsContent() {
     const { student, modules } = transcriptData
 
     return (
-      <div className="space-y-6 animate-in fade-in duration-200 pb-16">
-        {/* Top Breadcrumb Navigation & Action Toolbar */}
+      <>
+        {/* Dedicated Clean Marksheet Layout for Print / PDF */}
+        {activeTranscriptModule && (
+          <div className="hidden print:block w-full">
+            <PrintMarksheet
+              student={student}
+              activeModule={activeTranscriptModule}
+              evaluatingProfessorName={professorName}
+              facultyName={facultyName}
+              granularity={exportGranularity}
+            />
+          </div>
+        )}
+
+        {/* Screen Interactive Detailed View */}
+        <div className="space-y-6 animate-in fade-in duration-200 pb-16 print:hidden">
+          {/* Top Breadcrumb Navigation & Action Toolbar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs">
           {/* Breadcrumbs */}
           <nav className="flex items-center gap-2 text-xs font-semibold text-slate-500 flex-wrap">
@@ -1313,8 +1374,9 @@ function ProfessorStudentsContent() {
           </>
         )}
       </div>
-    )
-  }
+    </>
+  )
+}
 
   // ===========================================================================
   // RENDER: MODE 1 - STUDENT SEARCH & SELECTION GRID / DIRECTORY

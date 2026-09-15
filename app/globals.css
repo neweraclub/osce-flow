@@ -148,3 +148,73 @@ h1, h2, h3, h4, h5, h6 {
 .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.7);
 }
+
+/* ==========================================================================
+   ENTERPRISE PRINT MARKSHEET & PDF GENERATION STYLING
+   ========================================================================== */
+@media print {
+  /* Hide all interactive, navigation, and screen-only controls */
+  nav,
+  header,
+  aside,
+  button,
+  .no-print,
+  [role="dialog"],
+  [data-no-print="true"],
+  .screen-only-toolbar {
+    display: none !important;
+  }
+
+  /* Force background and colors to render accurately in print/PDF engines */
+  html,
+  body {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 10pt !important;
+    line-height: 1.35 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Page setup */
+  @page {
+    size: A4 portrait;
+    margin: 12mm 10mm 12mm 10mm;
+  }
+
+  /* Clean page break management without awkward row cutoffs */
+  .page-break-before {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  .page-break-avoid,
+  .break-inside-avoid,
+  tr,
+  table,
+  .card,
+  [data-print-card="true"],
+  .print-marksheet-container > div {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Show dedicated print containers if configured */
+  .print-only {
+    display: block !important;
+  }
+
+  .hide-on-print {
+    display: none !important;
+  }
+}
+

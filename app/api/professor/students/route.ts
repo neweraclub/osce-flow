@@ -440,12 +440,19 @@ export async function GET(req: NextRequest) {
         }))
       )
 
+      // Distinct Completion & Evaluation Status States:
+      // - Completed - Passed: Completed all stations and scored >= 10.00 / 20.
+      // - Completed - Retake Required: Completed all stations but scored < 10.00 / 20.
+      // - Pending Evaluation: Haven't completed all stations yet (incomplete/pending attempts).
+      const isCompleted = totalStationsCount > 0 && evaluatedCount >= totalStationsCount
       const finalScore = evaluatedCount > 0 ? examGrade.finalGrade : null
-      const is_passed = evaluatedCount > 0 && examGrade.isPassed
+      const is_passed = isCompleted && examGrade.isPassed
 
       let status: 'passed' | 'failed' | 'pending' = 'pending'
-      if (evaluatedCount > 0) {
-        status = is_passed ? 'passed' : 'failed'
+      if (isCompleted) {
+        status = (finalScore !== null && finalScore >= 10.0) ? 'passed' : 'failed'
+      } else {
+        status = 'pending'
       }
 
       // Latest attempt date

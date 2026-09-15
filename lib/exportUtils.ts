@@ -176,37 +176,42 @@ export function exportStudentTranscriptToPDF(
   )
 
   // Header Right Metadata: Evaluating Professor & Precise Timestamp (HH:MM:SS)
-  const rightMetaX = 350
+  // Uses left-aligned label and right-aligned value so they NEVER collide or overlap
+  const rightMetaX = 330
+  const rightEdgeX = pageWidth - leftMargin
+
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(7.5)
   doc.setTextColor(148, 163, 184) // Slate 400
-  doc.text('EVALUATING EXAMINER:', rightMetaX, 29)
+  doc.text('EVALUATING EXAMINER:', rightMetaX, 28)
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8.5)
+  doc.setFontSize(8)
   doc.setTextColor(16, 185, 129) // Emerald
-  doc.text(professorName, rightMetaX + 105, 29)
+  doc.text(professorName, rightEdgeX, 28, { align: 'right' })
 
-  doc.setFont('helvetica', 'normal')
+  doc.setFont('helvetica', 'bold')
   doc.setFontSize(7.5)
   doc.setTextColor(148, 163, 184)
-  doc.text('FACULTY WORKSPACE:', rightMetaX, 44)
+  doc.text('FACULTY WORKSPACE:', rightMetaX, 43)
   doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8)
   doc.setTextColor(255, 255, 255)
-  doc.text(facultyName, rightMetaX + 105, 44)
+  doc.text(facultyName, rightEdgeX, 43, { align: 'right' })
 
-  doc.setFont('helvetica', 'normal')
+  doc.setFont('helvetica', 'bold')
   doc.setFontSize(7.5)
   doc.setTextColor(148, 163, 184)
-  doc.text('EXACT TIMESTAMP:', rightMetaX, 59)
+  doc.text('EXACT TIMESTAMP:', rightMetaX, 58)
   doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8)
   doc.setTextColor(255, 255, 255)
-  doc.text(preciseTimestamp, rightMetaX + 105, 59)
+  doc.text(preciseTimestamp, rightEdgeX, 58, { align: 'right' })
 
   // =========================================================================
   // 2. CANDIDATE IDENTIFICATION CORPORATE CARD (#F8FAFC with #E2E8F0 border)
   // =========================================================================
-  const cardY = 94
-  const cardH = 72
+  const cardY = 96
+  const cardH = 82
 
   doc.setDrawColor(...borderGreyColor)
   doc.setFillColor(...cardBgColor)
@@ -240,59 +245,72 @@ export function exportStudentTranscriptToPDF(
   doc.setDrawColor(...borderGreyColor)
   doc.line(leftMargin + 16, cardY + 29, leftMargin + contentWidth - 14, cardY + 29)
 
-  // 3-Column Structured Information Grid
-  doc.setFontSize(8)
-
+  // 3-Column Structured Information Grid (Stacked Labels & Values)
   // Column 1: Academic Level & Cohort
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(100, 116, 139)
-  doc.text('Academic Level:', leftMargin + 16, cardY + 44)
+  const col1X = leftMargin + 16
   doc.setFont('helvetica', 'bold')
+  doc.setFontSize(7)
+  doc.setTextColor(148, 163, 184)
+  doc.text('ACADEMIC LEVEL', col1X, cardY + 43)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8.5)
   doc.setTextColor(...deepNavyColor)
-  doc.text(student.level_name || 'Medical Curriculum', leftMargin + 86, cardY + 44)
+  doc.text(student.level_name || 'Medical Curriculum', col1X, cardY + 54)
 
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(100, 116, 139)
-  doc.text('Cohort / Section:', leftMargin + 16, cardY + 59)
   doc.setFont('helvetica', 'bold')
+  doc.setFontSize(7)
+  doc.setTextColor(148, 163, 184)
+  doc.text('COHORT / SECTION', col1X, cardY + 67)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8.5)
   doc.setTextColor(...deepNavyColor)
-  doc.text(`${student.section_name || 'Section A'} • Group ${student.group_name || '1'}`, leftMargin + 86, cardY + 59)
+  doc.text(`${student.section_name || 'Section A'} • Group ${student.group_name || '1'}`, col1X, cardY + 77)
 
   // Column 2: Academic Year & Session Type
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(100, 116, 139)
-  doc.text('Academic Year:', leftMargin + 205, cardY + 44)
+  const col2X = leftMargin + 190
   doc.setFont('helvetica', 'bold')
+  doc.setFontSize(7)
+  doc.setTextColor(148, 163, 184)
+  doc.text('ACADEMIC YEAR', col2X, cardY + 43)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8.5)
   doc.setTextColor(...deepNavyColor)
-  doc.text(student.academic_year_label || 'Current Session', leftMargin + 275, cardY + 44)
+  doc.text(student.academic_year_label || '2026-2027', col2X, cardY + 54)
 
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(100, 116, 139)
-  doc.text('Assessment Type:', leftMargin + 205, cardY + 59)
   doc.setFont('helvetica', 'bold')
+  doc.setFontSize(7)
+  doc.setTextColor(148, 163, 184)
+  doc.text('ASSESSMENT TYPE', col2X, cardY + 67)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8.5)
   doc.setTextColor(...deepNavyColor)
-  doc.text(`${activeModule.session_type.toUpperCase()} SESSION`, leftMargin + 285, cardY + 59)
+  doc.text(`${activeModule.session_type.toUpperCase()} SESSION`, col2X, cardY + 77)
 
   // Column 3: Evaluating Examiner & Report Scope
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(100, 116, 139)
-  doc.text('Examiner:', leftMargin + 380, cardY + 44)
+  const col3X = leftMargin + 360
   doc.setFont('helvetica', 'bold')
+  doc.setFontSize(7)
+  doc.setTextColor(148, 163, 184)
+  doc.text('EXAMINER', col3X, cardY + 43)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8.5)
   doc.setTextColor(...deepNavyColor)
-  doc.text(professorName, leftMargin + 426, cardY + 44)
+  doc.text(professorName, col3X, cardY + 54, { maxWidth: 140 })
 
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(100, 116, 139)
-  doc.text('Report Mode:', leftMargin + 380, cardY + 59)
   doc.setFont('helvetica', 'bold')
+  doc.setFontSize(7)
+  doc.setTextColor(148, 163, 184)
+  doc.text('REPORT SCOPE', col3X, cardY + 67)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8.5)
   doc.setTextColor(...emeraldColor)
-  doc.text(granularity === 'detailed' ? 'ITEMIZED BREAKDOWN' : 'EXECUTIVE SUMMARY', leftMargin + 440, cardY + 59)
+  doc.text(granularity === 'detailed' ? 'ITEMIZED BREAKDOWN' : 'EXECUTIVE SUMMARY', col3X, cardY + 77)
 
   // =========================================================================
   // 3. MODULE SCORE & OUTCOME BANNER CARD
   // =========================================================================
-  const scoreCardY = 176
-  const scoreCardH = 46
+  const scoreCardY = cardY + cardH + 14 // explicit margin between sections
+  const scoreCardH = 48
   const isPassed = activeModule.is_passed
   const outcomeColor: [number, number, number] = isPassed ? emeraldColor : roseColor
   const outcomeBgColor: [number, number, number] = isPassed ? emeraldLightColor : roseLightColor
@@ -314,26 +332,26 @@ export function exportStudentTranscriptToPDF(
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(12)
   doc.setTextColor(...deepNavyColor)
-  doc.text(activeModule.module_name, leftMargin + 16, scoreCardY + 33)
-
-  // Right Final Score & Outcome Badge
-  const scoreText = `Final Score: ${activeModule.module_final_score.toFixed(2)} / 20.00 pts`
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(12)
-  doc.setTextColor(...outcomeColor)
-  doc.text(scoreText, leftMargin + 270, scoreCardY + 28)
+  doc.text(activeModule.module_name, leftMargin + 16, scoreCardY + 34, { maxWidth: 220 })
 
   // Vibrant Outcome Badge Container (#059669 for passed, #E11D48 for retake)
-  const badgeLabel = isPassed ? 'PASSED / VALIDE' : 'RETAKE / AJOURNE'
-  doc.setFontSize(8.5)
+  const badgeLabel = isPassed ? 'PASSED / VALIDE' : 'RETAKE REQUIRED'
+  doc.setFontSize(8)
   const badgeWidth = doc.getTextWidth(badgeLabel) + 16
   const badgeX = leftMargin + contentWidth - badgeWidth - 14
 
   doc.setFillColor(...outcomeColor)
-  doc.roundedRect(badgeX, scoreCardY + 13, badgeWidth, 20, 4, 4, 'F')
+  doc.roundedRect(badgeX, scoreCardY + 14, badgeWidth, 20, 4, 4, 'F')
   doc.setTextColor(255, 255, 255)
   doc.setFont('helvetica', 'bold')
-  doc.text(badgeLabel, badgeX + 8, scoreCardY + 26)
+  doc.text(badgeLabel, badgeX + 8, scoreCardY + 27)
+
+  // Final Score text placed right-aligned cleanly before the badge
+  const scoreText = `Final Score: ${activeModule.module_final_score.toFixed(2)} / 20.00 pts`
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(11)
+  doc.setTextColor(...outcomeColor)
+  doc.text(scoreText, badgeX - 16, scoreCardY + 28, { align: 'right' })
 
   // =========================================================================
   // 4. STATION BREAKDOWN TABLE (#0F172A Head, #E2E8F0 Grid Borders)
@@ -349,7 +367,7 @@ export function exportStudentTranscriptToPDF(
   ])
 
   runAutoTable({
-    startY: scoreCardY + scoreCardH + 14,
+    startY: scoreCardY + scoreCardH + 16,
     head: [
       [
         'Station',
@@ -367,12 +385,12 @@ export function exportStudentTranscriptToPDF(
       fillColor: deepNavyColor, // #0F172A
       textColor: [255, 255, 255],
       fontStyle: 'bold',
-      fontSize: 8.5,
+      fontSize: 8,
       halign: 'left',
     },
     styles: {
       fontSize: 8,
-      cellPadding: 4.5,
+      cellPadding: 5,
       textColor: [51, 65, 85],
       lineColor: borderGreyColor, // #E2E8F0
       lineWidth: 0.5,
@@ -381,18 +399,19 @@ export function exportStudentTranscriptToPDF(
       fillColor: cardBgColor, // #F8FAFC
     },
     columnStyles: {
-      0: { cellWidth: 55, fontStyle: 'bold' },
-      1: { cellWidth: 165 },
+      0: { cellWidth: 60, fontStyle: 'bold' },
+      1: { cellWidth: 150 },
       2: { cellWidth: 45, halign: 'center' },
       3: { cellWidth: 50, halign: 'right' },
       4: { cellWidth: 55, halign: 'right' },
       5: { cellWidth: 65, halign: 'right', fontStyle: 'bold' },
-      6: { cellWidth: 88, halign: 'right', fontStyle: 'bold' },
+      6: { cellWidth: 98.28, halign: 'right', fontStyle: 'bold' },
     },
     margin: { left: leftMargin, right: leftMargin },
   })
 
   let currentY = (doc as any).lastAutoTable.finalY + 16
+
 
   // =========================================================================
   // 5. DETAILED SECTIONS: ONLY RENDERED IN DETAILED BREAKDOWN MODE
@@ -436,19 +455,20 @@ export function exportStudentTranscriptToPDF(
         },
         styles: {
           fontSize: 7.5,
-          cellPadding: 3.5,
+          cellPadding: 4.5,
           textColor: [51, 65, 85],
           lineColor: borderGreyColor,
           lineWidth: 0.5,
+          overflow: 'linebreak',
         },
         alternateRowStyles: {
           fillColor: cardBgColor,
         },
         columnStyles: {
-          0: { cellWidth: 55, fontStyle: 'bold' },
-          1: { cellWidth: 325 },
-          2: { cellWidth: 60, halign: 'center' },
-          3: { cellWidth: 83, halign: 'right', fontStyle: 'bold' },
+          0: { cellWidth: 60, fontStyle: 'bold' },
+          1: { cellWidth: 310 },
+          2: { cellWidth: 55, halign: 'center' },
+          3: { cellWidth: 98.28, halign: 'right', fontStyle: 'bold' },
         },
         margin: { left: leftMargin, right: leftMargin },
       })
@@ -460,11 +480,13 @@ export function exportStudentTranscriptToPDF(
     const allPenaltyRows: any[] = []
     activeModule.stations.forEach((st) => {
       st.penalties.forEach((p) => {
+        const rawPts = Number(p.points) || 0
+        const ptsText = rawPts < 0 ? `${rawPts.toFixed(1)} pts` : `-${rawPts.toFixed(1)} pts`
         allPenaltyRows.push([
           `St. #${st.station_number}`,
           p.reason,
           p.matched_criteria_title || 'Clinical Protocol Guideline',
-          `-${Number(p.points).toFixed(1)} pts`,
+          ptsText,
         ])
       })
     })
@@ -494,19 +516,20 @@ export function exportStudentTranscriptToPDF(
         },
         styles: {
           fontSize: 7.5,
-          cellPadding: 3.5,
+          cellPadding: 4.5,
           textColor: [51, 65, 85],
           lineColor: borderGreyColor,
           lineWidth: 0.5,
+          overflow: 'linebreak',
         },
         alternateRowStyles: {
           fillColor: roseLightColor,
         },
         columnStyles: {
-          0: { cellWidth: 55, fontStyle: 'bold' },
-          1: { cellWidth: 235 },
-          2: { cellWidth: 150 },
-          3: { cellWidth: 83, halign: 'right', fontStyle: 'bold', textColor: roseColor },
+          0: { cellWidth: 60, fontStyle: 'bold' },
+          1: { cellWidth: 200 },
+          2: { cellWidth: 165 },
+          3: { cellWidth: 98.28, halign: 'right', fontStyle: 'bold' },
         },
         margin: { left: leftMargin, right: leftMargin },
       })

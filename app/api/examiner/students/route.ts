@@ -205,7 +205,7 @@ export async function GET(req: NextRequest) {
         // Fetch student answers
         const { data: savedAnswers } = await supabaseAdmin
           .from('student_answers')
-          .select('id, attempt_id, question_id, evaluation_score, points_awarded, selected_options')
+          .select('id, attempt_id, question_id, points_awarded, selected_options')
           .in('attempt_id', attemptIds)
 
         ;(savedAnswers || []).forEach((ans) => {
@@ -282,7 +282,7 @@ export async function GET(req: NextRequest) {
         saved_answers: savedAnswers.map((ans) => ({
           question_id: ans.question_id,
           selected_options: Array.isArray(ans.selected_options) ? ans.selected_options : [],
-          evaluation_score: ans.evaluation_score !== null ? Number(ans.evaluation_score) : 0,
+          evaluation_score: Number(ans.points_awarded || 0),
           points_awarded: Number(ans.points_awarded || 0),
         })),
         penalties: candidatePenalties,

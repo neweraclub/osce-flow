@@ -314,20 +314,13 @@ export async function getStudentResultsDashboardDataAction(
     if (stationIds.length > 0) {
       const { data: qData, error: qErr } = await supabaseAdmin
         .from('questions')
-        .select('id, station_id, exam_id, question_text, question_type, max_scale_value, options')
+        .select('id, station_id, question_text, question_type, max_scale_value, options')
         .in('station_id', stationIds)
 
       if (!qErr && qData && qData.length > 0) {
         allQuestions = qData
-      } else {
-        const examIds = attemptList.map((a: any) => a.exams?.id || a.exam_id).filter(Boolean)
-        if (examIds.length > 0) {
-          const { data: qLegacy } = await supabaseAdmin
-            .from('questions')
-            .select('id, station_id, exam_id, question_text, question_type, max_scale_value, options')
-            .in('exam_id', examIds)
-          if (qLegacy) allQuestions = qLegacy
-        }
+      } else if (qErr) {
+        console.warn('Notice fetching questions in student results:', qErr.message)
       }
     }
 
@@ -336,11 +329,13 @@ export async function getStudentResultsDashboardDataAction(
     if (attemptIds.length > 0) {
       const { data: ansData, error: ansErr } = await supabaseAdmin
         .from('student_answers')
-        .select('id, attempt_id, question_id, evaluation_score, points_awarded, selected_options')
+        .select('id, attempt_id, question_id, points_awarded, selected_options')
         .in('attempt_id', attemptIds)
 
       if (!ansErr && ansData) {
         allAnswers = ansData
+      } else if (ansErr) {
+        console.warn('Notice fetching student_answers in student results:', ansErr.message)
       }
     }
 
@@ -392,15 +387,15 @@ export async function getStudentResultsDashboardDataAction(
       const sessionType = (rawSession === 'retake' || rawSession === 'makeup') ? 'retake' : 'regular'
       const groupKey = `${moduleId}_${sessionType}`
 
-      // Questions for this station: match station_id or fallback exam_id
+      // Questions for this station: match station_id
       const stationQuestions = allQuestions.filter(
-        (q) => q.station_id === station.id || (att.exam_id && q.exam_id === att.exam_id)
+        (q) => q.station_id === station.id
       )
       const computedMaxPoints = stationQuestions.reduce(
         (sum, q) => sum + (Number(q.max_scale_value) || 10),
         0
       )
-      const stationMaxPoints = computedMaxPoints > 0 ? computedMaxPoints : 10
+      const stationMaxPoints = computedMaxPoints > 0 ? computedMaxPoints : (Number(station.max_points) || 10)
 
       // Answers for this attempt - deduplicate by question_id and clamp per question
       const attemptAnswers = allAnswers.filter((a) => a.attempt_id === att.id)
@@ -473,13 +468,14 @@ export async function getStudentResultsDashboardDataAction(
       // Formatted question answer breakdown
       const formattedAnswers: StationQuestionAnswerBreakdown[] = stationQuestions.map((q) => {
         const foundAns = attemptAnswers.find((a) => a.question_id === q.id)
+        const pts = foundAns ? Number(foundAns.points_awarded) || 0 : 0
         return {
           question_id: q.id,
           question_text: q.question_text,
           question_type: q.question_type,
           max_scale_value: Number(q.max_scale_value) || 10,
-          points_awarded: foundAns ? Number(foundAns.points_awarded) || 0 : 0,
-          evaluation_score: foundAns?.evaluation_score,
+          points_awarded: pts,
+          evaluation_score: pts,
           options: Array.isArray(q.options) ? q.options : [],
           selected_options: Array.isArray(foundAns?.selected_options) ? foundAns.selected_options : [],
         }

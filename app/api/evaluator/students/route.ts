@@ -159,7 +159,7 @@ export async function GET(req: NextRequest) {
       if (attemptIds.length > 0) {
         const { data: savedAnswers } = await supabaseAdmin
           .from('student_answers')
-          .select('id, attempt_id, question_id, evaluation_score, points_awarded')
+          .select('id, attempt_id, question_id, points_awarded')
           .in('attempt_id', attemptIds)
 
         ;(savedAnswers || []).forEach((ans) => {

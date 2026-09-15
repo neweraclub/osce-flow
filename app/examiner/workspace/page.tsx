@@ -127,6 +127,7 @@ interface StationMeta {
   academic_year_id?: string | null
   academic_year_label?: string
   max_points?: number
+  weightage_percentage?: number
 }
 
 interface ExamMeta {
@@ -627,6 +628,17 @@ function ExaminerWorkspaceContent() {
     return Math.max(0, Math.round((calculatedPoints.earned + totalDeductions) * 100) / 100)
   }, [calculatedPoints.earned, totalDeductions])
 
+  // Weighted score contributions on /20 institutional scale
+  const stationWeightage = Number(station?.weightage_percentage) || 50
+  const stationMaxContribution = Math.round((20 * (stationWeightage / 100)) * 100) / 100
+  const currentStationPercentage = stationMaxPoints > 0
+    ? Math.min(100, Math.max(0, Math.round(((netScore / stationMaxPoints) * 100) * 100) / 100))
+    : 0
+  const currentStationContribution = Math.min(
+    stationMaxContribution,
+    Math.max(0, Math.round(((currentStationPercentage / 100) * stationMaxContribution) * 100) / 100)
+  )
+
   // Modal Submit Handler (+ Record Deduction): appends directly to local component state array
   const handleAddLocalPenalty = (newPenalty: { id: string; reason: string; points: number; criteria_id?: string }) => {
     setCandidatePenalties((prev) => [
@@ -704,10 +716,13 @@ function ExaminerWorkspaceContent() {
           }
         }
 
+        // Strictly clamp points between 0 and maxVal
+        const boundedPts = Math.min(maxVal, Math.max(0, pts))
+
         return {
           question_id: q.id,
           selected_options: state?.selected_option_ids || [],
-          points_awarded: pts,
+          points_awarded: boundedPts,
           comment: state?.comment || '',
         }
       })
@@ -1110,10 +1125,15 @@ function ExaminerWorkspaceContent() {
                           </td>
                           <td className="py-3 px-4 text-right font-mono">
                             {st.final_score !== null ? (
-                              <span className="inline-flex items-center gap-1 justify-end">
-                                <span className="font-bold text-amber-600 dark:text-amber-400">{st.final_score}</span>
-                                <span className="text-slate-400 dark:text-slate-500 font-medium text-[11px]"> / {stationMaxPoints} pts</span>
-                              </span>
+                              <div className="flex flex-col items-end">
+                                <div className="inline-flex items-center gap-1 justify-end">
+                                  <span className="font-bold text-amber-600 dark:text-amber-400">{st.final_score}</span>
+                                  <span className="text-slate-400 dark:text-slate-500 font-medium text-[11px]"> / {stationMaxPoints} pts</span>
+                                </div>
+                                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                                  {stationMaxPoints > 0 ? ((st.final_score / stationMaxPoints) * 100).toFixed(1) : '0.0'}% • {((stationMaxPoints > 0 ? Math.min(1, st.final_score / stationMaxPoints) : 0) * (stationWeightage / 100) * 20).toFixed(2)}/{stationMaxContribution.toFixed(2)} pts
+                                </span>
+                              </div>
                             ) : (
                               <span className="text-slate-400 font-normal">—</span>
                             )}
@@ -1350,16 +1370,23 @@ function ExaminerWorkspaceContent() {
                         {/* Quick Card Action Buttons */}
                         <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
                           {isCompleted ? (
-                            <span className="text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                              Score: {st.final_score !== null ? (
-                                <>
-                                  <span>{st.final_score}</span>
-                                  <span className="text-slate-400 dark:text-slate-500 font-medium"> / {stationMaxPoints} pts</span>
-                                </>
-                              ) : (
-                                'Scored'
+                            <div className="flex flex-col">
+                              <span className="text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                                Score: {st.final_score !== null ? (
+                                  <>
+                                    <span>{st.final_score}</span>
+                                    <span className="text-slate-400 dark:text-slate-500 font-medium"> / {stationMaxPoints} pts</span>
+                                  </>
+                                ) : (
+                                  'Scored'
+                                )}
+                              </span>
+                              {st.final_score !== null && stationMaxPoints > 0 && (
+                                <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
+                                  {((st.final_score / stationMaxPoints) * 100).toFixed(1)}% • {((Math.min(1, st.final_score / stationMaxPoints) * (stationWeightage / 100)) * 20).toFixed(2)}/{stationMaxContribution.toFixed(2)} pts
+                                </span>
                               )}
-                            </span>
+                            </div>
                           ) : (
                             <span className="text-[11px] font-medium text-slate-400">
                               {isEvaluating ? 'In Progress' : 'Pending Evaluation'}
@@ -1485,15 +1512,18 @@ function ExaminerWorkspaceContent() {
                           </div>
                         </div>
 
-                        {/* Current Net Score */}
+                        {/* Current Net Score & Proportional /20 Contribution */}
                         <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800/80 p-2.5 px-3.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
                           <div className="text-right">
                             <span className="text-[9px] uppercase tracking-wider font-bold text-slate-400 block leading-tight">
-                              Current Score
+                              Current Score ({stationWeightage}% Wt)
                             </span>
                             <span className="text-xl font-black font-mono text-amber-600 dark:text-amber-400">
                               {netScore}{' '}
                               <span className="text-xs font-normal text-slate-400">/ {stationMaxPoints} pts</span>
+                            </span>
+                            <span className="block text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                              Contrib: {currentStationContribution.toFixed(2)} / {stationMaxContribution.toFixed(2)} pts
                             </span>
                           </div>
                         </div>
@@ -1683,12 +1713,15 @@ function ExaminerWorkspaceContent() {
                             </strong>
                           </span>
                           <span className="text-slate-300 dark:text-slate-600">|</span>
-                          <span className="text-slate-700 dark:text-slate-200">
-                            Net Total:{' '}
+                          <span className="text-slate-700 dark:text-slate-200 flex items-center gap-1.5 flex-wrap">
+                            <span>Net Total:</span>{' '}
                             <strong className="text-amber-600 dark:text-amber-400">
                               {netScore}
                             </strong>{' '}
-                              <span className="text-[11px] font-normal text-slate-400">/ {stationMaxPoints} pts</span>
+                            <span className="text-[11px] font-normal text-slate-400">/ {stationMaxPoints} pts</span>
+                            <span className="px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 font-bold text-[11px] font-mono">
+                              Contrib: {currentStationContribution.toFixed(2)} / {stationMaxContribution.toFixed(2)} pts ({currentStationPercentage.toFixed(1)}%)
+                            </span>
                           </span>
                         </div>
                       </div>

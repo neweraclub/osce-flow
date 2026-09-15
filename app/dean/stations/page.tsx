@@ -127,7 +127,7 @@ function DeanStationsContent() {
   const {
     selectedYearId,
     selectedYear,
-    academicYears: contextYears,
+    years: contextYears,
     setSelectedYearId,
     isLoading: isYearLoading,
   } = useAcademicYear()

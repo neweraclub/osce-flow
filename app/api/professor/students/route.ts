@@ -317,7 +317,7 @@ export async function GET(req: NextRequest) {
     if (stationIds.length > 0) {
       const { data: qData } = await supabaseAdmin
         .from('questions')
-        .select('id, station_id, exam_id, max_scale_value')
+        .select('id, station_id, max_scale_value')
         .in('station_id', stationIds)
 
       allQuestions = qData || []

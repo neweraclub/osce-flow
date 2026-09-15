@@ -92,8 +92,7 @@ CREATE TABLE public.exams (
   exam_date date NOT NULL DEFAULT CURRENT_DATE,
   created_at timestamp with time zone NOT NULL DEFAULT clock_timestamp(),
   CONSTRAINT exams_pkey PRIMARY KEY (id),
-  CONSTRAINT exams_module_id_fkey FOREIGN KEY (module_id) REFERENCES public.modules(id),
-  CONSTRAINT uq_module_session UNIQUE (module_id, session_type)
+  CONSTRAINT exams_module_id_fkey FOREIGN KEY (module_id) REFERENCES public.modules(id)
 );
 CREATE TABLE public.stations (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -136,22 +135,18 @@ CREATE TABLE public.exam_attempts (
   created_at timestamp with time zone NOT NULL DEFAULT clock_timestamp(),
   CONSTRAINT exam_attempts_pkey PRIMARY KEY (id),
   CONSTRAINT exam_attempts_station_id_fkey FOREIGN KEY (station_id) REFERENCES public.stations(id),
-  CONSTRAINT exam_attempts_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id),
-  CONSTRAINT uq_student_station UNIQUE (student_id, station_id)
+  CONSTRAINT exam_attempts_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id)
 );
 CREATE TABLE public.student_answers (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   attempt_id uuid NOT NULL,
   question_id uuid NOT NULL,
   points_awarded numeric NOT NULL DEFAULT 0.00 CHECK (points_awarded >= 0.00),
-  evaluation_score numeric,
   selected_options jsonb DEFAULT '[]'::jsonb,
-  graded_by_prof_id uuid,
   created_at timestamp with time zone NOT NULL DEFAULT clock_timestamp(),
   CONSTRAINT student_answers_pkey PRIMARY KEY (id),
   CONSTRAINT student_answers_attempt_id_fkey FOREIGN KEY (attempt_id) REFERENCES public.exam_attempts(id),
-  CONSTRAINT student_answers_question_id_fkey FOREIGN KEY (question_id) REFERENCES public.questions(id),
-  CONSTRAINT student_answers_graded_by_prof_id_fkey FOREIGN KEY (graded_by_prof_id) REFERENCES public.professors(id)
+  CONSTRAINT student_answers_question_id_fkey FOREIGN KEY (question_id) REFERENCES public.questions(id)
 );
 CREATE TABLE public.candidate_penalties (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

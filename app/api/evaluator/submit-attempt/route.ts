@@ -57,26 +57,56 @@ export async function POST(req: NextRequest) {
     const deductions = penaltyList.length > 0 ? deductionsFromList : Math.abs(Number(penalty_total) || 0)
     const finalScore = Math.max(0, Math.round((earnedScore - deductions) * 100) / 100)
 
-    // 2. Upsert exam_attempts record with onConflict: 'student_id, station_id'
-    const { data: attemptRecord, error: attErr } = await supabaseAdmin
+    // 2. Resiliently find or insert exam_attempts record
+    let attemptId: string | null = null
+
+    const { data: existingAttempt } = await supabaseAdmin
       .from('exam_attempts')
-      .upsert(
-        {
+      .select('id')
+      .eq('student_id', targetStudentId)
+      .eq('station_id', station_id)
+      .maybeSingle()
+
+    if (existingAttempt?.id) {
+      attemptId = existingAttempt.id
+      const { error: updErr } = await supabaseAdmin
+        .from('exam_attempts')
+        .update({ status: 'completed' })
+        .eq('id', attemptId)
+
+      if (updErr) {
+        console.error('Error updating exam_attempts:', updErr)
+        throw updErr
+      }
+    } else {
+      const { data: newAttempt, error: insErr } = await supabaseAdmin
+        .from('exam_attempts')
+        .insert({
           student_id: targetStudentId,
           station_id: station_id,
           status: 'completed',
-        },
-        { onConflict: 'student_id, station_id' }
-      )
-      .select('id')
-      .single()
+        })
+        .select('id')
+        .single()
 
-    if (attErr) {
-      console.error('Error upserting exam_attempts:', attErr)
-      throw attErr
+      if (insErr) {
+        const { data: retryAttempt } = await supabaseAdmin
+          .from('exam_attempts')
+          .select('id')
+          .eq('student_id', targetStudentId)
+          .eq('station_id', station_id)
+          .maybeSingle()
+
+        if (retryAttempt?.id) {
+          attemptId = retryAttempt.id
+        } else {
+          console.error('Error inserting exam_attempts:', insErr)
+          throw insErr
+        }
+      } else {
+        attemptId = newAttempt.id
+      }
     }
-
-    const attemptId = attemptRecord.id
 
     // 3. Clear any existing student_answers for this attempt to avoid duplicates
     await supabaseAdmin
@@ -92,9 +122,7 @@ export async function POST(req: NextRequest) {
         selected_options: Array.isArray(ans.selected_options)
           ? ans.selected_options
           : (ans.selected_option_id ? [ans.selected_option_id] : []),
-        evaluation_score: typeof ans.evaluation_score === 'number' ? ans.evaluation_score : null,
         points_awarded: Math.max(0, Number(ans.points_awarded) || 0),
-        graded_by_prof_id: graded_by_prof_id || null,
       }))
 
       const { error: ansErr } = await supabaseAdmin
@@ -103,7 +131,6 @@ export async function POST(req: NextRequest) {
 
       if (ansErr) {
         console.error('Error inserting student_answers:', ansErr)
-        // Even if individual answer recording fails, attempt is saved, but let's log and report
         throw ansErr
       }
     }

@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 
 import { useAcademicYear } from '@/context/AcademicYearContext'
+import { DeanOverviewSkeleton } from '@/components/dean/DeanOverviewSkeleton'
 
 export interface DeanOverviewData {
   faculty: {
@@ -97,6 +98,10 @@ export default function DeanOverviewPage() {
     passRate: 0,
     passedStudents: 0,
     failedStudents: 0,
+  }
+
+  if (loading && !data) {
+    return <DeanOverviewSkeleton />
   }
 
   return (
@@ -359,13 +364,22 @@ export default function DeanOverviewPage() {
               <Award className="size-4 text-emerald-500" />
             </div>
             <div>
-              <div className="text-2xl font-black font-mono text-slate-900 dark:text-white tracking-tight">
-                {stats.averageFacultyScore ? stats.averageFacultyScore.toFixed(2) : '0.00'}
-                <span className="text-xs font-normal text-slate-400 ml-1">/ 20.00</span>
-              </div>
-              <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                OSCE scale (passing threshold: 10.00)
-              </p>
+              {loading ? (
+                <div className="space-y-1 py-1">
+                  <div className="h-7 w-24 bg-slate-200 dark:bg-slate-700 rounded-lg animate-pulse" />
+                  <div className="h-3 w-36 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse" />
+                </div>
+              ) : (
+                <>
+                  <div className="text-2xl font-black font-mono text-slate-900 dark:text-white tracking-tight">
+                    {stats.averageFacultyScore ? stats.averageFacultyScore.toFixed(2) : '0.00'}
+                    <span className="text-xs font-normal text-slate-400 ml-1">/ 20.00</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                    OSCE scale (passing threshold: 10.00)
+                  </p>
+                </>
+              )}
             </div>
           </div>
 
@@ -378,12 +392,21 @@ export default function DeanOverviewPage() {
               <TrendingUp className="size-4 text-emerald-500" />
             </div>
             <div>
-              <div className="text-2xl font-black font-mono text-emerald-600 dark:text-emerald-400 tracking-tight">
-                {stats.passRate ? stats.passRate.toFixed(1) : '0.0'}%
-              </div>
-              <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                {stats.passedStudents || 0} passed • {stats.failedStudents || 0} retake
-              </p>
+              {loading ? (
+                <div className="space-y-1 py-1">
+                  <div className="h-7 w-20 bg-slate-200 dark:bg-slate-700 rounded-lg animate-pulse" />
+                  <div className="h-3 w-32 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse" />
+                </div>
+              ) : (
+                <>
+                  <div className="text-2xl font-black font-mono text-emerald-600 dark:text-emerald-400 tracking-tight">
+                    {stats.passRate ? stats.passRate.toFixed(1) : '0.0'}%
+                  </div>
+                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                    {stats.passedStudents || 0} passed • {stats.failedStudents || 0} retake
+                  </p>
+                </>
+              )}
             </div>
           </div>
 
@@ -396,17 +419,26 @@ export default function DeanOverviewPage() {
               <CheckCircle2 className="size-4 text-sky-500" />
             </div>
             <div>
-              <div className="text-2xl font-black font-mono text-slate-900 dark:text-white tracking-tight">
-                {stats.evaluatedStudents || 0}
-                <span className="text-xs font-normal text-slate-400 ml-1">
-                  / {stats.totalStudents || 0}
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                {stats.totalStudents > 0
-                  ? `${Math.round(((stats.evaluatedStudents || 0) / stats.totalStudents) * 100)}% cohort completion`
-                  : 'Awaiting student rosters'}
-              </p>
+              {loading ? (
+                <div className="space-y-1 py-1">
+                  <div className="h-7 w-24 bg-slate-200 dark:bg-slate-700 rounded-lg animate-pulse" />
+                  <div className="h-3 w-36 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse" />
+                </div>
+              ) : (
+                <>
+                  <div className="text-2xl font-black font-mono text-slate-900 dark:text-white tracking-tight">
+                    {stats.evaluatedStudents || 0}
+                    <span className="text-xs font-normal text-slate-400 ml-1">
+                      / {stats.totalStudents || 0}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                    {stats.totalStudents > 0
+                      ? `${Math.round(((stats.evaluatedStudents || 0) / stats.totalStudents) * 100)}% cohort completion`
+                      : 'Awaiting student rosters'}
+                  </p>
+                </>
+              )}
             </div>
           </div>
 
@@ -419,12 +451,21 @@ export default function DeanOverviewPage() {
               <Percent className="size-4 text-amber-500" />
             </div>
             <div>
-              <div className="text-sm font-bold text-slate-900 dark:text-white">
-                Normalized 100% Distribution
-              </div>
-              <p className="text-[11px] text-slate-500 font-medium mt-0.5 leading-relaxed">
-                Station scores normalized & weighted to 20.00 scale identically across all portals.
-              </p>
+              {loading ? (
+                <div className="space-y-1 py-1">
+                  <div className="h-5 w-36 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+                  <div className="h-3 w-44 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse mt-1" />
+                </div>
+              ) : (
+                <>
+                  <div className="text-sm font-bold text-slate-900 dark:text-white">
+                    Normalized 100% Distribution
+                  </div>
+                  <p className="text-[11px] text-slate-500 font-medium mt-0.5 leading-relaxed">
+                    Station scores normalized & weighted to 20.00 scale identically across all portals.
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>

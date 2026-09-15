@@ -408,9 +408,34 @@ export default function ClinicalModulesPage() {
 
       {/* Modules Data View Grouped by Study Level */}
       {loading || isYearLoading ? (
-        <div className="p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-center text-slate-400">
-          <Loader2 className="size-6 animate-spin mx-auto mb-2 text-blue-500" />
-          Loading clinical modules hierarchy for {selectedYear?.name || 'session'}...
+        <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden animate-pulse">
+          <div className="p-5 bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="size-9 rounded-xl bg-slate-200 dark:bg-slate-800" />
+              <div className="space-y-1.5">
+                <div className="h-4 w-40 rounded-lg bg-slate-200 dark:bg-slate-800" />
+                <div className="h-3 w-28 rounded bg-slate-200/70 dark:bg-slate-800/70" />
+              </div>
+            </div>
+            <div className="h-6 w-24 rounded-full bg-slate-200 dark:bg-slate-800" />
+          </div>
+          <div className="p-6 space-y-4">
+            {Array.from({ length: 5 }).map((_, idx) => (
+              <div key={`skel-mod-${idx}`} className="flex items-center justify-between gap-4 py-2 border-b border-slate-100 dark:border-slate-800/50 last:border-0">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="size-8 rounded-lg bg-slate-200 dark:bg-slate-800 shrink-0" />
+                  <div className="h-4 w-48 rounded bg-slate-200 dark:bg-slate-800" />
+                </div>
+                <div className="h-8 w-44 rounded-xl bg-slate-100 dark:bg-slate-800/60 hidden md:block" />
+                <div className="h-4 w-36 rounded bg-slate-200/70 dark:bg-slate-800/70 hidden lg:block" />
+                <div className="h-4 w-20 rounded bg-slate-200 dark:bg-slate-800" />
+                <div className="flex gap-2">
+                  <div className="size-7 rounded-lg bg-slate-200 dark:bg-slate-800" />
+                  <div className="size-7 rounded-lg bg-slate-200 dark:bg-slate-800" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ) : groupedModulesByLevel.length > 0 ? (
         <div className="space-y-6">

@@ -197,12 +197,25 @@ export default function AcademicYearsPage() {
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {loading ? (
-                <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
-                    <Loader2 className="size-6 animate-spin mx-auto mb-2 text-blue-500" />
-                    Loading academic years...
-                  </td>
-                </tr>
+                Array.from({ length: 4 }).map((_, idx) => (
+                  <tr key={`skel-year-${idx}`} className="animate-pulse">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="size-9 rounded-xl bg-slate-200 dark:bg-slate-800" />
+                        <div className="h-4 w-28 rounded bg-slate-200 dark:bg-slate-800" />
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-6 w-24 rounded-full bg-slate-200 dark:bg-slate-800" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-4 w-24 rounded bg-slate-200 dark:bg-slate-800" />
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="size-8 rounded-lg bg-slate-200 dark:bg-slate-800 ml-auto" />
+                    </td>
+                  </tr>
+                ))
               ) : years.length > 0 ? (
                 years.map((y) => {
                   const isDeleting = deletingId === y.id

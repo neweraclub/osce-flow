@@ -48,6 +48,7 @@ import { ThemeToggle } from '@/components/theme-toggle'
 import { useToast } from '@/context/ToastContext'
 import { ExaminerSidebar, ExaminerNavTab } from '@/components/examiner/ExaminerSidebar'
 import { Select } from '@/components/ui/Select'
+import { SignOutOverlay } from '@/components/ui/SignOutOverlay'
 import { ClinicalPenaltiesCard } from '@/components/examiner/ClinicalPenaltiesCard'
 import {
   CreateCandidatePenaltyModal,
@@ -230,8 +231,11 @@ function ExaminerWorkspaceContent() {
     [exams, activeExamId]
   )
 
+  const [lockingTerminal, setLockingTerminal] = useState(false)
+
   // Lock Terminal & Clear Credentials Action
   const handleLockStation = () => {
+    setLockingTerminal(true)
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('examiner_pin')
       sessionStorage.removeItem('examiner_station')
@@ -240,8 +244,12 @@ function ExaminerWorkspaceContent() {
       sessionStorage.removeItem('evaluator_pin')
       sessionStorage.removeItem('evaluator_station')
       sessionStorage.removeItem('evaluator_exams')
+      document.cookie = 'examinator_station_id=; path=/; max-age=0'
+      document.cookie = 'evaluator_station_id=; path=/; max-age=0'
     }
-    router.push('/examiner')
+    setTimeout(() => {
+      router.push('/examiner')
+    }, 450)
   }
 
   // 1. Initial Load of Station & Student Roster + Clean Ugly Raw UUID from Address Bar
@@ -1720,6 +1728,13 @@ function ExaminerWorkspaceContent() {
           </div>
         )}
       </div>
+
+      {/* Full-Screen Sign-Out Overlay */}
+      <SignOutOverlay
+        isOpen={lockingTerminal}
+        title="Locking Examiner Terminal..."
+        subtitle="Clearing station credentials and scoring session data..."
+      />
     </div>
   )
 }

@@ -341,9 +341,22 @@ export default function AcademicStructurePage() {
 
           <div className="space-y-2.5">
             {loading ? (
-              <div className="py-8 text-center text-slate-400 text-xs">
-                <Loader2 className="size-6 animate-spin mx-auto mb-2 text-blue-500" />
-                Loading sections...
+              <div className="space-y-2.5 animate-pulse">
+                {Array.from({ length: 4 }).map((_, idx) => (
+                  <div
+                    key={`skel-sec-${idx}`}
+                    className="p-4 rounded-2xl border border-slate-200/70 dark:border-slate-800 flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="size-9 rounded-xl bg-slate-200 dark:bg-slate-800" />
+                      <div className="space-y-1.5">
+                        <div className="h-4 w-28 rounded bg-slate-200 dark:bg-slate-800" />
+                        <div className="h-3 w-16 rounded bg-slate-200/70 dark:bg-slate-800/70" />
+                      </div>
+                    </div>
+                    <div className="size-6 rounded bg-slate-200 dark:bg-slate-800" />
+                  </div>
+                ))}
               </div>
             ) : filteredSections.length > 0 ? (
               filteredSections.map((sec) => {
@@ -427,7 +440,20 @@ export default function AcademicStructurePage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {activeSection && activeSection.groups.length > 0 ? (
+            {loading ? (
+              Array.from({ length: 4 }).map((_, idx) => (
+                <div
+                  key={`skel-grp-${idx}`}
+                  className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex items-center gap-3 animate-pulse"
+                >
+                  <div className="size-9 rounded-xl bg-slate-200 dark:bg-slate-800 shrink-0" />
+                  <div className="space-y-1.5 flex-1">
+                    <div className="h-3.5 w-24 rounded bg-slate-200 dark:bg-slate-800" />
+                    <div className="h-2.5 w-32 rounded bg-slate-200/70 dark:bg-slate-800/70" />
+                  </div>
+                </div>
+              ))
+            ) : activeSection && activeSection.groups.length > 0 ? (
               activeSection.groups.map((grp) => {
                 const isDeleting = deletingId === grp.id
                 return (

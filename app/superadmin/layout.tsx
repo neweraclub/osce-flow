@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { useToast } from '@/context/ToastContext'
+import { SignOutOverlay } from '@/components/ui/SignOutOverlay'
 
 const navigationItems = [
   {
@@ -276,6 +277,13 @@ export default function SuperadminLayout({
         {/* Dynamic Page Content */}
         <main className="flex-1 p-6 sm:p-8 max-w-7xl w-full mx-auto">{children}</main>
       </div>
+
+      {/* Global Full-Page Sign-Out Overlay */}
+      <SignOutOverlay
+        isOpen={loggingOut}
+        title="Signing out securely..."
+        subtitle="Terminating Superadmin privileged session..."
+      />
     </div>
   )
 }

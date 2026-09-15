@@ -399,12 +399,31 @@ export default function ProfessorsPage() {
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {loading ? (
-                <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
-                    <Loader2 className="size-6 animate-spin mx-auto mb-2 text-blue-500" />
-                    Loading professors roster...
-                  </td>
-                </tr>
+                Array.from({ length: 5 }).map((_, idx) => (
+                  <tr key={`skel-prof-${idx}`} className="animate-pulse">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="size-9 rounded-xl bg-slate-200 dark:bg-slate-800 shrink-0" />
+                        <div className="space-y-1.5 flex-1">
+                          <div className="h-4 w-36 rounded bg-slate-200 dark:bg-slate-800" />
+                          <div className="h-3 w-24 rounded bg-slate-200/70 dark:bg-slate-800/70" />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-4 w-44 rounded bg-slate-200 dark:bg-slate-800" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-5 w-16 rounded-full bg-slate-200 dark:bg-slate-800" />
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <div className="size-8 rounded-lg bg-slate-200 dark:bg-slate-800" />
+                        <div className="size-8 rounded-lg bg-slate-200 dark:bg-slate-800" />
+                      </div>
+                    </td>
+                  </tr>
+                ))
               ) : filteredProfessors.length > 0 ? (
                 filteredProfessors.map((p) => {
                   const isDeleting = deletingId === p.id

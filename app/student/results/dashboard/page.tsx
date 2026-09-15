@@ -23,6 +23,7 @@ import {
   HelpCircle,
   Layers,
   Loader2,
+  LogOut,
   MinusCircle,
   Percent,
   Printer,
@@ -45,6 +46,7 @@ import {
   StudentResultsDashboardData,
 } from '@/app/actions/studentResults'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { SignOutOverlay } from '@/components/ui/SignOutOverlay'
 
 function StudentResultsDashboardContent() {
   const router = useRouter()
@@ -54,6 +56,14 @@ function StudentResultsDashboardContent() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<StudentResultsDashboardData | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isSigningOut, setIsSigningOut] = useState(false)
+
+  const handleStudentSignOut = () => {
+    setIsSigningOut(true)
+    setTimeout(() => {
+      router.push('/student/results')
+    }, 450)
+  }
 
   // Hierarchical Drill-Down State
   // selectedModuleId: null => Level 1 (Modules Grid View); string => Level 2 (Selected Module Stations Breakdown)
@@ -223,7 +233,7 @@ function StudentResultsDashboardContent() {
               title="Print official marksheet"
             >
               <Printer className="size-3.5" />
-              <span className="hidden sm:inline">Print Marksheet</span>
+              <span className="hidden sm:inline">Print</span>
             </button>
             <ThemeToggle />
             <Link
@@ -232,6 +242,15 @@ function StudentResultsDashboardContent() {
             >
               New Lookup
             </Link>
+            <button
+              type="button"
+              onClick={handleStudentSignOut}
+              className="flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+              title="Sign out of student portal"
+            >
+              <LogOut className="size-3.5" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </button>
           </div>
         </div>
       </header>
@@ -899,6 +918,13 @@ function StudentResultsDashboardContent() {
           </p>
         </div>
       </footer>
+
+      {/* Global Full-Page Sign-Out Overlay */}
+      <SignOutOverlay
+        isOpen={isSigningOut}
+        title="Signing out securely..."
+        subtitle="Ending your student transcript verification session..."
+      />
     </div>
   )
 }

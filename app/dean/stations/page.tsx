@@ -816,7 +816,7 @@ function DeanStationsContent() {
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                All Levels ({modules.length})
+                All Levels ({loading ? '...' : modules.length})
               </button>
 
               {studyLevels.map((lvl) => {
@@ -862,7 +862,42 @@ function DeanStationsContent() {
           </div>
 
           {/* Module Cards Grid */}
-          {displayedModules.length === 0 ? (
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-pulse">
+              {Array.from({ length: 6 }).map((_, idx) => (
+                <div
+                  key={`module-skel-${idx}`}
+                  className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-5"
+                >
+                  <div className="space-y-3.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="size-10 rounded-2xl bg-slate-200 dark:bg-slate-800" />
+                      <div className="h-6 w-20 rounded-full bg-slate-200 dark:bg-slate-800" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="h-6 w-3/4 rounded-xl bg-slate-200 dark:bg-slate-800" />
+                      <div className="h-3 w-1/2 rounded bg-slate-200/70 dark:bg-slate-800/70" />
+                    </div>
+                    <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60 flex items-center gap-2.5">
+                      <div className="size-8 rounded-xl bg-slate-200 dark:bg-slate-800 shrink-0" />
+                      <div className="space-y-1 flex-1">
+                        <div className="h-2.5 w-20 rounded bg-slate-200 dark:bg-slate-800" />
+                        <div className="h-3 w-32 rounded bg-slate-200 dark:bg-slate-800" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <div className="h-12 rounded-xl bg-slate-100 dark:bg-slate-800/40" />
+                      <div className="h-12 rounded-xl bg-slate-100 dark:bg-slate-800/40" />
+                    </div>
+                  </div>
+                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <div className="h-3 w-24 rounded bg-slate-200 dark:bg-slate-800" />
+                    <div className="size-4 rounded bg-slate-200 dark:bg-slate-800" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : displayedModules.length === 0 ? (
             <div className="p-12 rounded-3xl bg-white/70 dark:bg-slate-900/70 border border-dashed border-slate-200 dark:border-slate-800 text-center space-y-3">
               <BookOpen className="size-10 text-slate-400 mx-auto" />
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
@@ -1036,6 +1071,29 @@ function DeanStationsContent() {
           </div>
 
           {/* Exam Sessions Grid (Regular & Retake Cards) */}
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-pulse">
+              {Array.from({ length: 2 }).map((_, idx) => (
+                <div
+                  key={`session-skel-${idx}`}
+                  className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-5 h-72"
+                >
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="h-6 w-36 rounded-xl bg-slate-200 dark:bg-slate-800" />
+                      <div className="size-6 rounded-lg bg-slate-200 dark:bg-slate-800" />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-5 w-48 rounded bg-slate-200 dark:bg-slate-800" />
+                      <div className="h-3 w-32 rounded bg-slate-200/70 dark:bg-slate-800/70" />
+                    </div>
+                    <div className="h-14 rounded-2xl bg-slate-100 dark:bg-slate-800/50" />
+                  </div>
+                  <div className="h-11 rounded-2xl bg-slate-200 dark:bg-slate-800" />
+                </div>
+              ))}
+            </div>
+          ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* 1. Regular Session Card */}
             {regularExam ? (
@@ -1241,6 +1299,7 @@ function DeanStationsContent() {
               </div>
             )}
           </div>
+          )}
 
           {/* Informational Hierarchy Note */}
           <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60 flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
@@ -1398,7 +1457,35 @@ function DeanStationsContent() {
           </div>
 
           {/* Stations Grid */}
-          {displayedStations.length === 0 ? (
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-pulse">
+              {Array.from({ length: 3 }).map((_, idx) => (
+                <div
+                  key={`station-skel-${idx}`}
+                  className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4 flex flex-col justify-between"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="h-6 w-24 rounded-xl bg-slate-200 dark:bg-slate-800" />
+                      <div className="h-6 w-16 rounded-xl bg-slate-200 dark:bg-slate-800" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="h-5 w-40 rounded bg-slate-200 dark:bg-slate-800" />
+                      <div className="h-3 w-28 rounded bg-slate-200/70 dark:bg-slate-800/70" />
+                    </div>
+                    <div className="h-16 rounded-2xl bg-slate-100 dark:bg-slate-800/50" />
+                  </div>
+                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <div className="h-8 w-24 rounded-xl bg-slate-200 dark:bg-slate-800" />
+                    <div className="flex gap-2">
+                      <div className="size-8 rounded-xl bg-slate-200 dark:bg-slate-800" />
+                      <div className="size-8 rounded-xl bg-slate-200 dark:bg-slate-800" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : displayedStations.length === 0 ? (
             <div className="p-10 rounded-3xl bg-white/70 dark:bg-slate-900/70 border border-dashed border-slate-200 dark:border-slate-800 text-center space-y-3">
               <ClipboardCheck className="size-8 text-slate-400 mx-auto" />
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">

@@ -18,6 +18,7 @@ import { ThemeToggle } from '@/components/theme-toggle'
 import { useToast } from '@/context/ToastContext'
 import { NavbarYearSelector } from '@/components/dean/NavbarYearSelector'
 import { ExaminerLaunchButton } from '@/components/examiner/ExaminerLaunchButton'
+import { SignOutOverlay } from '@/components/ui/SignOutOverlay'
 
 export function DeanTopbar({
   setSidebarOpen,
@@ -199,17 +200,12 @@ export function DeanTopbar({
         </div>
       </div>
 
-      {/* Global Logout Interaction Guard */}
-      {loggingOut && (
-        <div className="fixed inset-0 z-50 bg-slate-900/30 backdrop-blur-[2px] flex items-center justify-center cursor-wait pointer-events-auto">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-5 py-3 rounded-2xl shadow-xl flex items-center gap-3 animate-in fade-in zoom-in-95">
-            <Loader2 className="size-5 animate-spin text-rose-600" />
-            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Signing out securely...
-            </span>
-          </div>
-        </div>
-      )}
+      {/* Global Full-Page Sign-Out Overlay */}
+      <SignOutOverlay
+        isOpen={loggingOut}
+        title="Signing out securely..."
+        subtitle="Clearing your Dean administrative session..."
+      />
     </header>
   )
 }

@@ -59,7 +59,7 @@ export function DeanSidebar({
     { label: 'Academic Years', href: '/dean/academic-years', icon: Calendar },
     { label: 'Academic Structure', href: '/dean/structure', icon: Layers },
     { label: 'Clinical Modules', href: '/dean/modules', icon: BookOpen },
-    { label: 'Stations', href: '/dean/exams', icon: ClipboardCheck },
+    { label: 'Stations', href: '/dean/stations', icon: ClipboardCheck },
     { label: 'Professors', href: '/dean/professors', icon: Stethoscope },
     { label: 'Students', href: '/dean/students', icon: Users },
     { label: 'Examiner Mode', href: '/examiner', icon: ShieldCheck },

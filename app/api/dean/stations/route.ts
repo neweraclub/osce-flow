@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedDean } from '@/lib/deanAuth'
 import { supabaseAdmin } from '@/lib/auth'
 import { isAcademicYearCurrent, sortAcademicYears } from '@/lib/academicYearUtils'
+import {
+  getFacultyHierarchyIds,
+  verifyExamBelongsToFaculty,
+  verifyStationBelongsToFaculty,
+  verifyProfessorBelongsToFaculty,
+} from '@/lib/facultyScope'
 
 export async function GET(req: NextRequest) {
   try {
@@ -13,7 +19,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const academicYearIdParam = searchParams.get('academic_year_id')
 
-    // 1. Fetch academic years for faculty
+    // 1. Fetch academic years strictly for this faculty
     const { data: rawYears } = await supabaseAdmin
       .from('academic_years')
       .select('*')
@@ -33,21 +39,23 @@ export async function GET(req: NextRequest) {
       academicYears.find((y) => y.is_current)?.id ||
       (academicYears.length > 0 ? academicYears[0].id : null)
 
-    // 2. Fetch professors in faculty
-    const { data: profUsers } = await supabaseAdmin
-      .from('users')
-      .select('id, email, first_name, last_name')
-      .eq('faculty_id', dean.facultyId)
+    // 2. Resolve relational hierarchy strictly for this faculty & active year
+    const hierarchy = await getFacultyHierarchyIds(dean.facultyId, activeYearId)
 
-    const userMap = new Map((profUsers || []).map((u) => [u.id, u]))
-    const userIds = (profUsers || []).map((u) => u.id)
+    // 3. Fetch professors in faculty
     let professorsList: any[] = []
+    if (hierarchy.userIds.length > 0) {
+      const { data: profUsers } = await supabaseAdmin
+        .from('users')
+        .select('id, email, first_name, last_name')
+        .in('id', hierarchy.userIds)
 
-    if (userIds.length > 0) {
+      const userMap = new Map((profUsers || []).map((u) => [u.id, u]))
+
       const { data: profs } = await supabaseAdmin
         .from('professors')
         .select('*')
-        .in('user_id', userIds)
+        .in('user_id', hierarchy.userIds)
 
       professorsList = (profs || []).map((p) => {
         const user = userMap.get(p.user_id)
@@ -64,28 +72,27 @@ export async function GET(req: NextRequest) {
 
     const profMap = new Map(professorsList.map((p) => [p.id, p]))
 
-    // 3. Fetch study levels scoped by active year
+    // 4. Fetch study levels
     let studyLevels: any[] = []
-    if (activeYearId) {
+    if (hierarchy.levelIds.length > 0) {
       const { data: levels } = await supabaseAdmin
         .from('study_levels')
         .select('id, level_name, academic_year_id')
-        .eq('academic_year_id', activeYearId)
+        .in('id', hierarchy.levelIds)
         .order('level_name', { ascending: true })
 
       studyLevels = levels || []
     }
 
-    const levelIds = studyLevels.map((l) => l.id)
     const levelMap = new Map(studyLevels.map((l) => [l.id, l.level_name]))
 
-    // 4. Fetch modules for these study levels
+    // 5. Fetch modules for these study levels
     let modulesList: any[] = []
-    if (levelIds.length > 0) {
+    if (hierarchy.moduleIds.length > 0) {
       const { data: mods } = await supabaseAdmin
         .from('modules')
         .select('*')
-        .in('level_id', levelIds)
+        .in('id', hierarchy.moduleIds)
         .order('module_name', { ascending: true })
 
       modulesList = (mods || []).map((m) => ({
@@ -94,138 +101,78 @@ export async function GET(req: NextRequest) {
       }))
     }
 
-    const moduleIds = modulesList.map((m) => m.id)
     const moduleMap = new Map(modulesList.map((m) => [m.id, m]))
 
-    // 5. Fetch sections & groups
-    let sectionsList: any[] = []
-    let groupsList: any[] = []
-
-    if (levelIds.length > 0) {
-      const { data: secs } = await supabaseAdmin
-        .from('sections')
-        .select('id, section_name, level_id')
-        .in('level_id', levelIds)
-        .order('section_name', { ascending: true })
-
-      sectionsList = secs || []
-      const sectionIds = sectionsList.map((s) => s.id)
-      const sectionMap = new Map(sectionsList.map((s) => [s.id, s]))
-
-      if (sectionIds.length > 0) {
-        const { data: grps } = await supabaseAdmin
-          .from('groups')
-          .select('id, group_name, section_id')
-          .in('section_id', sectionIds)
-          .order('group_name', { ascending: true })
-
-        groupsList = (grps || []).map((g) => {
-          const sec = sectionMap.get(g.section_id)
-          const lvlName = sec ? levelMap.get(sec.level_id) || '' : ''
-          return {
-            id: g.id,
-            group_name: g.group_name,
-            section_id: g.section_id,
-            section_name: sec ? sec.section_name : 'Unassigned',
-            level_name: lvlName,
-            display_label: sec ? `${sec.section_name} — ${g.group_name} (${lvlName})` : g.group_name,
-          }
-        })
-      }
-    }
-
-    const groupMap = new Map(groupsList.map((g) => [g.id, g]))
-    const groupIds = groupsList.map((g) => g.id)
-
-    // 6. Fetch scheduled exams for this year
+    // 6. Fetch scheduled exams strictly for faculty modules
     let examsList: any[] = []
-    if (moduleIds.length > 0 || groupIds.length > 0) {
-      let examsQuery = supabaseAdmin
+    if (hierarchy.examIds.length > 0) {
+      const { data: rawExams } = await supabaseAdmin
         .from('exams')
         .select('*')
+        .in('id', hierarchy.examIds)
         .order('exam_date', { ascending: false })
 
-      if (moduleIds.length > 0 && groupIds.length > 0) {
-        examsQuery = examsQuery.in('module_id', moduleIds).in('group_id', groupIds)
-      } else if (moduleIds.length > 0) {
-        examsQuery = examsQuery.in('module_id', moduleIds)
-      } else if (groupIds.length > 0) {
-        examsQuery = examsQuery.in('group_id', groupIds)
-      }
-
-      const { data: rawExams } = await examsQuery
       examsList = (rawExams || []).map((e) => {
         const mod = moduleMap.get(e.module_id)
-        const grp = groupMap.get(e.group_id)
         return {
           id: e.id,
           module_id: e.module_id,
           module_name: mod ? mod.module_name : 'Unassigned Module',
-          level_name: mod ? mod.level_name : (grp ? grp.level_name : 'Unassigned'),
-          group_id: e.group_id,
-          group_name: grp ? grp.group_name : 'Unassigned Group',
-          section_name: grp ? grp.section_name : 'Unassigned Section',
+          level_name: mod ? mod.level_name : 'Unassigned Level',
           session_type: e.session_type || 'regular',
           exam_date: e.exam_date,
-          display_label: `${mod ? mod.module_name : 'Exam'} — ${grp ? `${grp.section_name} (${grp.group_name})` : 'Group'} (${e.session_type})`,
+          display_label: `${mod ? mod.module_name : 'Exam'} (${e.session_type || 'regular'}) • ${e.exam_date || ''}`,
         }
       })
     }
 
-    const examIds = examsList.map((e) => e.id)
     const examMap = new Map(examsList.map((e) => [e.id, e]))
 
-    // 7. Fetch stations:
-    // Either stations attached to this year's exams OR unassigned stations (exam_id is null)
-    let stationsQuery = supabaseAdmin
-      .from('stations')
-      .select('*')
-      .order('station_number', { ascending: true })
+    // 7. Fetch stations strictly scoped to faculty exams
+    let formattedStations: any[] = []
+    if (hierarchy.examIds.length > 0) {
+      const { data: rawStations, error: stationsErr } = await supabaseAdmin
+        .from('stations')
+        .select('*')
+        .in('exam_id', hierarchy.examIds)
+        .order('station_number', { ascending: true })
 
-    if (examIds.length > 0) {
-      // Fetch stations whose exam_id is in examIds OR exam_id is null
-      stationsQuery = stationsQuery.or(`exam_id.in.(${examIds.join(',')}),exam_id.is.null`)
-    } else {
-      // If no exams in this year, fetch unassigned stations
-      stationsQuery = stationsQuery.is('exam_id', null)
+      if (stationsErr) throw stationsErr
+
+      formattedStations = (rawStations || []).map((st) => {
+        const prof = profMap.get(st.invigilator_prof_id)
+        const linkedExam = st.exam_id ? examMap.get(st.exam_id) : null
+
+        return {
+          id: st.id,
+          exam_id: st.exam_id,
+          station_number: st.station_number,
+          title: st.title,
+          access_pin: st.access_pin,
+          weightage_percentage: st.weightage_percentage || 50,
+          invigilator_prof_id: st.invigilator_prof_id || null,
+          invigilator_prof_name: prof ? prof.full_name : 'Unassigned',
+          invigilator_professor: prof || null,
+          created_at: st.created_at,
+          linked_exam: linkedExam
+            ? {
+                id: linkedExam.id,
+                module_name: linkedExam.module_name,
+                level_name: linkedExam.level_name,
+                session_type: linkedExam.session_type,
+                exam_date: linkedExam.exam_date,
+                display_label: linkedExam.display_label,
+              }
+            : null,
+        }
+      })
     }
-
-    const { data: rawStations, error: stationsErr } = await stationsQuery
-    if (stationsErr) throw stationsErr
-
-    const formattedStations = (rawStations || []).map((st) => {
-      const prof = profMap.get(st.invigilator_prof_id)
-      const linkedExam = st.exam_id ? examMap.get(st.exam_id) : null
-
-      return {
-        id: st.id,
-        exam_id: st.exam_id || null,
-        station_number: st.station_number,
-        title: st.title,
-        access_pin: st.access_pin,
-        invigilator_prof_id: st.invigilator_prof_id || null,
-        invigilator_prof_name: prof ? prof.full_name : 'Unassigned',
-        invigilator_professor: prof || null,
-        created_at: st.created_at,
-        linked_exam: linkedExam
-          ? {
-              id: linkedExam.id,
-              module_name: linkedExam.module_name,
-              level_name: linkedExam.level_name,
-              section_name: linkedExam.section_name,
-              group_name: linkedExam.group_name,
-              session_type: linkedExam.session_type,
-              exam_date: linkedExam.exam_date,
-              display_label: linkedExam.display_label,
-            }
-          : null,
-      }
-    })
 
     return NextResponse.json({
       success: true,
       stations: formattedStations,
       exams: examsList,
+      modules: modulesList,
       professors: professorsList,
       academicYears,
       activeYearId,
@@ -246,7 +193,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { title, station_number, access_pin, invigilator_prof_id, exam_id } = body
+    const { title, station_number, access_pin, invigilator_prof_id, exam_id, weightage_percentage } = body
 
     if (!title || !title.trim()) {
       return NextResponse.json(
@@ -271,24 +218,46 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Optional exam_id handling
-    let normalizedExamId: string | null = null
-    if (exam_id && exam_id !== 'unassigned' && exam_id !== 'null') {
-      normalizedExamId = exam_id
+    // Exam session validation (stations.exam_id is NOT NULL in schema)
+    if (!exam_id || exam_id === 'unassigned' || exam_id === 'null') {
+      return NextResponse.json(
+        { success: false, error: 'An exam session is required to register a clinical station.' },
+        { status: 400 }
+      )
     }
 
-    // Optional invigilator_prof_id handling
+    // Strict multi-tenancy verification: Exam must belong to the Dean's faculty
+    const isExamAllowed = await verifyExamBelongsToFaculty(exam_id, dean.facultyId)
+    if (!isExamAllowed) {
+      return NextResponse.json(
+        { success: false, error: 'Forbidden: Exam session does not belong to your faculty.' },
+        { status: 403 }
+      )
+    }
+
+    // Optional invigilator_prof_id verification
     let normalizedProfId: string | null = null
     if (invigilator_prof_id && invigilator_prof_id !== 'unassigned' && invigilator_prof_id !== 'null') {
+      const isProfAllowed = await verifyProfessorBelongsToFaculty(invigilator_prof_id, dean.facultyId)
+      if (!isProfAllowed) {
+        return NextResponse.json(
+          { success: false, error: 'Forbidden: Invigilator professor does not belong to your faculty.' },
+          { status: 403 }
+        )
+      }
       normalizedProfId = invigilator_prof_id
     }
+
+    const weightage = Number(weightage_percentage)
+    const validWeightage = !isNaN(weightage) && weightage >= 0 && weightage <= 100 ? weightage : 50.0
 
     const insertPayload: any = {
       title: title.trim(),
       station_number: parsedStationNumber,
       access_pin: pinStr,
       invigilator_prof_id: normalizedProfId,
-      exam_id: normalizedExamId,
+      exam_id,
+      weightage_percentage: validWeightage,
     }
 
     const { data: newStation, error: insertErr } = await supabaseAdmin
@@ -302,7 +271,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, station: newStation })
   } catch (error: any) {
     return NextResponse.json(
-      { success: false, error: error?.message || 'Failed to create station blueprint.' },
+      { success: false, error: error?.message || 'Failed to create clinical station.' },
       { status: 500 }
     )
   }
@@ -316,10 +285,19 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { id, title, station_number, access_pin, invigilator_prof_id, exam_id } = body
+    const { id, title, station_number, access_pin, invigilator_prof_id, exam_id, weightage_percentage } = body
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'Station ID is required.' }, { status: 400 })
+    }
+
+    // Multi-tenancy isolation: verify station belongs to dean's faculty
+    const isStationAllowed = await verifyStationBelongsToFaculty(id, dean.facultyId)
+    if (!isStationAllowed) {
+      return NextResponse.json(
+        { success: false, error: 'Forbidden: Station does not belong to your faculty.' },
+        { status: 403 }
+      )
     }
 
     const updatePayload: any = {}
@@ -348,15 +326,46 @@ export async function PUT(req: NextRequest) {
     }
 
     if (invigilator_prof_id !== undefined) {
-      updatePayload.invigilator_prof_id =
-        invigilator_prof_id && invigilator_prof_id !== 'unassigned' && invigilator_prof_id !== 'null'
-          ? invigilator_prof_id
-          : null
+      if (invigilator_prof_id && invigilator_prof_id !== 'unassigned' && invigilator_prof_id !== 'null') {
+        const isProfAllowed = await verifyProfessorBelongsToFaculty(invigilator_prof_id, dean.facultyId)
+        if (!isProfAllowed) {
+          return NextResponse.json(
+            { success: false, error: 'Forbidden: Invigilator professor does not belong to your faculty.' },
+            { status: 403 }
+          )
+        }
+        updatePayload.invigilator_prof_id = invigilator_prof_id
+      } else {
+        updatePayload.invigilator_prof_id = null
+      }
     }
 
     if (exam_id !== undefined) {
-      updatePayload.exam_id =
-        exam_id && exam_id !== 'unassigned' && exam_id !== 'null' ? exam_id : null
+      if (!exam_id || exam_id === 'unassigned' || exam_id === 'null') {
+        return NextResponse.json(
+          { success: false, error: 'Exam ID cannot be empty. Stations must be linked to a faculty exam.' },
+          { status: 400 }
+        )
+      }
+      const isExamAllowed = await verifyExamBelongsToFaculty(exam_id, dean.facultyId)
+      if (!isExamAllowed) {
+        return NextResponse.json(
+          { success: false, error: 'Forbidden: Target exam does not belong to your faculty.' },
+          { status: 403 }
+        )
+      }
+      updatePayload.exam_id = exam_id
+    }
+
+    if (weightage_percentage !== undefined) {
+      const weightage = Number(weightage_percentage)
+      if (isNaN(weightage) || weightage < 0 || weightage > 100) {
+        return NextResponse.json(
+          { success: false, error: 'Weightage percentage must be between 0 and 100.' },
+          { status: 400 }
+        )
+      }
+      updatePayload.weightage_percentage = weightage
     }
 
     const { data: updatedStation, error: updateErr } = await supabaseAdmin
@@ -404,6 +413,15 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Station ID is required.' }, { status: 400 })
     }
 
+    // Multi-tenancy isolation: verify station belongs to dean's faculty
+    const isStationAllowed = await verifyStationBelongsToFaculty(id, dean.facultyId)
+    if (!isStationAllowed) {
+      return NextResponse.json(
+        { success: false, error: 'Forbidden: Station does not belong to your faculty.' },
+        { status: 403 }
+      )
+    }
+
     const { error: delErr } = await supabaseAdmin
       .from('stations')
       .delete()
@@ -419,3 +437,4 @@ export async function DELETE(req: NextRequest) {
     )
   }
 }
+

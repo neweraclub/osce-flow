@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedDean } from '@/lib/deanAuth'
 import { supabaseAdmin } from '@/lib/auth'
 import { isAcademicYearCurrent, sortAcademicYears } from '@/lib/academicYearUtils'
+import {
+  verifyModuleBelongsToFaculty,
+  verifyExamBelongsToFaculty,
+} from '@/lib/facultyScope'
 
 export async function GET(req: NextRequest) {
   try {
@@ -241,15 +245,10 @@ export async function POST(req: NextRequest) {
     const sessionTypeEnum = session_type === 'retake' ? 'retake' : 'regular'
     const examDateVal = exam_date || new Date().toISOString().split('T')[0]
 
-    // Verify module exists
-    const { data: moduleCheck } = await supabaseAdmin
-      .from('modules')
-      .select('id, module_name')
-      .eq('id', module_id)
-      .single()
-
-    if (!moduleCheck) {
-      return NextResponse.json({ success: false, error: 'Invalid module selected.' }, { status: 400 })
+    // Verify module belongs strictly to this Dean's faculty
+    const isModuleAllowed = await verifyModuleBelongsToFaculty(module_id, dean.facultyId)
+    if (!isModuleAllowed) {
+      return NextResponse.json({ success: false, error: 'Forbidden: Selected module does not belong to your faculty.' }, { status: 403 })
     }
 
     // Verify group exists
@@ -298,8 +297,20 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Exam ID is required.' }, { status: 400 })
     }
 
+    // Verify exam belongs to dean's faculty
+    const isExamAllowed = await verifyExamBelongsToFaculty(id, dean.facultyId)
+    if (!isExamAllowed) {
+      return NextResponse.json({ success: false, error: 'Forbidden: Exam does not belong to your faculty.' }, { status: 403 })
+    }
+
     const updatePayload: any = {}
-    if (module_id) updatePayload.module_id = module_id
+    if (module_id) {
+      const isModAllowed = await verifyModuleBelongsToFaculty(module_id, dean.facultyId)
+      if (!isModAllowed) {
+        return NextResponse.json({ success: false, error: 'Forbidden: Target module does not belong to your faculty.' }, { status: 403 })
+      }
+      updatePayload.module_id = module_id
+    }
     if (group_id) updatePayload.group_id = group_id
     if (session_type) updatePayload.session_type = session_type === 'retake' ? 'retake' : 'regular'
     if (exam_date) updatePayload.exam_date = exam_date
@@ -331,6 +342,12 @@ export async function DELETE(req: NextRequest) {
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'Exam ID is required.' }, { status: 400 })
+    }
+
+    // Verify exam belongs to dean's faculty
+    const isExamAllowed = await verifyExamBelongsToFaculty(id, dean.facultyId)
+    if (!isExamAllowed) {
+      return NextResponse.json({ success: false, error: 'Forbidden: Exam does not belong to your faculty.' }, { status: 403 })
     }
 
     // Delete child stations

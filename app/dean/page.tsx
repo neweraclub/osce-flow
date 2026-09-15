@@ -10,6 +10,7 @@ import {
   Check,
   CheckCircle2,
   ChevronRight,
+  ClipboardCheck,
   Clock,
   GraduationCap,
   Layers,
@@ -28,7 +29,7 @@ export interface DeanOverviewData {
   faculty: {
     id?: string
     name: string
-    code: string
+    code?: string
   }
   activeAcademicYear: string
   stats: {
@@ -38,6 +39,8 @@ export interface DeanOverviewData {
     totalStudents: number
     totalProfessors: number
     totalModules: number
+    totalExams?: number
+    totalStations: number
   }
 }
 
@@ -79,6 +82,8 @@ export default function DeanOverviewPage() {
     totalStudents: 0,
     totalProfessors: 0,
     totalModules: 0,
+    totalExams: 0,
+    totalStations: 0,
   }
 
   return (
@@ -128,16 +133,16 @@ export default function DeanOverviewPage() {
         </div>
       </div>
 
-      {/* KPI Metrics 4-Column Uniform Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* KPI Metrics 5-Column Responsive Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {/* KPI 1: Academic Structure */}
         <Link
           href="/dean/structure"
-          className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-sky-500/50 hover:shadow-md transition-all group flex flex-col justify-between space-y-4"
+          className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-sky-500/50 hover:shadow-md transition-all group flex flex-col justify-between space-y-4"
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-              Academic Structure
+              Structure
             </span>
             <div className="size-10 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
               <Layers className="size-5" />
@@ -153,7 +158,7 @@ export default function DeanOverviewPage() {
                   {stats.totalSections} <span className="text-xs font-semibold text-slate-500">Sections</span>
                 </div>
                 <p className="text-xs text-slate-400 font-semibold mt-0.5">
-                  {stats.totalGroups} Rotation Groups configured
+                  {stats.totalGroups} Rotation Groups
                 </p>
               </div>
             )}
@@ -168,11 +173,11 @@ export default function DeanOverviewPage() {
         {/* KPI 2: Clinical Modules */}
         <Link
           href="/dean/modules"
-          className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-indigo-500/50 hover:shadow-md transition-all group flex flex-col justify-between space-y-4"
+          className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-indigo-500/50 hover:shadow-md transition-all group flex flex-col justify-between space-y-4"
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-              Clinical Modules
+              Modules
             </span>
             <div className="size-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
               <BookOpen className="size-5" />
@@ -188,7 +193,7 @@ export default function DeanOverviewPage() {
                   {stats.totalModules} <span className="text-xs font-semibold text-slate-500">Modules</span>
                 </div>
                 <p className="text-xs text-slate-400 font-semibold mt-0.5">
-                  Registered clinical stations
+                  Clinical subject curricula
                 </p>
               </div>
             )}
@@ -200,14 +205,49 @@ export default function DeanOverviewPage() {
           </div>
         </Link>
 
-        {/* KPI 3: Medical Faculty Roster */}
+        {/* KPI 3: Clinical Stations */}
         <Link
-          href="/dean/professors"
-          className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-emerald-500/50 hover:shadow-md transition-all group flex flex-col justify-between space-y-4"
+          href="/dean/stations"
+          className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-sky-500/50 hover:shadow-md transition-all group flex flex-col justify-between space-y-4"
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-              Faculty Roster
+              Stations
+            </span>
+            <div className="size-10 rounded-2xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+              <ClipboardCheck className="size-5" />
+            </div>
+          </div>
+
+          <div>
+            {loading ? (
+              <div className="h-8 w-24 bg-slate-100 dark:bg-slate-800 rounded-lg animate-pulse" />
+            ) : (
+              <div>
+                <div className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                  {stats.totalStations} <span className="text-xs font-semibold text-slate-500">Stations</span>
+                </div>
+                <p className="text-xs text-slate-400 font-semibold mt-0.5">
+                  OSCE stations & PIN codes
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold text-sky-600 dark:text-sky-400">
+            <span>Manage Stations</span>
+            <ArrowRight className="size-3.5 group-hover:translate-x-1 transition-transform" />
+          </div>
+        </Link>
+
+        {/* KPI 4: Medical Faculty Roster */}
+        <Link
+          href="/dean/professors"
+          className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-emerald-500/50 hover:shadow-md transition-all group flex flex-col justify-between space-y-4"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              Evaluators
             </span>
             <div className="size-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
               <UserCheck className="size-5" />
@@ -235,14 +275,14 @@ export default function DeanOverviewPage() {
           </div>
         </Link>
 
-        {/* KPI 4: Student Body */}
+        {/* KPI 5: Student Body */}
         <Link
           href="/dean/students"
-          className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-sky-500/50 hover:shadow-md transition-all group flex flex-col justify-between space-y-4"
+          className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-sky-500/50 hover:shadow-md transition-all group flex flex-col justify-between space-y-4"
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-              Student Body
+              Students
             </span>
             <div className="size-10 rounded-2xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
               <GraduationCap className="size-5" />
@@ -335,7 +375,7 @@ export default function DeanOverviewPage() {
               </Link>
             </div>
 
-            {/* Step 3: Register Clinical Modules */}
+            {/* Step 3: Register Clinical Modules & Stations */}
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-700/60 flex items-center justify-between">
               <div className="flex items-center gap-3.5">
                 <div className="size-9 rounded-xl bg-indigo-100 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs shrink-0">
@@ -347,18 +387,26 @@ export default function DeanOverviewPage() {
                   </h4>
                   <p className="text-[11px] text-slate-500 font-medium">
                     {stats.totalModules > 0
-                      ? `${stats.totalModules} Clinical Module(s) registered.`
-                      : 'Create OSCE stations and scoring criteria.'}
+                      ? `${stats.totalModules} Module(s) and ${stats.totalStations} Station(s) active.`
+                      : 'Configure clinical modules, exams, and station containers.'}
                   </p>
                 </div>
               </div>
-              <Link
-                href="/dean/modules"
-                className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1 shrink-0"
-              >
-                <span>{stats.totalModules > 0 ? 'Manage' : 'Create'}</span>
-                <ChevronRight className="size-3.5" />
-              </Link>
+              <div className="flex items-center gap-2 shrink-0">
+                <Link
+                  href="/dean/modules"
+                  className="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 text-xs font-bold transition-all shadow-xs"
+                >
+                  Modules
+                </Link>
+                <Link
+                  href="/dean/stations"
+                  className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1 shrink-0"
+                >
+                  <span>Stations</span>
+                  <ChevronRight className="size-3.5" />
+                </Link>
+              </div>
             </div>
 
             {/* Step 4: Import Student Roster */}
@@ -413,6 +461,21 @@ export default function DeanOverviewPage() {
 
           {/* Quick Links List */}
           <div className="space-y-2.5">
+            <Link
+              href="/dean/stations"
+              className="p-3.5 rounded-2xl border border-slate-200/70 dark:border-slate-800 hover:border-sky-500/50 hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-all flex items-center justify-between group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="size-8 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center">
+                  <ClipboardCheck className="size-4" />
+                </div>
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                  Manage Clinical Stations
+                </span>
+              </div>
+              <ChevronRight className="size-4 text-slate-400 group-hover:translate-x-1 transition-transform" />
+            </Link>
+
             <Link
               href="/dean/professors"
               className="p-3.5 rounded-2xl border border-slate-200/70 dark:border-slate-800 hover:border-emerald-500/50 hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-all flex items-center justify-between group"

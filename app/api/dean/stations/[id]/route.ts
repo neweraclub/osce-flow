@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedDean } from '@/lib/deanAuth'
 import { supabaseAdmin } from '@/lib/auth'
+import {
+  verifyStationBelongsToFaculty,
+  verifyExamBelongsToFaculty,
+  verifyProfessorBelongsToFaculty,
+} from '@/lib/facultyScope'
 
 export async function PATCH(
   req: NextRequest,
@@ -17,8 +22,17 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: 'Station ID is required.' }, { status: 400 })
     }
 
+    // Strict multi-tenancy verification: Station must belong to the Dean's faculty
+    const isAllowed = await verifyStationBelongsToFaculty(id, dean.facultyId)
+    if (!isAllowed) {
+      return NextResponse.json(
+        { success: false, error: 'Forbidden: Station does not belong to your faculty.' },
+        { status: 403 }
+      )
+    }
+
     const body = await req.json()
-    const { title, station_number, access_pin, invigilator_prof_id, exam_id } = body
+    const { title, station_number, access_pin, invigilator_prof_id, exam_id, weightage_percentage } = body
 
     const updatePayload: any = {}
 
@@ -46,15 +60,46 @@ export async function PATCH(
     }
 
     if (invigilator_prof_id !== undefined) {
-      updatePayload.invigilator_prof_id =
-        invigilator_prof_id && invigilator_prof_id !== 'unassigned' && invigilator_prof_id !== 'null'
-          ? invigilator_prof_id
-          : null
+      if (invigilator_prof_id && invigilator_prof_id !== 'unassigned' && invigilator_prof_id !== 'null') {
+        const isProfAllowed = await verifyProfessorBelongsToFaculty(invigilator_prof_id, dean.facultyId)
+        if (!isProfAllowed) {
+          return NextResponse.json(
+            { success: false, error: 'Forbidden: Evaluator does not belong to your faculty.' },
+            { status: 403 }
+          )
+        }
+        updatePayload.invigilator_prof_id = invigilator_prof_id
+      } else {
+        updatePayload.invigilator_prof_id = null
+      }
     }
 
     if (exam_id !== undefined) {
-      updatePayload.exam_id =
-        exam_id && exam_id !== 'unassigned' && exam_id !== 'null' ? exam_id : null
+      if (!exam_id || exam_id === 'unassigned' || exam_id === 'null') {
+        return NextResponse.json(
+          { success: false, error: 'Exam ID cannot be empty. Stations must be linked to an exam.' },
+          { status: 400 }
+        )
+      }
+      const isExamAllowed = await verifyExamBelongsToFaculty(exam_id, dean.facultyId)
+      if (!isExamAllowed) {
+        return NextResponse.json(
+          { success: false, error: 'Forbidden: Target exam does not belong to your faculty.' },
+          { status: 403 }
+        )
+      }
+      updatePayload.exam_id = exam_id
+    }
+
+    if (weightage_percentage !== undefined) {
+      const weightage = Number(weightage_percentage)
+      if (isNaN(weightage) || weightage < 0 || weightage > 100) {
+        return NextResponse.json(
+          { success: false, error: 'Weightage percentage must be between 0 and 100.' },
+          { status: 400 }
+        )
+      }
+      updatePayload.weightage_percentage = weightage
     }
 
     const { data: updatedStation, error: updateErr } = await supabaseAdmin
@@ -90,6 +135,15 @@ export async function DELETE(
       return NextResponse.json({ success: false, error: 'Station ID is required.' }, { status: 400 })
     }
 
+    // Strict multi-tenancy verification: Station must belong to the Dean's faculty
+    const isAllowed = await verifyStationBelongsToFaculty(id, dean.facultyId)
+    if (!isAllowed) {
+      return NextResponse.json(
+        { success: false, error: 'Forbidden: Station does not belong to your faculty.' },
+        { status: 403 }
+      )
+    }
+
     const { error: delErr } = await supabaseAdmin
       .from('stations')
       .delete()
@@ -105,3 +159,4 @@ export async function DELETE(
     )
   }
 }
+

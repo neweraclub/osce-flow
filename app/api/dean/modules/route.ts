@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedDean } from '@/lib/deanAuth'
 import { supabaseAdmin } from '@/lib/auth'
 import { isAcademicYearCurrent, sortAcademicYears } from '@/lib/academicYearUtils'
+import {
+  verifyModuleBelongsToFaculty,
+  verifyStudyLevelBelongsToFaculty,
+  verifyProfessorBelongsToFaculty,
+} from '@/lib/facultyScope'
 
 export async function GET(req: NextRequest) {
   try {
@@ -155,6 +160,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Module name and target study level are required.' }, { status: 400 })
     }
 
+    // Strict multi-tenancy verification: study level must belong to dean's faculty
+    const isLevelAllowed = await verifyStudyLevelBelongsToFaculty(level_id, dean.facultyId)
+    if (!isLevelAllowed) {
+      return NextResponse.json({ success: false, error: 'Forbidden: Target study level does not belong to your faculty.' }, { status: 403 })
+    }
+
+    if (responsible_prof_id) {
+      const isProfAllowed = await verifyProfessorBelongsToFaculty(responsible_prof_id, dean.facultyId)
+      if (!isProfAllowed) {
+        return NextResponse.json({ success: false, error: 'Forbidden: Responsible professor does not belong to your faculty.' }, { status: 403 })
+      }
+    }
+
     const { data: newModule, error } = await supabaseAdmin
       .from('modules')
       .insert([
@@ -189,10 +207,30 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Module ID is required.' }, { status: 400 })
     }
 
+    // Strict multi-tenancy verification: module must belong to dean's faculty
+    const isModuleAllowed = await verifyModuleBelongsToFaculty(id, dean.facultyId)
+    if (!isModuleAllowed) {
+      return NextResponse.json({ success: false, error: 'Forbidden: Module does not belong to your faculty.' }, { status: 403 })
+    }
+
     const updatePayload: any = {}
     if (module_name !== undefined) updatePayload.module_name = module_name.trim()
-    if (level_id !== undefined) updatePayload.level_id = level_id
-    if (responsible_prof_id !== undefined) updatePayload.responsible_prof_id = responsible_prof_id || null
+    if (level_id !== undefined) {
+      const isLevelAllowed = await verifyStudyLevelBelongsToFaculty(level_id, dean.facultyId)
+      if (!isLevelAllowed) {
+        return NextResponse.json({ success: false, error: 'Forbidden: Target study level does not belong to your faculty.' }, { status: 403 })
+      }
+      updatePayload.level_id = level_id
+    }
+    if (responsible_prof_id !== undefined) {
+      if (responsible_prof_id) {
+        const isProfAllowed = await verifyProfessorBelongsToFaculty(responsible_prof_id, dean.facultyId)
+        if (!isProfAllowed) {
+          return NextResponse.json({ success: false, error: 'Forbidden: Responsible professor does not belong to your faculty.' }, { status: 403 })
+        }
+      }
+      updatePayload.responsible_prof_id = responsible_prof_id || null
+    }
 
     const { data: updatedModule, error } = await supabaseAdmin
       .from('modules')
@@ -249,6 +287,12 @@ export async function DELETE(req: NextRequest) {
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'Module ID is required.' }, { status: 400 })
+    }
+
+    // Strict multi-tenancy verification: module must belong to dean's faculty
+    const isModuleAllowed = await verifyModuleBelongsToFaculty(id, dean.facultyId)
+    if (!isModuleAllowed) {
+      return NextResponse.json({ success: false, error: 'Forbidden: Module does not belong to your faculty.' }, { status: 403 })
     }
 
     const { error } = await supabaseAdmin.from('modules').delete().eq('id', id)

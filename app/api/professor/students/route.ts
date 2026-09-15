@@ -383,7 +383,7 @@ export async function GET(req: NextRequest) {
         .filter((p) => p.exam_attempt_id === att.id)
         .reduce((sum, p) => sum + (Number(p.points) || 0), 0)
 
-      const netRawScore = Math.max(0, earned + deductions)
+      const netRawScore = Math.min(maxPoints, Math.max(0, earned + deductions))
 
       // Centralized station normalization & weightage application
       const stationCalc = calculateStationScore({

@@ -79,28 +79,34 @@ function sanitizeNumber(val: any, fallback = 0): number {
  * and computes station contribution on the /20 grading scale.
  */
 export function calculateStationScore(input: StationScoreInput): StationScoreResult {
-  const pointsAwarded = Math.max(0, Math.round(sanitizeNumber(input.pointsAwarded, 0) * 100) / 100)
   const rawMax = sanitizeNumber(input.maxStationPoints, 10)
   const maxStationPoints = rawMax > 0 ? rawMax : 10
 
+  // Ensure raw earned points are strictly clamped between 0 and maxStationPoints
+  const unconstrainedPoints = sanitizeNumber(input.pointsAwarded, 0)
+  const pointsAwarded = Math.min(maxStationPoints, Math.max(0, Math.round(unconstrainedPoints * 100) / 100))
+
   // stations.weightage_percentage defaults to 50.00 in PostgreSQL schema
   const rawWeightage = sanitizeNumber(input.weightagePercentage, 50)
-  const weightagePercentage = rawWeightage >= 0 ? rawWeightage : 50
+  const weightagePercentage = Math.min(100, Math.max(0, rawWeightage >= 0 ? rawWeightage : 50))
 
-  // 1. Station Score Normalization:
-  // Station Percentage = (Points Awarded / Max Station Points) * 100
-  const rawPercentage = (pointsAwarded / maxStationPoints) * 100
-  const stationPercentage = Math.min(100, Math.max(0, Math.round(rawPercentage * 100) / 100))
+  // 1. Capped Percentage = min(1.0, Raw Earned Points / Max Station Points)
+  const cappedRatio = maxStationPoints > 0 ? Math.min(1.0, Math.max(0, pointsAwarded / maxStationPoints)) : 0
+  const stationPercentage = Math.round(cappedRatio * 100 * 100) / 100
 
-  // 2. Weightage Application:
-  // Weighted Percentage = Station Percentage * (Weightage % / 100)
-  const weightedPercentage = Math.round(((stationPercentage * weightagePercentage) / 100) * 100) / 100
-
-  // Station Max Contribution (/20) = 20 * (Weightage % / 100)
+  // 2. Station Max Contribution (/20) = 20 * (Weightage % / 100)
   const stationMaxContribution = Math.round((20 * (weightagePercentage / 100)) * 100) / 100
 
-  // Station Contribution (/20) = Weighted Percentage * 0.2
-  const stationContribution = Math.round((weightedPercentage * 0.2) * 100) / 100
+  // 3. Contribution (/20) = Capped Percentage * (Weightage % / 100) * 20
+  // Strictly bounded between 0 and stationMaxContribution to prevent any score overflow
+  const rawContribution = cappedRatio * (weightagePercentage / 100) * 20
+  const stationContribution = Math.min(
+    stationMaxContribution,
+    Math.max(0, Math.round(rawContribution * 100) / 100)
+  )
+
+  // Weighted Percentage = Station Percentage * (Weightage % / 100)
+  const weightedPercentage = Math.round(((stationPercentage * weightagePercentage) / 100) * 100) / 100
 
   return {
     stationId: input.stationId,

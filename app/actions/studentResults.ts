@@ -396,16 +396,35 @@ export async function getStudentResultsDashboardDataAction(
       const stationQuestions = allQuestions.filter(
         (q) => q.station_id === station.id || (att.exam_id && q.exam_id === att.exam_id)
       )
-      const stationMaxPoints = stationQuestions.reduce(
+      const computedMaxPoints = stationQuestions.reduce(
         (sum, q) => sum + (Number(q.max_scale_value) || 10),
         0
-      ) || 10 // Fallback to 10 if criteria unset to avoid divide-by-zero
+      )
+      const stationMaxPoints = computedMaxPoints > 0 ? computedMaxPoints : 10
 
-      // Answers for this attempt
+      // Answers for this attempt - deduplicate by question_id and clamp per question
       const attemptAnswers = allAnswers.filter((a) => a.attempt_id === att.id)
-      const rawEarnedPoints = attemptAnswers.reduce(
-        (sum, a) => sum + Math.max(0, Number(a.points_awarded) || 0),
-        0
+      const questionScoreMap = new Map<string, number>()
+      attemptAnswers.forEach((ans) => {
+        const qId = ans.question_id
+        const pts = Math.max(0, Number(ans.points_awarded) || 0)
+        const qDef = stationQuestions.find((q) => q.id === qId)
+        const qMax = qDef ? (Number(qDef.max_scale_value) || 10) : 10
+        const clampedPts = Math.min(qMax, pts)
+
+        if (!questionScoreMap.has(qId) || clampedPts > questionScoreMap.get(qId)!) {
+          questionScoreMap.set(qId, clampedPts)
+        }
+      })
+
+      // Sum points and strictly clamp between 0 and stationMaxPoints
+      const totalRawEarned = questionScoreMap.size > 0
+        ? Array.from(questionScoreMap.values()).reduce((sum, p) => sum + p, 0)
+        : attemptAnswers.reduce((sum, a) => sum + Math.max(0, Number(a.points_awarded) || 0), 0)
+
+      const rawEarnedPoints = Math.min(
+        stationMaxPoints,
+        Math.max(0, Math.round(totalRawEarned * 100) / 100)
       )
 
       // Penalties for this attempt (points are strictly negative)
@@ -415,13 +434,13 @@ export async function getStudentResultsDashboardDataAction(
         0
       )
 
-      // Net Station Raw Score: GREATEST(0, Earned Points + Deductions)
-      const netStationRawScore = Math.max(
-        0,
-        Math.round((rawEarnedPoints + deductionsPoints) * 100) / 100
+      // Net Station Raw Score: strictly clamped between 0 and stationMaxPoints
+      const netStationRawScore = Math.min(
+        stationMaxPoints,
+        Math.max(0, Math.round((rawEarnedPoints + deductionsPoints) * 100) / 100)
       )
 
-      // Centralized station score & weightage calculation
+      // Centralized station score & weightage calculation (strictly capped)
       const weightagePct = Number(station.weightage_percentage) || 50
       const scoreCalculation = calculateStationScore({
         stationId: station.id,

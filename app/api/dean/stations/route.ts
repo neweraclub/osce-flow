@@ -146,6 +146,8 @@ export async function GET(req: NextRequest) {
         return {
           id: st.id,
           exam_id: st.exam_id,
+          module_id: linkedExam?.module_id || '',
+          module_name: linkedExam?.module_name || '',
           station_number: st.station_number,
           title: st.title,
           access_pin: st.access_pin,

@@ -235,9 +235,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { module_id, group_id, session_type, exam_date } = body
 
-    if (!module_id || !group_id) {
+    if (!module_id) {
       return NextResponse.json(
-        { success: false, error: 'Module and target rotation group are required.' },
+        { success: false, error: 'Module is required.' },
         { status: 400 }
       )
     }
@@ -251,27 +251,48 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Forbidden: Selected module does not belong to your faculty.' }, { status: 403 })
     }
 
-    // Verify group exists
-    const { data: groupCheck } = await supabaseAdmin
-      .from('groups')
-      .select('id, group_name')
-      .eq('id', group_id)
-      .single()
+    // Enforce 1 regular + 1 retake exam limit per module (uq_module_session)
+    const { data: existingSession } = await supabaseAdmin
+      .from('exams')
+      .select('id, session_type')
+      .eq('module_id', module_id)
+      .eq('session_type', sessionTypeEnum)
+      .maybeSingle()
 
-    if (!groupCheck) {
-      return NextResponse.json({ success: false, error: 'Invalid rotation group selected.' }, { status: 400 })
+    if (existingSession) {
+      const typeLabel = sessionTypeEnum === 'retake' ? 'Retake' : 'Regular'
+      return NextResponse.json(
+        {
+          success: false,
+          error: `A ${typeLabel} Session already exists for this module (maximum 1 Regular and 1 Retake session allowed).`,
+        },
+        { status: 400 }
+      )
     }
+
+    // Optional group verification if provided
+    if (group_id) {
+      const { data: groupCheck } = await supabaseAdmin
+        .from('groups')
+        .select('id, group_name')
+        .eq('id', group_id)
+        .single()
+
+      if (!groupCheck) {
+        return NextResponse.json({ success: false, error: 'Invalid rotation group selected.' }, { status: 400 })
+      }
+    }
+
+    const insertPayload: any = {
+      module_id,
+      session_type: sessionTypeEnum,
+      exam_date: examDateVal,
+    }
+    if (group_id) insertPayload.group_id = group_id
 
     const { data: newExam, error } = await supabaseAdmin
       .from('exams')
-      .insert([
-        {
-          module_id,
-          group_id,
-          session_type: sessionTypeEnum,
-          exam_date: examDateVal,
-        },
-      ])
+      .insert([insertPayload])
       .select()
       .single()
 

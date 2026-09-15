@@ -222,6 +222,7 @@ function ExaminerWorkspaceContent() {
   const [presetCriteria, setPresetCriteria] = useState<PresetCriterionOption[]>([])
   const [isCreatePenaltyOpen, setIsCreatePenaltyOpen] = useState(false)
   const [submittingAttempt, setSubmittingAttempt] = useState(false)
+  const isSubmittingAttemptRef = React.useRef(false)
 
   // Active Exam Session
   const activeExam = useMemo(
@@ -641,8 +642,33 @@ function ExaminerWorkspaceContent() {
 
   // Submit Completed Assessment (Submit & Next Candidate)
   const handleSubmitAttempt = async () => {
-    if (!activeStudent || !activeExamId || !station) return
+    // 3. Async Race Condition Protection: prevent double-firing immediately
+    if (isSubmittingAttemptRef.current || submittingAttempt || !activeStudent || !activeExamId || !station) return
 
+    // 1. Stable State Pointers: capture unique identifier
+    const currentStudentId = activeStudent.id
+    const currentMatricule = activeStudent.matricule
+    const wasAlreadyCompleted = activeStudent.status === 'completed'
+
+    // 2. Sequential Navigation Guard: calculate the next candidate based on current queue position
+    const currentIndex = filteredStudents.findIndex((s) =>
+      currentStudentId ? s.id === currentStudentId : s.matricule === currentMatricule
+    )
+    let nextCandidate: StudentItem | null = null
+    if (currentIndex !== -1 && currentIndex + 1 < filteredStudents.length) {
+      const nextIndex = Math.min(currentIndex + 1, filteredStudents.length - 1)
+      nextCandidate = filteredStudents[nextIndex]
+    } else {
+      // Fallback: If at the end of queue or index not found, find next candidate in queue that isn't the current one
+      const remaining = filteredStudents.filter((s) =>
+        currentStudentId ? s.id !== currentStudentId : s.matricule !== currentMatricule
+      )
+      if (remaining.length > 0) {
+        nextCandidate = remaining[0]
+      }
+    }
+
+    isSubmittingAttemptRef.current = true
     setSubmittingAttempt(true)
 
     try {
@@ -733,13 +759,9 @@ function ExaminerWorkspaceContent() {
       // Clear local state when transitioning to the next student
       setCandidatePenalties([])
 
-      // Auto-advance to next pending candidate only if not re-evaluating
-      const remainingPending = filteredStudents.filter(
-        (s) => s.matricule !== currentMatricule && (s.status === 'pending' || s.status === 'present')
-      )
-
-      if (!wasAlreadyCompleted && remainingPending.length > 0) {
-        handleStartExamination(remainingPending[0])
+      // Auto-advance to next candidate sequentially if not re-evaluating an already completed record
+      if (!wasAlreadyCompleted && nextCandidate) {
+        handleStartExamination(nextCandidate)
       } else {
         setActiveStudent((prev) =>
           prev
@@ -758,6 +780,7 @@ function ExaminerWorkspaceContent() {
     } catch (err: any) {
       showError(err?.message || 'Network error submitting candidate assessment.')
     } finally {
+      isSubmittingAttemptRef.current = false
       setSubmittingAttempt(false)
     }
   }
@@ -1666,7 +1689,7 @@ function ExaminerWorkspaceContent() {
                     <button
                       type="button"
                       onClick={handleSubmitAttempt}
-                      disabled={submittingAttempt || questions.length === 0}
+                      disabled={submittingAttempt || isSubmittingAttemptRef.current || questions.length === 0}
                       className="px-6 py-3 rounded-2xl font-bold text-xs text-white bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-700 shadow-lg shadow-amber-500/25 active:scale-95 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
                     >
                       {submittingAttempt ? (

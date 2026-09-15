@@ -1167,7 +1167,7 @@ function ProfessorStudentsContent() {
                                 </span>
                               </div>
                               <p className="text-xs text-slate-400 mt-0.5">
-                                Raw Score: {st.net_station_raw_score.toFixed(2)} / {st.station_max_points} pts
+                                Raw Score: {st.net_station_raw_score.toFixed(2)} / {st.station_max_points} pts ({((st.net_station_raw_score / Math.max(0.01, st.station_max_points)) * 100).toFixed(1)}%)
                                 {st.deductions_points < 0 && (
                                   <span className="text-rose-500 font-semibold ml-1.5">
                                     (Deductions: {st.deductions_points.toFixed(2)} pts)

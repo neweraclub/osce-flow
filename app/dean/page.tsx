@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
   ArrowRight,
+  Award,
   BookOpen,
   Building2,
   Calendar,
@@ -14,10 +15,12 @@ import {
   Clock,
   GraduationCap,
   Layers,
+  Percent,
   Plus,
   RefreshCw,
   ShieldCheck,
   Stethoscope,
+  TrendingUp,
   UserCheck,
   UserPlus,
   Users,
@@ -41,6 +44,11 @@ export interface DeanOverviewData {
     totalModules: number
     totalExams?: number
     totalStations: number
+    evaluatedStudents?: number
+    averageFacultyScore?: number
+    passRate?: number
+    passedStudents?: number
+    failedStudents?: number
   }
 }
 
@@ -84,6 +92,11 @@ export default function DeanOverviewPage() {
     totalModules: 0,
     totalExams: 0,
     totalStations: 0,
+    evaluatedStudents: 0,
+    averageFacultyScore: 0,
+    passRate: 0,
+    passedStudents: 0,
+    failedStudents: 0,
   }
 
   return (
@@ -309,6 +322,112 @@ export default function DeanOverviewPage() {
             <ArrowRight className="size-3.5 group-hover:translate-x-1 transition-transform" />
           </div>
         </Link>
+      </div>
+
+      {/* Clinical OSCE Weighted Performance & Examination Analytics */}
+      <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-6 sm:p-7 shadow-xs space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="size-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-900/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+              <Award className="size-5" />
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+                Faculty Clinical OSCE Performance & Weighted Grading
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Official weighted marksheet metrics calculated across all clinical stations using station weightage percentages.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/professor/students"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition-colors self-start sm:self-auto"
+          >
+            <span>Inspect Grade Sheets</span>
+            <ArrowRight className="size-3.5" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card 1: Faculty Weighted Average */}
+          <div className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                Faculty Weighted Average
+              </span>
+              <Award className="size-4 text-emerald-500" />
+            </div>
+            <div>
+              <div className="text-2xl font-black font-mono text-slate-900 dark:text-white tracking-tight">
+                {stats.averageFacultyScore ? stats.averageFacultyScore.toFixed(2) : '0.00'}
+                <span className="text-xs font-normal text-slate-400 ml-1">/ 20.00</span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                OSCE scale (passing threshold: 10.00)
+              </p>
+            </div>
+          </div>
+
+          {/* Card 2: Faculty Pass Rate */}
+          <div className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                Examination Pass Rate
+              </span>
+              <TrendingUp className="size-4 text-emerald-500" />
+            </div>
+            <div>
+              <div className="text-2xl font-black font-mono text-emerald-600 dark:text-emerald-400 tracking-tight">
+                {stats.passRate ? stats.passRate.toFixed(1) : '0.0'}%
+              </div>
+              <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                {stats.passedStudents || 0} passed • {stats.failedStudents || 0} retake
+              </p>
+            </div>
+          </div>
+
+          {/* Card 3: Evaluated Candidates */}
+          <div className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                Evaluated Candidates
+              </span>
+              <CheckCircle2 className="size-4 text-sky-500" />
+            </div>
+            <div>
+              <div className="text-2xl font-black font-mono text-slate-900 dark:text-white tracking-tight">
+                {stats.evaluatedStudents || 0}
+                <span className="text-xs font-normal text-slate-400 ml-1">
+                  / {stats.totalStudents || 0}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                {stats.totalStudents > 0
+                  ? `${Math.round(((stats.evaluatedStudents || 0) / stats.totalStudents) * 100)}% cohort completion`
+                  : 'Awaiting student rosters'}
+              </p>
+            </div>
+          </div>
+
+          {/* Card 4: Station Weighting Standard */}
+          <div className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                Weighting Calibration
+              </span>
+              <Percent className="size-4 text-amber-500" />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-slate-900 dark:text-white">
+                Normalized 100% Distribution
+              </div>
+              <p className="text-[11px] text-slate-500 font-medium mt-0.5 leading-relaxed">
+                Station scores normalized & weighted to 20.00 scale identically across all portals.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Balanced Dashboard Body: 2-Column Split */}

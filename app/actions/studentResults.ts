@@ -1,6 +1,7 @@
 'use server'
 
 import { supabaseAdmin } from '@/lib/auth'
+import { calculateStationScore, calculateExamGrade } from '@/lib/gradeUtils'
 
 export interface StudentVerificationInput {
   matricule: string
@@ -54,6 +55,8 @@ export interface EvaluatedStationBreakdown {
   raw_earned_points: number
   deductions_points: number
   net_station_raw_score: number
+  station_percentage: number // (points_awarded / max_points) * 100
+  weighted_percentage: number // station_percentage * (weightage / 100)
   station_max_contribution: number // 20 * (weightage / 100)
   station_contribution: number // 20 * (weightage / 100) * (net_score / max_points)
   penalties: StationPenaltyBreakdown[]
@@ -418,15 +421,19 @@ export async function getStudentResultsDashboardDataAction(
         Math.round((rawEarnedPoints + deductionsPoints) * 100) / 100
       )
 
-      // Station Weight Scaling:
-      // Station Max Contribution = 20 * (weightage_percentage / 100)
+      // Centralized station score & weightage calculation
       const weightagePct = Number(station.weightage_percentage) || 50
-      const stationMaxContribution = Math.round((20 * (weightagePct / 100)) * 100) / 100
+      const scoreCalculation = calculateStationScore({
+        stationId: station.id,
+        stationNumber: station.station_number || 1,
+        stationTitle: station.title,
+        pointsAwarded: netStationRawScore,
+        maxStationPoints: stationMaxPoints,
+        weightagePercentage: weightagePct,
+      })
 
-      // Station Contribution (/20) = 20 * (weightage_percentage / 100) * (Net Station Raw Score / Station Max Points)
-      const stationContribution = stationMaxPoints > 0
-        ? Math.round((stationMaxContribution * (netStationRawScore / stationMaxPoints)) * 100) / 100
-        : 0
+      const stationMaxContribution = scoreCalculation.stationMaxContribution
+      const stationContribution = scoreCalculation.stationContribution
 
       // Match itemized penalties to station criteria if title/keyword matches
       const stationCriteria = allCriteria.filter((c) => c.station_id === station.id)
@@ -468,6 +475,8 @@ export async function getStudentResultsDashboardDataAction(
         raw_earned_points: Math.round(rawEarnedPoints * 100) / 100,
         deductions_points: Math.round(deductionsPoints * 100) / 100,
         net_station_raw_score: netStationRawScore,
+        station_percentage: scoreCalculation.stationPercentage,
+        weighted_percentage: scoreCalculation.weightedPercentage,
         station_max_contribution: stationMaxContribution,
         station_contribution: stationContribution,
         penalties: formattedPenalties,
@@ -493,14 +502,24 @@ export async function getStudentResultsDashboardDataAction(
       }
     })
 
-    // 8. Compile Module Final Score (/20 Scale) = SUM(Station Contributions)
+    // 8. Compile Module Final Score (/20 Scale) using centralized calculateExamGrade
     const moduleGroups: ModuleResultsGroup[] = Array.from(moduleMap.values()).map((mg) => {
       // Sort stations by station_number
       mg.stations.sort((a, b) => a.station_number - b.station_number)
 
-      const rawModuleScore = mg.stations.reduce((sum, s) => sum + s.station_contribution, 0)
-      const moduleFinalScore = Math.min(20, Math.round(rawModuleScore * 100) / 100)
-      const isPassed = moduleFinalScore >= 10.0
+      const examGrade = calculateExamGrade(
+        mg.stations.map((s) => ({
+          stationId: s.station_id,
+          stationNumber: s.station_number,
+          stationTitle: s.station_title,
+          pointsAwarded: s.net_station_raw_score,
+          maxStationPoints: s.station_max_points,
+          weightagePercentage: s.weightage_percentage,
+        }))
+      )
+
+      const moduleFinalScore = examGrade.finalGrade
+      const isPassed = examGrade.isPassed
 
       const formattedScoreStr = moduleFinalScore.toFixed(2)
 

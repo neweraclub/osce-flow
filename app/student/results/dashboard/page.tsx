@@ -596,6 +596,9 @@ function StudentResultsDashboardContent() {
                   {activeModule.stations.map((st) => {
                     const isExpanded = !!expandedStations[st.station_id]
                     const hasPenalties = st.penalties.length > 0
+                    const stationPercentage = typeof st.station_percentage === 'number'
+                      ? st.station_percentage
+                      : (st.station_max_points > 0 ? Math.min(100, Math.max(0, (st.net_station_raw_score / st.station_max_points) * 100)) : 0)
 
                     return (
                       <div
@@ -617,6 +620,10 @@ function StudentResultsDashboardContent() {
                               Weightage:{' '}
                               <strong className="text-slate-700 dark:text-slate-300">
                                 {st.weightage_percentage}%
+                              </strong>{' '}
+                              • Station Score:{' '}
+                              <strong className="text-emerald-600 dark:text-emerald-400 font-mono">
+                                {stationPercentage.toFixed(1)}%
                               </strong>{' '}
                               → Max Contribution:{' '}
                               <strong className="text-amber-600 dark:text-amber-400 font-mono">
@@ -672,10 +679,10 @@ function StudentResultsDashboardContent() {
                             </span>
                           </div>
 
-                          {/* Net Station Raw Score */}
+                          {/* Net Station Raw Score & Percentage */}
                           <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 space-y-0.5">
                             <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                              Net Raw Score
+                              Net ({stationPercentage.toFixed(1)}%)
                             </span>
                             <span className="text-xs sm:text-sm font-black font-mono text-emerald-600 dark:text-emerald-400">
                               {st.net_station_raw_score.toFixed(2)}{' '}

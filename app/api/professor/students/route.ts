@@ -3,6 +3,7 @@ import { getAuthenticatedProfessor } from '@/lib/professorAuth'
 import { supabaseAdmin } from '@/lib/auth'
 import { isAcademicYearCurrent, sortAcademicYears } from '@/lib/academicYearUtils'
 import { getStudentResultsDashboardDataAction, StudentResultsDashboardData } from '@/app/actions/studentResults'
+import { calculateStationScore, calculateExamGrade, calculateCohortStatistics } from '@/lib/gradeUtils'
 
 export async function GET(req: NextRequest) {
   try {
@@ -355,9 +356,19 @@ export async function GET(req: NextRequest) {
       stationWeightageMap.set(st.id, Number(st.weightage_percentage) || 50)
     })
 
-    // Compute contribution for each attempt
+    // Compute contribution for each attempt using centralized calculateStationScore
     // Map: student_id -> array of station contributions
-    const studentAttemptsMap = new Map<string, { station_id: string; contribution: number; date: string }[]>()
+    const studentAttemptsMap = new Map<
+      string,
+      {
+        station_id: string
+        contribution: number
+        netRawScore: number
+        maxPoints: number
+        weightagePct: number
+        date: string
+      }[]
+    >()
 
     attemptsList.forEach((att) => {
       const stationId = att.station_id
@@ -373,23 +384,44 @@ export async function GET(req: NextRequest) {
         .reduce((sum, p) => sum + (Number(p.points) || 0), 0)
 
       const netRawScore = Math.max(0, earned + deductions)
-      const stationMaxContrib = 20 * (weightagePct / 100)
-      const contrib = maxPoints > 0 ? (stationMaxContrib * (netRawScore / maxPoints)) : 0
+
+      // Centralized station normalization & weightage application
+      const stationCalc = calculateStationScore({
+        stationId,
+        pointsAwarded: netRawScore,
+        maxStationPoints: maxPoints,
+        weightagePercentage: weightagePct,
+      })
+      const contrib = stationCalc.stationContribution
 
       const list = studentAttemptsMap.get(att.student_id) || []
       // Avoid duplicate station attempts, keeping highest/latest
       const existingIdx = list.findIndex((x) => x.station_id === stationId)
       if (existingIdx >= 0) {
         if (contrib > list[existingIdx].contribution) {
-          list[existingIdx] = { station_id: stationId, contribution: contrib, date: att.created_at }
+          list[existingIdx] = {
+            station_id: stationId,
+            contribution: contrib,
+            netRawScore,
+            maxPoints,
+            weightagePct,
+            date: att.created_at,
+          }
         }
       } else {
-        list.push({ station_id: stationId, contribution: contrib, date: att.created_at })
+        list.push({
+          station_id: stationId,
+          contribution: contrib,
+          netRawScore,
+          maxPoints,
+          weightagePct,
+          date: att.created_at,
+        })
       }
       studentAttemptsMap.set(att.student_id, list)
     })
 
-    // 9. Format Students List
+    // 9. Format Students List with centralized calculateExamGrade
     const allStudentsList = Array.from(studentMap.values()).map((st: any) => {
       const groupData = st.groups
       const sectionData = groupData?.sections
@@ -398,12 +430,22 @@ export async function GET(req: NextRequest) {
 
       const evaluatedStations = studentAttemptsMap.get(st.id) || []
       const evaluatedCount = evaluatedStations.length
-      const totalScore = evaluatedStations.reduce((sum, s) => sum + s.contribution, 0)
-      const finalScore = Math.min(20, Math.round(totalScore * 100) / 100)
+
+      const examGrade = calculateExamGrade(
+        evaluatedStations.map((s) => ({
+          stationId: s.station_id,
+          pointsAwarded: s.netRawScore,
+          maxStationPoints: s.maxPoints,
+          weightagePercentage: s.weightagePct,
+        }))
+      )
+
+      const finalScore = evaluatedCount > 0 ? examGrade.finalGrade : null
+      const is_passed = evaluatedCount > 0 && examGrade.isPassed
 
       let status: 'passed' | 'failed' | 'pending' = 'pending'
       if (evaluatedCount > 0) {
-        status = finalScore >= 10.0 ? 'passed' : 'failed'
+        status = is_passed ? 'passed' : 'failed'
       }
 
       // Latest attempt date
@@ -425,8 +467,8 @@ export async function GET(req: NextRequest) {
         academic_year_label: academicYearData?.year_label || activeYear?.name || '2026-2027',
         evaluated_stations_count: evaluatedCount,
         total_stations_count: totalStationsCount,
-        final_score: evaluatedCount > 0 ? finalScore : null,
-        is_passed: evaluatedCount > 0 && finalScore >= 10.0,
+        final_score: finalScore,
+        is_passed,
         status,
         latest_attempt_date: latestAttemptDate,
         assigned_modules: targetModules.map((m) => m.module_name),
@@ -482,12 +524,11 @@ export async function GET(req: NextRequest) {
       }
     })
 
-    // 13. Calculate Analytics Summary
-    const evaluatedTotal = allStudentsList.filter((s) => s.evaluated_stations_count > 0)
-    const passingTotal = evaluatedTotal.filter((s) => (s.final_score ?? 0) >= 10.0)
-    const scoreSum = evaluatedTotal.reduce((sum, s) => sum + (s.final_score || 0), 0)
-    const averageScore = evaluatedTotal.length > 0 ? Math.round((scoreSum / evaluatedTotal.length) * 100) / 100 : 0
-    const passRate = evaluatedTotal.length > 0 ? Math.round((passingTotal.length / evaluatedTotal.length) * 100) : 0
+    // 13. Calculate Analytics Summary using centralized calculateCohortStatistics
+    const cohortStats = calculateCohortStatistics(
+      allStudentsList.map((s) => s.final_score),
+      allStudentsList.length
+    )
 
     return NextResponse.json({
       success: true,
@@ -501,10 +542,10 @@ export async function GET(req: NextRequest) {
         email: prof.email,
       },
       summary: {
-        total_students: allStudentsList.length,
-        evaluated_students: evaluatedTotal.length,
-        average_score: averageScore,
-        pass_rate: passRate,
+        total_students: cohortStats.totalCandidates,
+        evaluated_students: cohortStats.evaluatedCandidates,
+        average_score: cohortStats.averageScore,
+        pass_rate: cohortStats.passRate,
       },
       filters: {
         modules: assignedModules,

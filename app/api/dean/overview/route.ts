@@ -3,6 +3,7 @@ import { getAuthenticatedDean } from '@/lib/deanAuth'
 import { supabaseAdmin } from '@/lib/auth'
 import { isAcademicYearCurrent, sortAcademicYears } from '@/lib/academicYearUtils'
 import { getFacultyHierarchyIds } from '@/lib/facultyScope'
+import { calculateStationScore, calculateExamGrade, calculateCohortStatistics } from '@/lib/gradeUtils'
 
 export async function GET(req: NextRequest) {
   try {
@@ -79,6 +80,120 @@ export async function GET(req: NextRequest) {
       totalStations = stationCount || 0
     }
 
+    // 7. Clinical OSCE Grading & Weighted Performance Analytics
+    let evaluatedStudents = 0
+    let averageFacultyScore = 0
+    let passRate = 0
+    let passedStudents = 0
+    let failedStudents = 0
+
+    if (hierarchy.examIds.length > 0) {
+      const { data: stations } = await supabaseAdmin
+        .from('stations')
+        .select('id, exam_id, weightage_percentage')
+        .in('exam_id', hierarchy.examIds)
+
+      const stationList = stations || []
+      const stationIds = stationList.map((s) => s.id)
+
+      if (stationIds.length > 0) {
+        // Fetch questions to get max points per station
+        const { data: questions } = await supabaseAdmin
+          .from('questions')
+          .select('id, station_id, max_scale_value')
+          .in('station_id', stationIds)
+
+        const stationMaxPointsMap = new Map<string, number>()
+        ;(questions || []).forEach((q) => {
+          const cur = stationMaxPointsMap.get(q.station_id) || 0
+          stationMaxPointsMap.set(q.station_id, cur + (Number(q.max_scale_value) || 10))
+        })
+
+        const stationWeightMap = new Map<string, number>()
+        stationList.forEach((st) => {
+          stationWeightMap.set(st.id, Number(st.weightage_percentage) || 50)
+        })
+
+        // Fetch completed attempts
+        const { data: attempts } = await supabaseAdmin
+          .from('exam_attempts')
+          .select('id, student_id, station_id, created_at')
+          .in('station_id', stationIds)
+          .eq('status', 'completed')
+
+        const attemptList = attempts || []
+        const attemptIds = attemptList.map((a) => a.id)
+
+        if (attemptIds.length > 0) {
+          const { data: answers } = await supabaseAdmin
+            .from('student_answers')
+            .select('attempt_id, points_awarded')
+            .in('attempt_id', attemptIds)
+
+          const { data: penalties } = await supabaseAdmin
+            .from('candidate_penalties')
+            .select('exam_attempt_id, points')
+            .in('exam_attempt_id', attemptIds)
+
+          const answerList = answers || []
+          const penaltyList = penalties || []
+
+          // Group by student_id
+          const studentStationsMap = new Map<
+            string,
+            { station_id: string; netRawScore: number; maxPoints: number; weightagePct: number }[]
+          >()
+
+          attemptList.forEach((att) => {
+            const stationId = att.station_id
+            const maxPoints = stationMaxPointsMap.get(stationId) || 10
+            const weightagePct = stationWeightMap.get(stationId) || 50
+
+            const earned = answerList
+              .filter((a) => a.attempt_id === att.id)
+              .reduce((sum, a) => sum + Math.max(0, Number(a.points_awarded) || 0), 0)
+
+            const deductions = penaltyList
+              .filter((p) => p.exam_attempt_id === att.id)
+              .reduce((sum, p) => sum + (Number(p.points) || 0), 0)
+
+            const netRawScore = Math.max(0, earned + deductions)
+
+            const list = studentStationsMap.get(att.student_id) || []
+            const existingIdx = list.findIndex((x) => x.station_id === stationId)
+            if (existingIdx >= 0) {
+              if (netRawScore > list[existingIdx].netRawScore) {
+                list[existingIdx] = { station_id: stationId, netRawScore, maxPoints, weightagePct }
+              }
+            } else {
+              list.push({ station_id: stationId, netRawScore, maxPoints, weightagePct })
+            }
+            studentStationsMap.set(att.student_id, list)
+          })
+
+          // Calculate weighted final grade for each student using calculateExamGrade
+          const studentFinalScores = Array.from(studentStationsMap.values()).map((stations) => {
+            const examGrade = calculateExamGrade(
+              stations.map((s) => ({
+                stationId: s.station_id,
+                pointsAwarded: s.netRawScore,
+                maxStationPoints: s.maxPoints,
+                weightagePercentage: s.weightagePct,
+              }))
+            )
+            return examGrade.finalGrade
+          })
+
+          const cohortStats = calculateCohortStatistics(studentFinalScores, totalStudents)
+          evaluatedStudents = cohortStats.evaluatedCandidates
+          averageFacultyScore = cohortStats.averageScore
+          passRate = cohortStats.passRate
+          passedStudents = cohortStats.passedCandidates
+          failedStudents = cohortStats.failedCandidates
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       faculty: {
@@ -95,6 +210,11 @@ export async function GET(req: NextRequest) {
         totalModules,
         totalExams,
         totalStations,
+        evaluatedStudents,
+        averageFacultyScore,
+        passRate,
+        passedStudents,
+        failedStudents,
       },
     })
   } catch (error: any) {

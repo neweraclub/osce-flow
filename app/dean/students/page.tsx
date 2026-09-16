@@ -701,9 +701,9 @@ export default function StudentsPage() {
   ) => {
     if (sortKey !== key) return <ArrowUpDown className="size-3.5 opacity-40 group-hover:opacity-100 transition-opacity inline ml-1" />
     return sortOrder === 'asc' ? (
-      <ArrowUp className="size-3.5 text-blue-600 dark:text-blue-400 inline ml-1" />
+      <ArrowUp className="size-3.5 text-indigo-600 dark:text-indigo-400 inline ml-1" />
     ) : (
-      <ArrowDown className="size-3.5 text-blue-600 dark:text-blue-400 inline ml-1" />
+      <ArrowDown className="size-3.5 text-indigo-600 dark:text-indigo-400 inline ml-1" />
     )
   }
 
@@ -737,7 +737,7 @@ export default function StudentsPage() {
           </button>
           <button
             onClick={openAddModal}
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/25 transition-all"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-500/25 transition-all"
           >
             <Plus className="size-4" />
             Enroll Student
@@ -808,10 +808,10 @@ export default function StudentsPage() {
                   <button
                     type="button"
                     onClick={() => toggleSelectAll(filteredIds)}
-                    className="p-1 rounded-lg text-slate-400 hover:text-blue-600 transition-colors"
+                    className="p-1 rounded-lg text-slate-400 hover:text-indigo-600 transition-colors"
                   >
                     {isAllSelected(filteredIds) ? (
-                      <CheckSquare className="size-4 text-blue-600" />
+                      <CheckSquare className="size-4 text-indigo-600" />
                     ) : (
                       <Square className="size-4" />
                     )}
@@ -819,7 +819,7 @@ export default function StudentsPage() {
                 </th>
                 <th
                   onClick={() => toggleSort('import_index')}
-                  className="px-3 py-4 cursor-pointer select-none group hover:text-blue-600 dark:hover:text-blue-400 transition-colors w-12 text-center"
+                  className="px-3 py-4 cursor-pointer select-none group hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors w-12 text-center"
                   title="Sort by uploaded sequence"
                 >
                   <span>#</span>
@@ -827,35 +827,35 @@ export default function StudentsPage() {
                 </th>
                 <th
                   onClick={() => toggleSort('matricule')}
-                  className="px-6 py-4 cursor-pointer select-none group hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  className="px-6 py-4 cursor-pointer select-none group hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                 >
                   <span>Matricule</span>
                   {renderSortIcon('matricule')}
                 </th>
                 <th
                   onClick={() => toggleSort('last_name')}
-                  className="px-6 py-4 cursor-pointer select-none group hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  className="px-6 py-4 cursor-pointer select-none group hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                 >
                   <span>Last Name (Nom)</span>
                   {renderSortIcon('last_name')}
                 </th>
                 <th
                   onClick={() => toggleSort('first_name')}
-                  className="px-6 py-4 cursor-pointer select-none group hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  className="px-6 py-4 cursor-pointer select-none group hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                 >
                   <span>First Name (Prénom)</span>
                   {renderSortIcon('first_name')}
                 </th>
                 <th
                   onClick={() => toggleSort('group_name')}
-                  className="px-6 py-4 cursor-pointer select-none group hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  className="px-6 py-4 cursor-pointer select-none group hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                 >
                   <span>Rotation Group</span>
                   {renderSortIcon('group_name')}
                 </th>
                 <th
                   onClick={() => toggleSort('section_name')}
-                  className="px-6 py-4 cursor-pointer select-none group hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  className="px-6 py-4 cursor-pointer select-none group hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                 >
                   <span>Section & Study Level</span>
                   {renderSortIcon('section_name')}
@@ -904,7 +904,7 @@ export default function StudentsPage() {
                         isDeleting
                           ? 'opacity-50 pointer-events-none bg-slate-100/50 dark:bg-slate-800/50'
                           : selected
-                          ? 'bg-sky-50/60 dark:bg-sky-950/40'
+                          ? 'bg-indigo-50/60 dark:bg-indigo-950/40'
                           : 'hover:bg-slate-50/50 dark:hover:bg-slate-800/30'
                       }`}
                     >
@@ -913,10 +913,10 @@ export default function StudentsPage() {
                           type="button"
                           onClick={() => toggleSelect(st.id)}
                           disabled={isDeleting}
-                          className="p-1 rounded-lg text-slate-400 hover:text-blue-600 transition-colors disabled:opacity-50"
+                          className="p-1 rounded-lg text-slate-400 hover:text-indigo-600 transition-colors disabled:opacity-50"
                         >
                           {selected ? (
-                            <CheckSquare className="size-4 text-blue-600" />
+                            <CheckSquare className="size-4 text-indigo-600" />
                           ) : (
                             <Square className="size-4" />
                           )}
@@ -925,7 +925,7 @@ export default function StudentsPage() {
                       <td className="px-3 py-4 text-center font-mono text-[11px] font-medium text-slate-400 dark:text-slate-500">
                         {typeof st.import_index === 'number' ? st.import_index + 1 : '-'}
                       </td>
-                      <td className="px-6 py-4 font-mono font-bold text-blue-600 dark:text-blue-400">
+                      <td className="px-6 py-4 font-mono font-bold text-indigo-600 dark:text-indigo-400">
                         {st.matricule}
                       </td>
                       <td className="px-6 py-4 font-extrabold text-slate-900 dark:text-white uppercase tracking-wide">
@@ -940,7 +940,7 @@ export default function StudentsPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-semibold text-[11px] border border-sky-200/60 dark:border-sky-900/50">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold text-[11px] border border-indigo-200/60 dark:border-indigo-900/50">
                           <GraduationCap className="size-3.5" />
                           {st.section_name} ({st.level_name})
                         </span>
@@ -950,7 +950,7 @@ export default function StudentsPage() {
                           <button
                             onClick={() => setEditingStudent(st)}
                             disabled={isDeleting}
-                            className="p-2 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40 transition-colors disabled:opacity-50"
+                            className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors disabled:opacity-50"
                             title="Edit Student Record"
                           >
                             <Pencil className="size-4" />
@@ -962,7 +962,7 @@ export default function StudentsPage() {
                             title="Remove Student"
                           >
                             {isDeleting ? (
-                              <Loader2 className="size-4 animate-spin text-blue-600 dark:text-blue-400" />
+                              <Loader2 className="size-4 animate-spin text-indigo-600 dark:text-indigo-400" />
                             ) : (
                               <Trash2 className="size-4" />
                             )}
@@ -1053,7 +1053,7 @@ export default function StudentsPage() {
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className="p-6 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-500 bg-slate-50/50 dark:bg-slate-800/30 cursor-pointer transition-all text-center space-y-3"
+                className="p-6 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500 bg-slate-50/50 dark:bg-slate-800/30 cursor-pointer transition-all text-center space-y-3"
               >
                 <input
                   type="file"
@@ -1062,7 +1062,7 @@ export default function StudentsPage() {
                   accept=".xlsx, .xls"
                   className="hidden"
                 />
-                <div className="size-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 mx-auto flex items-center justify-center">
+                <div className="size-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 mx-auto flex items-center justify-center">
                   <Upload className="size-6" />
                 </div>
                 <div>
@@ -1089,11 +1089,11 @@ export default function StudentsPage() {
                       </span>
                     </div>
 
-                    <div className="p-3.5 rounded-2xl bg-blue-50/60 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-900/50">
-                      <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider block">
+                    <div className="p-3.5 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-900/50">
+                      <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block">
                         Valid Candidates
                       </span>
-                      <span className="text-xl font-extrabold text-blue-700 dark:text-blue-300">
+                      <span className="text-xl font-extrabold text-indigo-700 dark:text-indigo-300">
                         {validRowsCount}
                       </span>
                     </div>
@@ -1180,7 +1180,7 @@ export default function StudentsPage() {
                                   : 'hover:bg-slate-50/50 dark:hover:bg-slate-800/30'
                               }
                             >
-                              <td className="px-4 py-2.5 font-mono font-bold text-blue-600 dark:text-blue-400">
+                              <td className="px-4 py-2.5 font-mono font-bold text-indigo-600 dark:text-indigo-400">
                                 {row.matricule || '—'}
                               </td>
                               <td className="px-4 py-2.5 font-bold text-slate-900 dark:text-white">
@@ -1287,7 +1287,7 @@ export default function StudentsPage() {
           <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-6">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
-                <div className="size-10 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                <div className="size-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
                   <UserPlus className="size-5" />
                 </div>
                 <div>
@@ -1320,7 +1320,7 @@ export default function StudentsPage() {
                   value={matricule}
                   onChange={(e) => setMatricule(e.target.value)}
                   placeholder="e.g. 202531098452"
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
@@ -1335,7 +1335,7 @@ export default function StudentsPage() {
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     placeholder="e.g. BOUZEID"
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white uppercase font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white uppercase font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
                 <div>
@@ -1348,7 +1348,7 @@ export default function StudentsPage() {
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     placeholder="e.g. Mohamed"
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
               </div>
@@ -1373,7 +1373,7 @@ export default function StudentsPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/25 flex items-center gap-2 disabled:opacity-50"
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/25 flex items-center gap-2 disabled:opacity-50"
                 >
                   {submitting ? <Loader2 className="size-4 animate-spin" /> : null}
                   <span>Enroll Candidate</span>

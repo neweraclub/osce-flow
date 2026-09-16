@@ -363,7 +363,7 @@ export default function ProfessorsPage() {
           </button>
           <button
             onClick={openAddModal}
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/25 transition-all"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-500/25 transition-all"
           >
             <Plus className="size-4" />
             Register Professor
@@ -380,7 +380,7 @@ export default function ProfessorsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search professor name or email..."
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
       </div>
@@ -463,7 +463,7 @@ export default function ProfessorsPage() {
                             disabled={isToggling}
                             onClick={() => handleToggleStatus(p)}
                             title={p.is_active ? 'Click to suspend account' : 'Click to activate account'}
-                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500/30 disabled:opacity-50 ${
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500/30 disabled:opacity-50 ${
                               p.is_active
                                 ? 'bg-emerald-500'
                                 : 'bg-slate-300 dark:bg-slate-700'
@@ -502,7 +502,7 @@ export default function ProfessorsPage() {
                           <button
                             onClick={() => openEditModal(p)}
                             disabled={isDeleting}
-                            className="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors disabled:opacity-50"
+                            className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors disabled:opacity-50"
                             title="Edit Professor Details"
                           >
                             <Edit2 className="size-4" />
@@ -514,7 +514,7 @@ export default function ProfessorsPage() {
                             title="Remove Account"
                           >
                             {isDeleting ? (
-                              <Loader2 className="size-4 animate-spin text-blue-600 dark:text-blue-400" />
+                              <Loader2 className="size-4 animate-spin text-indigo-600 dark:text-indigo-400" />
                             ) : (
                               <Trash2 className="size-4" />
                             )}
@@ -542,7 +542,7 @@ export default function ProfessorsPage() {
           <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-6">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
-                <div className="size-10 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                <div className="size-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
                   <Edit2 className="size-5" />
                 </div>
                 <div>
@@ -576,7 +576,7 @@ export default function ProfessorsPage() {
                     value={editFirstName}
                     onChange={(e) => setEditFirstName(e.target.value)}
                     placeholder="e.g. Karim"
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
                 <div>
@@ -589,7 +589,7 @@ export default function ProfessorsPage() {
                     value={editLastName}
                     onChange={(e) => setEditLastName(e.target.value)}
                     placeholder="e.g. Benali"
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
               </div>
@@ -604,7 +604,7 @@ export default function ProfessorsPage() {
                   value={editEmail}
                   onChange={(e) => setEditEmail(e.target.value)}
                   placeholder="prof.benali@univ-alger.dz"
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
@@ -625,7 +625,7 @@ export default function ProfessorsPage() {
                   role="switch"
                   aria-checked={editIsActive}
                   onClick={() => setEditIsActive((prev) => !prev)}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500/30 ${
                     editIsActive ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
                   }`}
                 >
@@ -648,10 +648,10 @@ export default function ProfessorsPage() {
                   className="w-full p-3.5 bg-slate-50/70 dark:bg-slate-800/30 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300 transition-colors"
                 >
                   <span className="inline-flex items-center gap-2">
-                    <Key className="size-3.5 text-blue-500" />
+                    <Key className="size-3.5 text-indigo-500" />
                     Reset Account Password
                   </span>
-                  <span className="text-[10px] uppercase font-semibold text-blue-600 dark:text-blue-400">
+                  <span className="text-[10px] uppercase font-semibold text-indigo-600 dark:text-indigo-400">
                     {isPasswordResetOpen ? 'Cancel' : 'Set New Password'}
                   </span>
                 </button>
@@ -667,7 +667,7 @@ export default function ProfessorsPage() {
                         value={editPassword}
                         onChange={(e) => setEditPassword(e.target.value)}
                         placeholder="Enter new password to reset..."
-                        className="w-full pl-4 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full pl-4 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       />
                       <button
                         type="button"
@@ -697,7 +697,7 @@ export default function ProfessorsPage() {
                 <button
                   type="submit"
                   disabled={!isEditDirty || submitting}
-                  className={`px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/25 flex items-center gap-2 transition-all ${
+                  className={`px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/25 flex items-center gap-2 transition-all ${
                     !isEditDirty || submitting
                       ? 'opacity-50 cursor-not-allowed pointer-events-none'
                       : 'cursor-pointer'
@@ -718,7 +718,7 @@ export default function ProfessorsPage() {
           <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-6">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
-                <div className="size-10 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                <div className="size-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
                   <UserCheck className="size-5" />
                 </div>
                 <div>
@@ -752,7 +752,7 @@ export default function ProfessorsPage() {
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     placeholder="e.g. Karim"
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
                 <div>
@@ -765,7 +765,7 @@ export default function ProfessorsPage() {
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     placeholder="e.g. Benali"
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
               </div>
@@ -780,7 +780,7 @@ export default function ProfessorsPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="prof.benali@univ-alger.dz"
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
@@ -794,7 +794,7 @@ export default function ProfessorsPage() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-4 pr-10 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full pl-4 pr-10 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   <button
                     type="button"
@@ -818,7 +818,7 @@ export default function ProfessorsPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/25 flex items-center gap-2 disabled:opacity-50"
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/25 flex items-center gap-2 disabled:opacity-50"
                 >
                   {submitting ? <Loader2 className="size-4 animate-spin" /> : null}
                   <span>Provision Account</span>

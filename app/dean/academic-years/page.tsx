@@ -175,7 +175,7 @@ export default function AcademicYearsPage() {
               setFormError('')
               setIsAddOpen(true)
             }}
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/25 transition-all"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-500/25 transition-all"
           >
             <Plus className="size-4" />
             Add Academic Year
@@ -230,7 +230,7 @@ export default function AcademicYearsPage() {
                     >
                       <td className="px-6 py-4 font-bold text-slate-900 dark:text-white font-mono text-sm">
                         <div className="flex items-center gap-3">
-                          <div className="size-9 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center font-bold text-xs">
+                          <div className="size-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs">
                             <Calendar className="size-5" />
                           </div>
                           <span>{y.year_label}</span>
@@ -260,7 +260,7 @@ export default function AcademicYearsPage() {
                           title="Remove Academic Year"
                         >
                           {isDeleting ? (
-                            <Loader2 className="size-4 animate-spin text-blue-600 dark:text-blue-400" />
+                            <Loader2 className="size-4 animate-spin text-indigo-600 dark:text-indigo-400" />
                           ) : (
                             <Trash2 className="size-4" />
                           )}
@@ -287,7 +287,7 @@ export default function AcademicYearsPage() {
           <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-6">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
-                <div className="size-10 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                <div className="size-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
                   <Calendar className="size-5" />
                 </div>
                 <div>
@@ -320,7 +320,7 @@ export default function AcademicYearsPage() {
                   value={yearLabel}
                   onChange={(e) => setYearLabel(e.target.value)}
                   placeholder="e.g. 2025-2026"
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
@@ -335,7 +335,7 @@ export default function AcademicYearsPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/25 flex items-center gap-2 disabled:opacity-50"
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/25 flex items-center gap-2 disabled:opacity-50"
                 >
                   {submitting ? <Loader2 className="size-4 animate-spin" /> : null}
                   <span>Save Calendar Year</span>

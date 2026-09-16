@@ -109,7 +109,7 @@ export default function DeanOverviewPage() {
       {/* Refined Glassmorphic Header Hero */}
       <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 backdrop-blur-md p-6 sm:p-8 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative overflow-hidden">
         {/* Subtle Ambient Accent Background */}
-        <div className="absolute -top-24 -right-24 size-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-24 -right-24 size-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 space-y-2">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-900/50 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
@@ -143,7 +143,7 @@ export default function DeanOverviewPage() {
           </button>
           <Link
             href="/dean/structure"
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-md shadow-sky-500/25 transition-all"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-500/25 transition-all"
           >
             <Plus className="size-4" />
             <span>Configure Structure</span>
@@ -156,13 +156,13 @@ export default function DeanOverviewPage() {
         {/* KPI 1: Academic Structure */}
         <Link
           href="/dean/structure"
-          className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-sky-500/50 hover:shadow-md transition-all group flex flex-col justify-between space-y-4"
+          className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-indigo-500/50 hover:shadow-md transition-all group flex flex-col justify-between space-y-4"
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
               Structure
             </span>
-            <div className="size-10 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+            <div className="size-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
               <Layers className="size-5" />
             </div>
           </div>
@@ -182,7 +182,7 @@ export default function DeanOverviewPage() {
             )}
           </div>
 
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold text-blue-600 dark:text-blue-400">
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold text-indigo-600 dark:text-indigo-400">
             <span>View Details</span>
             <ArrowRight className="size-3.5 group-hover:translate-x-1 transition-transform" />
           </div>
@@ -226,13 +226,13 @@ export default function DeanOverviewPage() {
         {/* KPI 3: Clinical Stations */}
         <Link
           href="/dean/stations"
-          className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-sky-500/50 hover:shadow-md transition-all group flex flex-col justify-between space-y-4"
+          className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-indigo-500/50 hover:shadow-md transition-all group flex flex-col justify-between space-y-4"
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
               Stations
             </span>
-            <div className="size-10 rounded-2xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+            <div className="size-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
               <ClipboardCheck className="size-5" />
             </div>
           </div>
@@ -252,7 +252,7 @@ export default function DeanOverviewPage() {
             )}
           </div>
 
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold text-sky-600 dark:text-sky-400">
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold text-indigo-600 dark:text-indigo-400">
             <span>Manage Stations</span>
             <ArrowRight className="size-3.5 group-hover:translate-x-1 transition-transform" />
           </div>
@@ -296,13 +296,13 @@ export default function DeanOverviewPage() {
         {/* KPI 5: Student Body */}
         <Link
           href="/dean/students"
-          className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-sky-500/50 hover:shadow-md transition-all group flex flex-col justify-between space-y-4"
+          className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-indigo-500/50 hover:shadow-md transition-all group flex flex-col justify-between space-y-4"
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
               Students
             </span>
-            <div className="size-10 rounded-2xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+            <div className="size-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
               <GraduationCap className="size-5" />
             </div>
           </div>
@@ -322,7 +322,7 @@ export default function DeanOverviewPage() {
             )}
           </div>
 
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold text-sky-600 dark:text-sky-400">
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold text-indigo-600 dark:text-indigo-400">
             <span>View Details</span>
             <ArrowRight className="size-3.5 group-hover:translate-x-1 transition-transform" />
           </div>
@@ -416,7 +416,7 @@ export default function DeanOverviewPage() {
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                 Evaluated Candidates
               </span>
-              <CheckCircle2 className="size-4 text-sky-500" />
+              <CheckCircle2 className="size-4 text-indigo-500" />
             </div>
             <div>
               {loading ? (
@@ -512,7 +512,7 @@ export default function DeanOverviewPage() {
             {/* Step 2: Define Structure */}
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-700/60 flex items-center justify-between">
               <div className="flex items-center gap-3.5">
-                <div className="size-9 rounded-xl bg-blue-100 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs shrink-0">
+                <div className="size-9 rounded-xl bg-indigo-100 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs shrink-0">
                   <Layers className="size-5" />
                 </div>
                 <div>
@@ -528,7 +528,7 @@ export default function DeanOverviewPage() {
               </div>
               <Link
                 href="/dean/structure"
-                className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1 shrink-0"
+                className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1 shrink-0"
               >
                 <span>{stats.totalSections > 0 ? 'Manage' : 'Configure'}</span>
                 <ChevronRight className="size-3.5" />
@@ -572,7 +572,7 @@ export default function DeanOverviewPage() {
             {/* Step 4: Import Student Roster */}
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-700/60 flex items-center justify-between">
               <div className="flex items-center gap-3.5">
-                <div className="size-9 rounded-xl bg-sky-100 dark:bg-sky-950/70 text-sky-600 dark:text-sky-400 flex items-center justify-center font-bold text-xs shrink-0">
+                <div className="size-9 rounded-xl bg-indigo-100 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs shrink-0">
                   <Users className="size-5" />
                 </div>
                 <div>
@@ -588,7 +588,7 @@ export default function DeanOverviewPage() {
               </div>
               <Link
                 href="/dean/students"
-                className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1 shrink-0"
+                className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1 shrink-0"
               >
                 <span>{stats.totalStudents > 0 ? 'View Roster' : 'Enroll'}</span>
                 <ChevronRight className="size-3.5" />
@@ -609,12 +609,12 @@ export default function DeanOverviewPage() {
           </div>
 
           {/* Readiness Status Card */}
-          <div className="p-4 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-200/60 dark:border-sky-900/50 space-y-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-sky-800 dark:text-sky-300">
-              <ShieldCheck className="size-4 text-sky-600 dark:text-sky-400" />
+          <div className="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-900/50 space-y-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-indigo-800 dark:text-indigo-300">
+              <ShieldCheck className="size-4 text-indigo-600 dark:text-indigo-400" />
               <span>OSCE Examination Readiness</span>
             </div>
-            <p className="text-xs text-sky-900/80 dark:text-sky-200/80 leading-relaxed font-medium">
+            <p className="text-xs text-indigo-900/80 dark:text-indigo-200/80 leading-relaxed font-medium">
               Faculty infrastructure active. Evaluators, candidates, and rotation groups ready for examination scoring.
             </p>
           </div>
@@ -623,10 +623,10 @@ export default function DeanOverviewPage() {
           <div className="space-y-2.5">
             <Link
               href="/dean/stations"
-              className="p-3.5 rounded-2xl border border-slate-200/70 dark:border-slate-800 hover:border-sky-500/50 hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-all flex items-center justify-between group"
+              className="p-3.5 rounded-2xl border border-slate-200/70 dark:border-slate-800 hover:border-indigo-500/50 hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-all flex items-center justify-between group"
             >
               <div className="flex items-center gap-3">
-                <div className="size-8 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center">
+                <div className="size-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                   <ClipboardCheck className="size-4" />
                 </div>
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
@@ -653,10 +653,10 @@ export default function DeanOverviewPage() {
 
             <Link
               href="/dean/academic-years"
-              className="p-3.5 rounded-2xl border border-slate-200/70 dark:border-slate-800 hover:border-blue-500/50 hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-all flex items-center justify-between group"
+              className="p-3.5 rounded-2xl border border-slate-200/70 dark:border-slate-800 hover:border-indigo-500/50 hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-all flex items-center justify-between group"
             >
               <div className="flex items-center gap-3">
-                <div className="size-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                <div className="size-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                   <Calendar className="size-4" />
                 </div>
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200">

@@ -118,9 +118,9 @@ export function DeanTopbar({
         {facultyName && (
           <div
             title={facultyName}
-            className="hidden lg:flex items-center gap-2 bg-gradient-to-r from-blue-600/10 to-cyan-500/10 text-blue-900 dark:text-cyan-200 border border-cyan-500/25 px-3 py-1.5 rounded-xl font-semibold text-xs max-w-[240px] xl:max-w-[320px] truncate shadow-xs"
+            className="hidden lg:flex items-center gap-2 bg-indigo-50/80 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-200 border border-indigo-200/80 dark:border-indigo-800/80 px-3 py-1.5 rounded-xl font-semibold text-xs max-w-[240px] xl:max-w-[320px] truncate shadow-xs"
           >
-            <Building2 className="size-4 text-cyan-500 shrink-0" />
+            <Building2 className="size-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
             <span className="truncate">{facultyName}</span>
           </div>
         )}
@@ -139,12 +139,12 @@ export function DeanTopbar({
             disabled={loggingOut}
             className="flex items-center gap-3 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-all focus:outline-none disabled:pointer-events-none"
           >
-            <div className="flex size-9 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-cyan-500 text-white font-bold text-sm shadow-md shadow-cyan-500/20 border border-cyan-400/30">
+            <div className="flex size-9 items-center justify-center rounded-full bg-indigo-600 text-white font-bold text-sm shadow-md shadow-indigo-500/25">
               FD
             </div>
             <div className="hidden sm:flex flex-col text-left">
               <span className="text-xs font-bold text-slate-900 dark:text-white">Faculty Dean</span>
-              <span className="text-[10px] font-semibold text-cyan-600 dark:text-cyan-400">Dean Admin</span>
+              <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">Dean Admin</span>
             </div>
           </button>
 
@@ -152,14 +152,14 @@ export function DeanTopbar({
           {dropdownOpen && (
             <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95">
               <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
-                <div className="flex size-10 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-cyan-500 text-white font-bold text-sm shadow-md shadow-cyan-500/20 border border-cyan-400/30">
+                <div className="flex size-10 items-center justify-center rounded-full bg-indigo-600 text-white font-bold text-sm shadow-md shadow-indigo-500/25">
                   FD
                 </div>
                 <div className="flex flex-col min-w-0">
                   <p className="text-sm font-bold text-slate-900 dark:text-white truncate">Faculty Dean</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{facultyName || 'Medical Faculty'}</p>
-                  <span className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-cyan-300 text-[10px] font-bold w-fit border border-cyan-500/30">
-                    <span className="size-1.5 rounded-full bg-cyan-500" />
+                  <span className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold w-fit border border-indigo-200/60 dark:border-indigo-800/60">
+                    <span className="size-1.5 rounded-full bg-indigo-600" />
                     Faculty Dean
                   </span>
                 </div>
@@ -176,7 +176,7 @@ export function DeanTopbar({
                   onClick={() => setDropdownOpen(false)}
                   className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
-                  <User className="size-4 text-blue-500" />
+                  <User className="size-4 text-indigo-500" />
                   <span>Profile Settings</span>
                 </Link>
               </div>

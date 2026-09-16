@@ -83,12 +83,12 @@ export function DeanSidebar({
         <div className="p-6 border-b border-slate-100 dark:border-slate-800/80 space-y-3">
           <div className="flex items-center justify-between">
             <Link href="/dean" className="flex items-center gap-2.5">
-              <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 text-white shadow-md shadow-cyan-500/20 shrink-0">
+              <div className="flex size-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-500/25 shrink-0">
                 <Activity className="size-5" />
               </div>
               <div className="flex flex-col min-w-0">
                 <span className="font-bold tracking-tight text-slate-900 dark:text-white text-base truncate">
-                  NEW ERA <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-500 dark:from-blue-400 dark:to-cyan-400">ECOS</span>
+                  NEW ERA <span className="text-indigo-600 dark:text-indigo-400">ECOS</span>
                 </span>
                 <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Dean Portal</span>
               </div>
@@ -103,10 +103,10 @@ export function DeanSidebar({
           </div>
 
           {/* Bound Faculty Banner */}
-          <div className="p-3 rounded-2xl bg-blue-500/10 border border-cyan-500/25 text-blue-950 dark:text-cyan-200 flex items-center gap-2.5 shadow-xs">
-            <Building2 className="size-4 text-cyan-500 shrink-0" />
+          <div className="p-3 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/60 border border-indigo-200/80 dark:border-indigo-800/80 text-indigo-950 dark:text-indigo-200 flex items-center gap-2.5 shadow-xs">
+            <Building2 className="size-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
             <div className="flex flex-col min-w-0">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
                 Medical Faculty Workspace
               </span>
               <span className="text-xs font-extrabold text-slate-900 dark:text-white truncate" title={facultyName}>
@@ -126,8 +126,8 @@ export function DeanSidebar({
                 key={item.href}
                 href={item.href}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all relative ${isActive
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25 border-l-4 border-cyan-400 pl-3'
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${isActive
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                   }`}
               >
@@ -140,14 +140,14 @@ export function DeanSidebar({
 
         {/* Footer Operational Status Indicator */}
         <div className="p-4 border-t border-slate-100 dark:border-slate-800/80">
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-blue-50 dark:bg-blue-950/50 border border-blue-200/60 dark:border-blue-800/50">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-indigo-50/60 dark:bg-indigo-950/50 border border-indigo-200/60 dark:border-indigo-800/50">
             <span className="relative flex size-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
-              <span className="relative inline-flex rounded-full size-2.5 bg-cyan-500" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
+              <span className="relative inline-flex rounded-full size-2.5 bg-indigo-600" />
             </span>
             <div className="flex flex-col min-w-0">
-              <span className="text-xs font-bold text-blue-700 dark:text-blue-300 truncate">Faculty Hub Active</span>
-              <span className="text-[10px] text-cyan-600/80 dark:text-cyan-400/80 truncate">{facultyName}</span>
+              <span className="text-xs font-bold text-indigo-800 dark:text-indigo-200 truncate">Faculty Hub Active</span>
+              <span className="text-[10px] text-indigo-600/80 dark:text-indigo-400/80 truncate">{facultyName}</span>
             </div>
           </div>
         </div>

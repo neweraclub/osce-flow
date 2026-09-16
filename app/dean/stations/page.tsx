@@ -702,8 +702,8 @@ function DeanStationsContent() {
               <button
                 type="button"
                 onClick={() => setCurrentStep(2)}
-                className={`hover:text-blue-600 transition-colors flex items-center gap-1.5 cursor-pointer ${
-                  currentStep === 2 ? 'text-blue-600 dark:text-blue-400 font-extrabold' : ''
+                className={`hover:text-indigo-600 transition-colors flex items-center gap-1.5 cursor-pointer ${
+                  currentStep === 2 ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' : ''
                 }`}
               >
                 <Calendar className="size-3.5" />
@@ -738,7 +738,7 @@ function DeanStationsContent() {
 
               {currentStep === 2 && activeModule && (
                 <>
-                  <div className="size-9 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
+                  <div className="size-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
                     <Calendar className="size-5" />
                   </div>
                   <span>{activeModule.module_name} — Exam Sessions</span>
@@ -1070,7 +1070,7 @@ function DeanStationsContent() {
           {/* Step 2 Section Header */}
           <div className="space-y-1">
             <h3 className="text-sm font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-              <Calendar className="size-4 text-blue-500" />
+              <Calendar className="size-4 text-indigo-500" />
               <span>Step 2: Choose Exam Session to Manage Stations ({activeModuleExams.length}/2 Configured)</span>
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">

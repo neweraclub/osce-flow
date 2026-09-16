@@ -368,7 +368,7 @@ export default function ClinicalModulesPage() {
             Clinical Modules Directory
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Clinical medical curriculum modules & lead examiner assignments for <span className="font-semibold text-blue-600 dark:text-blue-400">{selectedYear?.name || 'current session'}</span>.
+            Clinical medical curriculum modules & lead examiner assignments for <span className="font-semibold text-indigo-600 dark:text-indigo-400">{selectedYear?.name || 'current session'}</span>.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -382,7 +382,7 @@ export default function ClinicalModulesPage() {
           </button>
           <button
             onClick={openAddModal}
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/25 transition-all shrink-0"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-500/25 transition-all shrink-0"
           >
             <Plus className="size-4" />
             Add Module
@@ -447,7 +447,7 @@ export default function ClinicalModulesPage() {
               {/* Group Header */}
               <div className="p-5 bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="size-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+                  <div className="size-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
                     <GraduationCap className="size-5" />
                   </div>
                   <div>
@@ -459,7 +459,7 @@ export default function ClinicalModulesPage() {
                     </p>
                   </div>
                 </div>
-                <span className="px-3 py-1 rounded-full bg-blue-100/70 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 font-bold text-xs">
+                <span className="px-3 py-1 rounded-full bg-indigo-100/70 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 font-bold text-xs">
                   Active Cohort
                 </span>
               </div>
@@ -497,7 +497,7 @@ export default function ClinicalModulesPage() {
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2.5 max-w-xs min-w-[220px]">
                               {isUpdatingThis ? (
-                                <Loader2 className="size-4 animate-spin text-sky-600 shrink-0" />
+                                <Loader2 className="size-4 animate-spin text-indigo-600 shrink-0" />
                               ) : (
                                 <Stethoscope className="size-4 text-slate-400 shrink-0" />
                               )}
@@ -531,7 +531,7 @@ export default function ClinicalModulesPage() {
                             )}
                           </td>
 
-                          <td className="px-6 py-4 font-mono font-bold text-blue-600 dark:text-blue-400">
+                          <td className="px-6 py-4 font-mono font-bold text-indigo-600 dark:text-indigo-400">
                             {m.station_count} Station{m.station_count !== 1 ? 's' : ''}
                           </td>
 
@@ -539,7 +539,7 @@ export default function ClinicalModulesPage() {
                             <div className="flex items-center justify-end gap-1">
                               <button
                                 onClick={() => openEditModal(m)}
-                                className="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors"
+                                className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors"
                                 title="Edit Module"
                               >
                                 <Edit2 className="size-4" />
@@ -580,7 +580,7 @@ export default function ClinicalModulesPage() {
           <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-6">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
-                <div className="size-10 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                <div className="size-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
                   <BookOpen className="size-5" />
                 </div>
                 <div>
@@ -613,7 +613,7 @@ export default function ClinicalModulesPage() {
                   value={moduleName}
                   onChange={(e) => setModuleName(e.target.value)}
                   placeholder="e.g. Cardiologie"
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
@@ -652,7 +652,7 @@ export default function ClinicalModulesPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/25 flex items-center gap-2 disabled:opacity-50"
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/25 flex items-center gap-2 disabled:opacity-50"
                 >
                   {submitting ? <Loader2 className="size-4 animate-spin" /> : null}
                   <span>Save Module</span>
@@ -701,7 +701,7 @@ export default function ClinicalModulesPage() {
                   required
                   value={moduleName}
                   onChange={(e) => setModuleName(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
@@ -734,7 +734,7 @@ export default function ClinicalModulesPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/25 flex items-center gap-2 disabled:opacity-50"
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/25 flex items-center gap-2 disabled:opacity-50"
                 >
                   {submitting ? <Loader2 className="size-4 animate-spin" /> : null}
                   <span>Save Changes</span>

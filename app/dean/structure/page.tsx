@@ -305,7 +305,7 @@ export default function AcademicStructurePage() {
               }}
               className={`px-5 py-3 rounded-2xl font-bold text-xs whitespace-nowrap transition-all flex items-center gap-2 ${
                 isActive
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
                   : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200/80 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50'
               }`}
             >
@@ -332,7 +332,7 @@ export default function AcademicStructurePage() {
                 setFormError('')
                 setIsAddSectionOpen(true)
               }}
-              className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 hover:bg-blue-100 transition-colors font-bold text-xs flex items-center gap-1.5"
+              className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-colors font-bold text-xs flex items-center gap-1.5"
             >
               <Plus className="size-4" />
               Add Section
@@ -370,13 +370,13 @@ export default function AcademicStructurePage() {
                       isDeleting
                         ? 'opacity-50 pointer-events-none bg-slate-100/50 dark:bg-slate-800/50'
                         : isSelected
-                        ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/40 shadow-sm'
+                        ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/40 shadow-sm'
                         : 'border-slate-200/70 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       <div className={`size-9 rounded-xl flex items-center justify-center font-bold text-xs ${
-                        isSelected ? 'bg-blue-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                        isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                       }`}>
                         <Layers className="size-4" />
                       </div>
@@ -397,12 +397,12 @@ export default function AcademicStructurePage() {
                         title="Delete section"
                       >
                         {isDeleting ? (
-                          <Loader2 className="size-4 animate-spin text-blue-600 dark:text-blue-400" />
+                          <Loader2 className="size-4 animate-spin text-indigo-600 dark:text-indigo-400" />
                         ) : (
                           <Trash2 className="size-4" />
                         )}
                       </button>
-                      <ChevronRight className={`size-4 ${isSelected ? 'text-blue-600' : 'text-slate-400'}`} />
+                      <ChevronRight className={`size-4 ${isSelected ? 'text-indigo-600' : 'text-slate-400'}`} />
                     </div>
                   </div>
                 )
@@ -431,7 +431,7 @@ export default function AcademicStructurePage() {
                   setFormError('')
                   setIsAddGroupOpen(true)
                 }}
-                className="p-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-md shadow-blue-500/20 hover:bg-blue-700 transition-colors flex items-center gap-1.5"
+                className="p-2.5 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow-md shadow-indigo-500/20 hover:bg-indigo-700 transition-colors flex items-center gap-1.5"
               >
                 <Plus className="size-4" />
                 Add Group
@@ -466,7 +466,7 @@ export default function AcademicStructurePage() {
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="size-9 rounded-xl bg-sky-100 dark:bg-sky-950/70 text-sky-700 dark:text-sky-300 flex items-center justify-center font-bold text-xs">
+                      <div className="size-9 rounded-xl bg-indigo-100 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 flex items-center justify-center font-bold text-xs">
                         <Users className="size-4" />
                       </div>
                       <div>
@@ -481,7 +481,7 @@ export default function AcademicStructurePage() {
                       title="Remove group"
                     >
                       {isDeleting ? (
-                        <Loader2 className="size-4 animate-spin text-blue-600 dark:text-blue-400" />
+                        <Loader2 className="size-4 animate-spin text-indigo-600 dark:text-indigo-400" />
                       ) : (
                         <Trash2 className="size-4" />
                       )}
@@ -505,7 +505,7 @@ export default function AcademicStructurePage() {
           <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-6">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
-                <div className="size-10 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                <div className="size-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
                   <FolderPlus className="size-5" />
                 </div>
                 <div>
@@ -538,7 +538,7 @@ export default function AcademicStructurePage() {
                   value={sectionName}
                   onChange={(e) => setSectionName(e.target.value)}
                   placeholder="e.g. Section A"
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
@@ -553,7 +553,7 @@ export default function AcademicStructurePage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/25 flex items-center gap-2 disabled:opacity-50"
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/25 flex items-center gap-2 disabled:opacity-50"
                 >
                   {submitting ? <Loader2 className="size-4 animate-spin" /> : null}
                   <span>Create Section</span>
@@ -570,7 +570,7 @@ export default function AcademicStructurePage() {
           <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-6">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
-                <div className="size-10 rounded-2xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                <div className="size-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
                   <Users className="size-5" />
                 </div>
                 <div>
@@ -603,7 +603,7 @@ export default function AcademicStructurePage() {
                   value={groupName}
                   onChange={(e) => setGroupName(e.target.value)}
                   placeholder="e.g. Group 01"
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
@@ -618,7 +618,7 @@ export default function AcademicStructurePage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/25 flex items-center gap-2 disabled:opacity-50"
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/25 flex items-center gap-2 disabled:opacity-50"
                 >
                   {submitting ? <Loader2 className="size-4 animate-spin" /> : null}
                   <span>Create Group</span>

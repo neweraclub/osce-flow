@@ -55,17 +55,17 @@ export function NavbarYearSelector() {
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         title="Switch active academic year"
-        className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 cursor-pointer select-none ${
+        className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 cursor-pointer select-none ${
           isOpen
-            ? 'bg-blue-50 dark:bg-blue-950/60 border border-blue-300 dark:border-blue-800 text-blue-700 dark:text-blue-300 ring-2 ring-blue-500/20'
+            ? 'bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500/20'
             : 'bg-slate-100 dark:bg-slate-800/90 hover:bg-slate-200/70 dark:hover:bg-slate-700/70 border border-slate-200/80 dark:border-slate-700/80 text-slate-700 dark:text-slate-200'
         }`}
       >
-        <Calendar className="size-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+        <Calendar className="size-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
         <span className="text-slate-400 dark:text-slate-400 font-semibold text-[11px]">Year:</span>
         {isLoading && !selectedYear ? (
           <span className="inline-flex items-center gap-1 text-slate-400 font-medium">
-            <Loader2 className="size-3 animate-spin text-blue-500" />
+            <Loader2 className="size-3 animate-spin text-indigo-500" />
             Loading...
           </span>
         ) : (
@@ -75,7 +75,7 @@ export function NavbarYearSelector() {
         )}
         <ChevronDown
           className={`size-3 text-slate-400 dark:text-slate-400 transition-transform duration-200 shrink-0 ${
-            isOpen ? 'rotate-180 text-blue-600 dark:text-blue-400' : ''
+            isOpen ? 'rotate-180 text-indigo-600 dark:text-indigo-400' : ''
           }`}
         />
       </button>
@@ -89,7 +89,7 @@ export function NavbarYearSelector() {
         >
           <div className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800/80 mb-1 flex items-center justify-between">
             <span>Academic Session</span>
-            <span className="text-[9px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/60 dark:border-blue-900/40">
+            <span className="text-[9px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded border border-indigo-200/60 dark:border-indigo-900/40">
               Global
             </span>
           </div>
@@ -116,7 +116,7 @@ export function NavbarYearSelector() {
                     }}
                     className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-xs transition-colors text-left ${
                       isSelected
-                        ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-bold'
+                        ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold'
                         : 'text-slate-700 dark:text-slate-200 font-medium hover:bg-slate-100 dark:hover:bg-slate-800'
                     }`}
                   >
@@ -129,7 +129,7 @@ export function NavbarYearSelector() {
                       )}
                     </div>
                     {isSelected ? (
-                      <Check className="size-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                      <Check className="size-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
                     ) : (
                       <span className="size-3.5 shrink-0" />
                     )}

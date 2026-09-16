@@ -502,6 +502,8 @@ export async function GET(req: NextRequest) {
         filteredStudents = filteredStudents.filter((s) => s.status === 'failed')
       } else if (statusParam === 'pending') {
         filteredStudents = filteredStudents.filter((s) => s.status === 'pending')
+      } else if (statusParam === 'completed') {
+        filteredStudents = filteredStudents.filter((s) => s.status === 'passed' || s.status === 'failed')
       } else if (statusParam === 'evaluated') {
         filteredStudents = filteredStudents.filter((s) => s.evaluated_stations_count > 0)
       }

@@ -103,7 +103,7 @@ interface FilterModuleOption {
   level_id: string
 }
 
-type StatusFilter = 'all' | 'passed' | 'failed' | 'pending'
+type StatusFilter = 'all' | 'pending' | 'passed' | 'failed' | 'completed'
 type SortOrder = 'name_asc' | 'name_desc' | 'score_desc' | 'score_asc' | 'matricule_asc'
 
 const SORT_OPTIONS: { value: SortOrder; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -117,8 +117,9 @@ const SORT_OPTIONS: { value: SortOrder; label: string; icon: React.ComponentType
 const STATUS_OPTIONS: { value: StatusFilter; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { value: 'all', label: 'All Candidates', icon: Layers },
   { value: 'pending', label: 'Pending Evaluation', icon: MinusCircle },
-  { value: 'passed', label: 'Completed - Passed (≥ 10/20)', icon: CheckCircle2 },
-  { value: 'failed', label: 'Completed - Retake Required (< 10/20)', icon: AlertCircle },
+  { value: 'passed', label: 'Passed (≥ 10/20)', icon: CheckCircle2 },
+  { value: 'failed', label: 'Retake (< 10/20)', icon: AlertCircle },
+  { value: 'completed', label: 'Completed (All Evaluated)', icon: CheckSquare },
 ]
 
 function ProfessorStudentsContent() {
@@ -468,6 +469,8 @@ function ProfessorStudentsContent() {
           if (!isComplete || (s.final_score !== null ? s.final_score < 10.0 : !s.is_passed)) return false
         } else if (statusFilter === 'failed') {
           if (!isComplete || (s.final_score !== null ? s.final_score >= 10.0 : s.is_passed)) return false
+        } else if (statusFilter === 'completed') {
+          if (!isComplete) return false
         }
       }
       if (searchQuery.trim()) {
@@ -982,8 +985,8 @@ function ProfessorStudentsContent() {
 
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
             <div className="flex items-start gap-4">
-              <div className="size-14 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center text-white text-xl font-black shadow-lg shadow-emerald-500/20 shrink-0">
-                {student.first_name[0] || 'S'}
+              <div className="size-14 rounded-full bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 shrink-0 border-2 border-emerald-400/40">
+                <User className="size-7 text-white stroke-[2.2]" />
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -2121,6 +2124,11 @@ function ProfessorStudentsContent() {
                         )}
                       </button>
 
+                      {/* Candidate Avatar Circular Badge */}
+                      <div className="size-9 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 dark:from-emerald-600 dark:to-teal-700 flex items-center justify-center text-white shadow-xs shrink-0 border border-emerald-400/30">
+                        <User className="size-4.5 text-white stroke-[2.2]" />
+                      </div>
+
                       <div className="min-w-0">
                         <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                           {st.full_name}
@@ -2295,8 +2303,8 @@ function ProfessorStudentsContent() {
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="size-8 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center text-white font-bold text-xs shadow-2xs shrink-0">
-                            {st.first_name[0] || 'S'}
+                          <div className="size-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 dark:from-emerald-600 dark:to-teal-700 flex items-center justify-center text-white shadow-2xs shrink-0 border border-emerald-400/30">
+                            <User className="size-4 text-white stroke-[2.2]" />
                           </div>
                           <div>
                             <p className="font-bold text-slate-900 dark:text-white">

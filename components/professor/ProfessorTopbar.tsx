@@ -159,16 +159,19 @@ export function ProfessorTopbar({
 
   const handleSignOut = async () => {
     if (loggingOut) return
+    setDropdownOpen(false)
     setLoggingOut(true)
 
     try {
       await fetch('/api/auth/logout', { method: 'POST' })
     } catch {
       // Proceed with client logout
-    } finally {
-      showSuccess('Signed out successfully.')
-      router.push('/login')
     }
+
+    setTimeout(() => {
+      showSuccess('Signed out successfully.')
+      window.location.href = '/login'
+    }, 700)
   }
 
   return (
@@ -316,7 +319,11 @@ export function ProfessorTopbar({
         </div>
       </div>
 
-      <SignOutOverlay isOpen={loggingOut} />
+      <SignOutOverlay
+        isOpen={loggingOut}
+        title="Signing out clinical evaluator session..."
+        subtitle="Clearing your encrypted clinical session and local examination cache..."
+      />
     </header>
   )
 }

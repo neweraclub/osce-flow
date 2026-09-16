@@ -79,6 +79,16 @@ export async function getAuthenticatedProfessorByToken(token?: string): Promise<
 
     if (!professor) return null
 
+    const resolvedFirst = user.first_name || professor.first_name || ''
+    const resolvedLast = user.last_name || professor.last_name || ''
+
+    if (professor.first_name !== resolvedFirst || professor.last_name !== resolvedLast) {
+      await supabaseAdmin
+        .from('professors')
+        .update({ first_name: resolvedFirst, last_name: resolvedLast })
+        .eq('id', professor.id)
+    }
+
     return {
       userId: user.id,
       professorId: professor.id,
@@ -86,9 +96,9 @@ export async function getAuthenticatedProfessorByToken(token?: string): Promise<
       role: user.role,
       facultyId: targetFacultyId,
       facultyName,
-      firstName: professor.first_name || user.first_name,
-      lastName: professor.last_name || user.last_name,
-      fullName: `Prof. ${professor.first_name || user.first_name} ${professor.last_name || user.last_name}`,
+      firstName: resolvedFirst,
+      lastName: resolvedLast,
+      fullName: `Prof. ${resolvedFirst} ${resolvedLast}`.trim(),
     }
   } catch {
     return null

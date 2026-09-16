@@ -198,11 +198,17 @@ export async function PUT(req: NextRequest) {
         )
       }
 
-      // Update professors
+      // Update professors (professors table has columns: id, user_id, first_name, last_name, created_at - NO updated_at column)
+      if (prof.professorId) {
+        await supabaseAdmin
+          .from('professors')
+          .update({ first_name: first, last_name: last })
+          .eq('id', prof.professorId)
+      }
       await supabaseAdmin
         .from('professors')
-        .update({ first_name: first, last_name: last, updated_at: new Date().toISOString() })
-        .eq('id', prof.professorId)
+        .update({ first_name: first, last_name: last })
+        .eq('user_id', prof.userId)
 
       const response = NextResponse.json({
         success: true,

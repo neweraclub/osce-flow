@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     let firstName = user.first_name || ''
     let lastName = user.last_name || ''
 
-    // If role is professor, check professors table for authoritative clinical name
+    // If role is professor, keep users and professors tables synchronized
     if (user.role === 'professor') {
       const { data: prof } = await supabaseAdmin
         .from('professors')
@@ -36,23 +36,26 @@ export async function GET(req: NextRequest) {
         .maybeSingle()
 
       if (prof) {
-        if (prof.first_name || prof.last_name) {
-          firstName = prof.first_name || firstName
-          lastName = prof.last_name || lastName
+        const resolvedFirst = user.first_name || prof.first_name || firstName
+        const resolvedLast = user.last_name || prof.last_name || lastName
 
-          // Keep users table in sync if divergent
-          if (user.first_name !== firstName || user.last_name !== lastName) {
-            await supabaseAdmin
-              .from('users')
-              .update({ first_name: firstName, last_name: lastName, updated_at: new Date().toISOString() })
-              .eq('id', user.id)
-          }
-        } else if (user.first_name || user.last_name) {
-          // Sync professors table from user if empty
+        firstName = resolvedFirst
+        lastName = resolvedLast
+
+        // Keep professors table in sync if divergent (professors table has NO updated_at column)
+        if (prof.first_name !== resolvedFirst || prof.last_name !== resolvedLast) {
           await supabaseAdmin
             .from('professors')
-            .update({ first_name: user.first_name, last_name: user.last_name, updated_at: new Date().toISOString() })
+            .update({ first_name: resolvedFirst, last_name: resolvedLast })
             .eq('user_id', user.id)
+        }
+
+        // Keep users table in sync if divergent
+        if (user.first_name !== resolvedFirst || user.last_name !== resolvedLast) {
+          await supabaseAdmin
+            .from('users')
+            .update({ first_name: resolvedFirst, last_name: resolvedLast, updated_at: new Date().toISOString() })
+            .eq('id', user.id)
         }
       }
     }

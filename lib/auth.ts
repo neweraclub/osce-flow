@@ -62,25 +62,25 @@ export async function authenticateUserCredentials(emailInput: string, passwordIn
       return { success: false, error: 'Invalid email or password.' }
     }
 
-    // For professor accounts, resolve authoritative clinical names from professors table
+    // For professor accounts, synchronize names between users and professors tables
     if (user.role === 'professor') {
       const { data: prof } = await supabaseAdmin
         .from('professors')
-        .select('first_name, last_name')
+        .select('id, first_name, last_name')
         .eq('user_id', user.id)
         .maybeSingle()
 
-      if (prof && (prof.first_name || prof.last_name)) {
-        const resolvedFirst = prof.first_name || user.first_name
-        const resolvedLast = prof.last_name || user.last_name
+      if (prof) {
+        const resolvedFirst = user.first_name || prof.first_name || ''
+        const resolvedLast = user.last_name || prof.last_name || ''
         user.first_name = resolvedFirst
         user.last_name = resolvedLast
 
-        if (user.first_name !== prof.first_name || user.last_name !== prof.last_name) {
+        if (prof.first_name !== resolvedFirst || prof.last_name !== resolvedLast) {
           await supabaseAdmin
-            .from('users')
-            .update({ first_name: resolvedFirst, last_name: resolvedLast, updated_at: new Date().toISOString() })
-            .eq('id', user.id)
+            .from('professors')
+            .update({ first_name: resolvedFirst, last_name: resolvedLast })
+            .eq('id', prof.id)
         }
       }
     }

@@ -115,6 +115,19 @@ export async function PUT(req: NextRequest) {
         return NextResponse.json({ success: false, error: 'Failed to update profile details in database.' }, { status: 500 })
       }
 
+      // If professor, keep professors table in sync
+      if (updatedUser.role === 'professor' && (newFirstName !== undefined || newLastName !== undefined)) {
+        const profPayload: Record<string, any> = {}
+        if (newFirstName !== undefined) profPayload.first_name = newFirstName.trim()
+        if (newLastName !== undefined) profPayload.last_name = newLastName.trim()
+        if (Object.keys(profPayload).length > 0) {
+          await supabaseAdmin
+            .from('professors')
+            .update(profPayload)
+            .eq('user_id', updatedUser.id)
+        }
+      }
+
       const response = NextResponse.json({
         success: true,
         message: 'Profile details updated successfully.',

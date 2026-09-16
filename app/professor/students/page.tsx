@@ -2116,30 +2116,28 @@ function ProfessorStudentsContent() {
                   {/* Candidate Identification & Selection Checkbox */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      {/* Checkbox */}
+                      {/* Candidate Avatar & Selection Badge (Unified Single Circle) */}
                       <button
                         type="button"
                         onClick={(e) => toggleSelectCandidate(st.id, e)}
-                        className={`size-8 rounded-xl flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+                        className={`group/avatar size-9.5 rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0 border select-none ${
                           isSelected
-                            ? 'bg-emerald-600 text-white shadow-xs'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 border border-slate-200/80 dark:border-slate-700'
+                            ? 'bg-emerald-600 border-emerald-500 text-white shadow-md ring-2 ring-emerald-500/20'
+                            : 'bg-gradient-to-br from-emerald-500 to-teal-600 dark:from-emerald-600 dark:to-teal-700 text-white border-emerald-400/30 hover:border-emerald-400 hover:shadow-xs'
                         }`}
-                        title={isSelected ? 'Deselect candidate' : 'Select candidate for bulk export'}
+                        title={isSelected ? 'Deselect candidate' : `Select ${st.full_name} for bulk export`}
                       >
                         {isSelected ? (
-                          <Check className="size-4 stroke-[3]" />
+                          <Check className="size-4.5 stroke-[3]" />
                         ) : (
-                          <div className="size-3 rounded-xs border-2 border-slate-300 dark:border-slate-600" />
+                          <>
+                            <span className="font-bold font-mono text-sm leading-none text-white group-hover/avatar:hidden">
+                              {getStudentInitial(st.first_name, st.full_name, st.last_name)}
+                            </span>
+                            <Check className="size-4 stroke-[2.5] text-white/90 hidden group-hover/avatar:block" />
+                          </>
                         )}
                       </button>
-
-                      {/* Candidate Avatar Circular Badge */}
-                      <div className="size-9 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 dark:from-emerald-600 dark:to-teal-700 flex items-center justify-center text-white shadow-xs shrink-0 border border-emerald-400/30">
-                        <span className="font-bold font-mono text-sm leading-none text-white select-none">
-                          {getStudentInitial(st.first_name, st.full_name, st.last_name)}
-                        </span>
-                      </div>
 
                       <div className="min-w-0">
                         <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">

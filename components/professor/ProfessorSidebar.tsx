@@ -4,17 +4,15 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  Activity,
   Building2,
-  Calendar,
-  ClipboardCheck,
   GraduationCap,
   Layers,
   LayoutDashboard,
-  LogOut,
   ShieldAlert,
+  ShieldCheck,
   Stethoscope,
   X,
+  ExternalLink,
 } from 'lucide-react'
 
 export function ProfessorSidebar({
@@ -27,6 +25,7 @@ export function ProfessorSidebar({
   const pathname = usePathname()
   const [professorName, setProfessorName] = useState<string | null>(null)
   const [facultyName, setFacultyName] = useState<string | null>(null)
+  const [initials, setInitials] = useState<string>('PR')
   const [loadingSession, setLoadingSession] = useState(true)
 
   useEffect(() => {
@@ -37,8 +36,12 @@ export function ProfessorSidebar({
           const data = await res.json()
           if (data.authenticated && data.user) {
             if (data.user.facultyName) setFacultyName(data.user.facultyName)
-            if (data.user.firstName || data.user.lastName) {
-              setProfessorName(`Prof. ${data.user.firstName || ''} ${data.user.lastName || ''}`.trim())
+            const fn = data.user.firstName || ''
+            const ln = data.user.lastName || ''
+            if (fn || ln) {
+              setProfessorName(`Prof. ${fn} ${ln}`.trim())
+              const init = `${fn.charAt(0)}${ln.charAt(0)}`.toUpperCase() || 'PR'
+              setInitials(init)
             } else {
               setProfessorName('Professor')
             }
@@ -66,17 +69,17 @@ export function ProfessorSidebar({
       {sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
         />
       )}
 
       <aside
-        className={`fixed md:sticky top-0 inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800/80 flex flex-col justify-between transition-transform duration-200 ${
+        className={`fixed md:sticky top-0 inset-y-0 left-0 z-50 w-64 bg-white dark:bg-[#0B1612] border-r border-slate-200/80 dark:border-emerald-500/15 flex flex-col justify-between transition-transform duration-200 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         } h-screen`}
       >
         {/* Brand & Faculty Context Header */}
-        <div className="p-6 border-b border-slate-100 dark:border-slate-800/80 space-y-3">
+        <div className="p-5 border-b border-slate-100 dark:border-emerald-500/15 space-y-4">
           <div className="flex items-center justify-between">
             <Link href="/professor/dashboard" className="flex items-center gap-2.5">
               <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-lime-500 text-white shadow-md shadow-lime-500/20 shrink-0">
@@ -100,26 +103,27 @@ export function ProfessorSidebar({
             </button>
           </div>
 
-          {/* Bound Faculty Banner */}
-          <div className="p-3 rounded-2xl bg-emerald-500/10 border border-lime-500/25 text-emerald-950 dark:text-lime-200 flex items-center gap-2.5 shadow-xs">
-            <Building2 className="size-4 text-lime-500 shrink-0" />
+          {/* Visual Anchor: Professor's initials in glowing lime-trimmed badge */}
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/20 flex items-center gap-3">
+            <div className="size-10 rounded-xl ring-2 ring-lime-400/40 bg-emerald-900/50 text-lime-300 font-bold flex items-center justify-center text-sm shadow-sm shadow-lime-500/20 shrink-0 font-mono">
+              {initials}
+            </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-lime-600 dark:text-lime-400">
-                Faculty Workspace
+              <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                {loadingSession ? 'Loading...' : professorName || 'Clinical Professor'}
               </span>
-              {loadingSession ? (
-                <span className="inline-block h-3.5 w-28 bg-slate-200 dark:bg-slate-700 rounded animate-pulse mt-0.5" />
-              ) : (
-                <span className="text-xs font-extrabold text-slate-900 dark:text-white truncate" title={facultyName || 'Medical Faculty'}>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <Building2 className="size-3 text-emerald-500 shrink-0" />
+                <span className="text-[10px] font-medium text-slate-500 dark:text-emerald-400/80 truncate">
                   {facultyName || 'Medical Faculty'}
                 </span>
-              )}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Navigation Items */}
-        <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive =
@@ -130,41 +134,57 @@ export function ProfessorSidebar({
                 key={item.href}
                 href={item.href}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all relative ${
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all relative group ${
                   isActive
-                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25 border-l-4 border-lime-400 pl-3'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 font-semibold'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-[#12221C] hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                <Icon className={`size-5 ${isActive ? 'text-white' : 'text-slate-400 dark:text-slate-500'}`} />
-                <span>{item.label}</span>
+                {/* Glowing Lime Left Accent Bar for Active Link */}
+                {isActive && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r bg-lime-400 shadow-sm shadow-lime-400/50" />
+                )}
+                <Icon
+                  className={`size-4.5 transition-colors ${
+                    isActive
+                      ? 'text-emerald-600 dark:text-lime-400'
+                      : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300'
+                  }`}
+                />
+                <span className="truncate">{item.label}</span>
               </Link>
             )
           })}
         </nav>
 
-        {/* Footer Professor Status Indicator */}
-        <div className="p-4 border-t border-slate-100 dark:border-slate-800/80">
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/60 dark:border-emerald-800/50">
-            <span className="relative flex size-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-lime-400 opacity-75" />
-              <span className="relative inline-flex rounded-full size-2.5 bg-lime-500" />
-            </span>
-            <div className="flex flex-col min-w-0">
-              {loadingSession ? (
-                <div className="space-y-1 animate-pulse">
-                  <div className="h-3 w-20 bg-slate-200 dark:bg-slate-700 rounded" />
-                  <div className="h-2 w-12 bg-slate-200 dark:bg-slate-700 rounded" />
-                </div>
-              ) : (
-                <>
-                  <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200 truncate">
-                    {professorName || 'Professor'}
-                  </span>
-                  <span className="text-[10px] text-lime-600 dark:text-lime-400 font-semibold truncate">Faculty Examiner</span>
-                </>
-              )}
+        {/* Persistent Examiner Dock */}
+        <div className="p-3 border-t border-slate-100 dark:border-emerald-500/15">
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/25 space-y-2.5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="relative flex size-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-lime-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full size-2 bg-lime-500" />
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-lime-400">
+                  Examiner Mode
+                </span>
+              </div>
+              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 font-bold border border-emerald-500/20">
+                ACTIVE
+              </span>
             </div>
+
+            <Link
+              href="/examiner"
+              className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white text-xs font-bold shadow-sm shadow-emerald-600/30 transition-all group"
+            >
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="size-3.5 text-lime-300" />
+                <span>Launch Station</span>
+              </div>
+              <ExternalLink className="size-3 opacity-70 group-hover:opacity-100 transition-opacity" />
+            </Link>
           </div>
         </div>
       </aside>

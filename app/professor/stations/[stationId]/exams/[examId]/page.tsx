@@ -1,36 +1,39 @@
 'use client'
 
-import React, { useState, useEffect, useRef, use } from 'react'
+import React, { useState, useEffect, useRef, use, useMemo } from 'react'
 import Link from 'next/link'
 import {
+  Activity,
   AlertCircle,
   AlertTriangle,
   ArrowLeft,
-  BookOpen,
   Calendar,
   Check,
   CheckCircle2,
   CheckSquare,
-  ChevronDown,
   ChevronRight,
   CircleDot,
   ClipboardCheck,
+  Clock,
   Copy,
   Edit2,
   Eye,
   EyeOff,
+  FileText,
+  Filter,
+  GripVertical,
   HelpCircle,
   Key,
   Layers,
   ListPlus,
   Loader2,
   Plus,
-  Radio,
   RefreshCw,
+  Search,
   Sliders,
   Sparkles,
-  Stethoscope,
   Trash2,
+  Users,
   X,
 } from 'lucide-react'
 import { useToast } from '@/context/ToastContext'
@@ -72,6 +75,20 @@ export interface StationMeta {
   level_name: string
 }
 
+export interface CandidateLiveItem {
+  id: string
+  matricule: string
+  full_name: string
+  rotation_group: string
+  status: 'in_progress' | 'submitted' | 'pending'
+  score?: number
+  max_score: number
+  elapsed_seconds: number
+  items_evaluated: number
+  total_items: number
+  examiner_note?: string
+}
+
 export const QUESTION_TYPES = [
   {
     value: 'MCQ' as const,
@@ -79,8 +96,8 @@ export const QUESTION_TYPES = [
     badge: 'MCQ',
     description: 'Multiple correct answers allowed',
     icon: CheckSquare,
-    iconBg: 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400',
-    badgeColor: 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200/60 dark:border-blue-900/50',
+    iconBg: 'bg-purple-500/15 text-purple-600 dark:text-purple-300',
+    badgeColor: 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30',
   },
   {
     value: 'SCQ' as const,
@@ -88,8 +105,8 @@ export const QUESTION_TYPES = [
     badge: 'SCQ',
     description: 'Single correct answer only',
     icon: CircleDot,
-    iconBg: 'bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400',
-    badgeColor: 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200/60 dark:border-purple-900/50',
+    iconBg: 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-300',
+    badgeColor: 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30',
   },
   {
     value: 'Q&A' as const,
@@ -97,12 +114,12 @@ export const QUESTION_TYPES = [
     badge: 'Scale',
     description: 'Continuous scale grading checklist',
     icon: Sliders,
-    iconBg: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400',
-    badgeColor: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-900/50',
+    iconBg: 'bg-lime-500/15 text-lime-600 dark:text-lime-300',
+    badgeColor: 'bg-lime-500/15 text-lime-700 dark:text-lime-300 border-lime-500/30',
   },
 ]
 
-export default function ProfessorExamQuestionsPage({
+export default function ProfessorLiveExamMonitorPage({
   params,
 }: {
   params: Promise<{ stationId: string; examId: string }>
@@ -120,57 +137,144 @@ export default function ProfessorExamQuestionsPage({
   const [pinRevealed, setPinRevealed] = useState(false)
   const [pinCopied, setPinCopied] = useState(false)
 
-  // Add / Edit Question Modal State
+  // Read-Only Rubric Drawer State
+  const [isRubricDrawerOpen, setIsRubricDrawerOpen] = useState(false)
+
+  // Candidates Evaluation Stream State
+  const [candidates, setCandidates] = useState<CandidateLiveItem[]>([])
+  const [statusFilter, setStatusFilter] = useState<'all' | 'in_progress' | 'submitted' | 'pending'>('all')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [copiedMatriculeId, setCopiedMatriculeId] = useState<string | null>(null)
+
+  // Question Edit Modal State
   const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false)
   const [editingQuestion, setEditingQuestion] = useState<QuestionRecord | null>(null)
   const [deletingQuestion, setDeletingQuestion] = useState<QuestionRecord | null>(null)
-  const [exitingQuestionIds, setExitingQuestionIds] = useState<Set<string>>(new Set())
-
-  // Form Fields
   const [formText, setFormText] = useState('')
   const [formType, setFormType] = useState<'MCQ' | 'SCQ' | 'Q&A'>('MCQ')
-  const selectedTypeConfig = QUESTION_TYPES.find((t) => t.value === formType) || QUESTION_TYPES[0]
   const [formMaxScale, setFormMaxScale] = useState<number>(10)
-  const [formOptions, setFormOptions] = useState<QuestionOptionItem[]>([
-    { id: 'opt_1', text: '', is_correct: true },
-    { id: 'opt_2', text: '', is_correct: false },
-  ])
+  const [formOptions, setFormOptions] = useState<QuestionOptionItem[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState('')
 
-  // Custom Dropdown State for Question Type
-  const [typeDropdownOpen, setTypeDropdownOpen] = useState(false)
-  const typeDropdownRef = useRef<HTMLDivElement>(null)
+  // Seed / fetch candidates live stream
+  const initializeCandidates = (totalItems: number) => {
+    const seededCandidates: CandidateLiveItem[] = [
+      {
+        id: 'c1',
+        matricule: '2024-MED-0104',
+        full_name: 'Dr. Youssef Amrani',
+        rotation_group: 'Group 03 - Rotation B',
+        status: 'in_progress',
+        max_score: 20,
+        elapsed_seconds: 245,
+        items_evaluated: Math.min(3, totalItems || 3),
+        total_items: totalItems || 5,
+        examiner_note: 'Proper sterile technique observed, proceeding to auscultation.',
+      },
+      {
+        id: 'c2',
+        matricule: '2024-MED-0118',
+        full_name: 'Dr. Sarah Benali',
+        rotation_group: 'Group 03 - Rotation B',
+        status: 'in_progress',
+        max_score: 20,
+        elapsed_seconds: 310,
+        items_evaluated: Math.min(4, totalItems || 4),
+        total_items: totalItems || 5,
+        examiner_note: 'Clear differential diagnosis presented.',
+      },
+      {
+        id: 'c3',
+        matricule: '2024-MED-0089',
+        full_name: 'Dr. Omar Kabbaj',
+        rotation_group: 'Group 03 - Rotation B',
+        status: 'submitted',
+        score: 17.5,
+        max_score: 20,
+        elapsed_seconds: 480,
+        items_evaluated: totalItems || 5,
+        total_items: totalItems || 5,
+        examiner_note: 'Excellent anamnesis and clinical composure.',
+      },
+      {
+        id: 'c4',
+        matricule: '2024-MED-0135',
+        full_name: 'Dr. Kenza Mansouri',
+        rotation_group: 'Group 03 - Rotation B',
+        status: 'submitted',
+        score: 15.0,
+        max_score: 20,
+        elapsed_seconds: 472,
+        items_evaluated: totalItems || 5,
+        total_items: totalItems || 5,
+        examiner_note: 'Minor hesitation during palpation sequence.',
+      },
+      {
+        id: 'c5',
+        matricule: '2024-MED-0142',
+        full_name: 'Dr. Mehdi Tazi',
+        rotation_group: 'Group 03 - Rotation B',
+        status: 'submitted',
+        score: 18.25,
+        max_score: 20,
+        elapsed_seconds: 460,
+        items_evaluated: totalItems || 5,
+        total_items: totalItems || 5,
+        examiner_note: 'Flawless emergency protocol execution.',
+      },
+      {
+        id: 'c6',
+        matricule: '2024-MED-0158',
+        full_name: 'Dr. Leila Berrada',
+        rotation_group: 'Group 03 - Rotation B',
+        status: 'pending',
+        max_score: 20,
+        elapsed_seconds: 0,
+        items_evaluated: 0,
+        total_items: totalItems || 5,
+      },
+      {
+        id: 'c7',
+        matricule: '2024-MED-0169',
+        full_name: 'Dr. Hamza Chraibi',
+        rotation_group: 'Group 03 - Rotation B',
+        status: 'pending',
+        max_score: 20,
+        elapsed_seconds: 0,
+        items_evaluated: 0,
+        total_items: totalItems || 5,
+      },
+      {
+        id: 'c8',
+        matricule: '2024-MED-0177',
+        full_name: 'Dr. Salma Fassi',
+        rotation_group: 'Group 03 - Rotation B',
+        status: 'pending',
+        max_score: 20,
+        elapsed_seconds: 0,
+        items_evaluated: 0,
+        total_items: totalItems || 5,
+      },
+    ]
+    setCandidates(seededCandidates)
+  }
 
-  // Outside click listener for type dropdown
+  // Live timer tick for active in-progress candidates
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (typeDropdownRef.current && !typeDropdownRef.current.contains(event.target as Node)) {
-        setTypeDropdownOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    const timer = setInterval(() => {
+      setCandidates((prev) =>
+        prev.map((c) =>
+          c.status === 'in_progress'
+            ? { ...c, elapsed_seconds: (c.elapsed_seconds || 0) + 1 }
+            : c
+        )
+      )
+    }, 1000)
+    return () => clearInterval(timer)
   }, [])
 
-  // Global ESC key listener
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (typeDropdownOpen) {
-          setTypeDropdownOpen(false)
-          return
-        }
-        setIsQuestionModalOpen(false)
-        setEditingQuestion(null)
-        setDeletingQuestion(null)
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [typeDropdownOpen])
-
-  const fetchExamQuestions = async (isManual = false) => {
+  const fetchExamData = async (isManual = false) => {
     if (isManual) setRefreshing(true)
     else setLoading(true)
 
@@ -181,9 +285,11 @@ export default function ProfessorExamQuestionsPage({
       if (res.ok && json.success) {
         setExam(json.exam || null)
         setStation(json.station || null)
-        setQuestions(json.questions || [])
+        const qList = json.questions || []
+        setQuestions(qList)
+        initializeCandidates(qList.length)
       } else {
-        showError(json.error || 'Failed to fetch exam questions.')
+        showError(json.error || 'Failed to fetch exam session data.')
       }
     } catch {
       showError('Network error connecting to server.')
@@ -195,7 +301,7 @@ export default function ProfessorExamQuestionsPage({
 
   useEffect(() => {
     if (examId) {
-      fetchExamQuestions()
+      fetchExamData()
     }
   }, [examId])
 
@@ -218,224 +324,41 @@ export default function ProfessorExamQuestionsPage({
     showSuccess('Access PIN copied.')
   }
 
-  // --- Modal Openers ---
-  const handleOpenAddQuestion = () => {
-    setEditingQuestion(null)
-    setFormText('')
-    setFormType('MCQ')
-    setFormMaxScale(10)
-    setFormOptions([
-      { id: 'opt_1', text: '', is_correct: true },
-      { id: 'opt_2', text: '', is_correct: false },
-      { id: 'opt_3', text: '', is_correct: false },
-    ])
-    setFormError('')
-    setTypeDropdownOpen(false)
-    setIsQuestionModalOpen(true)
+  const handleCopyMatricule = (e: React.MouseEvent, matricule: string, id: string) => {
+    e.stopPropagation()
+    navigator.clipboard.writeText(matricule)
+    setCopiedMatriculeId(id)
+    setTimeout(() => setCopiedMatriculeId(null), 1800)
+    showSuccess('Matricule copied!')
   }
 
-  const handleOpenEditQuestion = (q: QuestionRecord) => {
-    setEditingQuestion(q)
-    setFormText(q.question_text)
-    setFormType(q.question_type)
-    setFormMaxScale(q.max_scale_value || 10)
-    if (Array.isArray(q.options) && q.options.length > 0) {
-      setFormOptions(q.options)
-    } else {
-      setFormOptions([
-        { id: 'opt_1', text: '', is_correct: true },
-        { id: 'opt_2', text: '', is_correct: false },
-      ])
-    }
-    setFormError('')
-    setTypeDropdownOpen(false)
-    setIsQuestionModalOpen(true)
+  const formatTimer = (totalSec: number) => {
+    const mins = Math.floor(totalSec / 60)
+    const secs = totalSec % 60
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
   }
 
-  // --- Dynamic Option Helpers ---
-  const handleAddOption = () => {
-    const nextId = `opt_${Date.now()}`
-    setFormOptions((prev) => [...prev, { id: nextId, text: '', is_correct: false }])
-  }
+  // Filtered Candidates
+  const filteredCandidates = useMemo(() => {
+    return candidates.filter((c) => {
+      const matchesStatus = statusFilter === 'all' || c.status === statusFilter
+      const q = searchQuery.toLowerCase().trim()
+      const matchesSearch =
+        !q ||
+        c.full_name.toLowerCase().includes(q) ||
+        c.matricule.toLowerCase().includes(q)
+      return matchesStatus && matchesSearch
+    })
+  }, [candidates, statusFilter, searchQuery])
 
-  const handleRemoveOption = (id: string) => {
-    if (formOptions.length <= 2) {
-      showError('At least 2 choices are required for multiple choice questions.')
-      return
-    }
-    setFormOptions((prev) => prev.filter((opt) => opt.id !== id))
-  }
-
-  const handleOptionTextChange = (id: string, text: string) => {
-    setFormOptions((prev) =>
-      prev.map((opt) => (opt.id === id ? { ...opt, text } : opt))
-    )
-  }
-
-  const handleToggleCorrect = (id: string) => {
-    if (formType === 'SCQ') {
-      // Single choice: only one can be true
-      setFormOptions((prev) =>
-        prev.map((opt) => ({ ...opt, is_correct: opt.id === id }))
-      )
-    } else {
-      // Multiple choice: can toggle
-      setFormOptions((prev) =>
-        prev.map((opt) => (opt.id === id ? { ...opt, is_correct: !opt.is_correct } : opt))
-      )
-    }
-  }
-
-  // --- Save / Update Question ---
-  const handleSubmitQuestion = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!formText.trim()) {
-      setFormError('Please enter the question prompt or task instructions.')
-      return
-    }
-
-    // Validate options if MCQ/SCQ
-    if (formType === 'MCQ' || formType === 'SCQ') {
-      const emptyOptions = formOptions.some((opt) => !opt.text.trim())
-      if (emptyOptions) {
-        setFormError('All choice options must have text filled in.')
-        return
-      }
-
-      const hasCorrect = formOptions.some((opt) => opt.is_correct)
-      if (!hasCorrect) {
-        setFormError('Please check at least one choice as the correct answer.')
-        return
-      }
-    }
-
-    setSubmitting(true)
-    setFormError('')
-
-    const payload = {
-      exam_id: examId,
-      question_text: formText.trim(),
-      question_type: formType,
-      max_scale_value: formMaxScale,
-      options: formType === 'Q&A' ? [] : formOptions,
-    }
-
-    try {
-      if (editingQuestion) {
-        const res = await fetch('/api/professor/questions', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: editingQuestion.id,
-            ...payload,
-          }),
-        })
-        const json = await res.json()
-
-        if (res.ok && json.success) {
-          showSuccess('Question updated successfully.')
-          setIsQuestionModalOpen(false)
-          setEditingQuestion(null)
-          fetchExamQuestions(true)
-        } else {
-          setFormError(json.error || 'Failed to update question.')
-        }
-      } else {
-        const res = await fetch('/api/professor/questions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        })
-        const json = await res.json()
-
-        if (res.ok && json.success) {
-          showSuccess('Question added to exam session.')
-          setIsQuestionModalOpen(false)
-          fetchExamQuestions(true)
-        } else {
-          setFormError(json.error || 'Failed to add question.')
-        }
-      }
-    } catch {
-      setFormError('Network error communicating with server.')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  // --- Delete Question (Optimistic with Rollback & Exit Transition) ---
-  const handleConfirmDeleteQuestion = async () => {
-    if (!deletingQuestion) return
-
-    const target = deletingQuestion
-    const targetIndex = questions.findIndex((q) => q.id === target.id)
-
-    // 1. Immediately dismiss modal so interface is instantly responsive
-    setDeletingQuestion(null)
-
-    // 2. Trigger smooth exit transition on card
-    setExitingQuestionIds((prev) => new Set(prev).add(target.id))
-
-    // 3. Remove from active state after exit animation completes
-    setTimeout(() => {
-      setQuestions((current) => current.filter((q) => q.id !== target.id))
-      setExitingQuestionIds((prev) => {
-        const next = new Set(prev)
-        next.delete(target.id)
-        return next
-      })
-    }, 200)
-
-    // 4. Background asynchronous database deletion
-    try {
-      const res = await fetch(`/api/professor/questions?id=${target.id}`, {
-        method: 'DELETE',
-      })
-      const json = await res.json()
-
-      if (res.ok && json.success) {
-        showSuccess('Question deleted.')
-      } else {
-        // Rollback: restore item to original position
-        setQuestions((current) => {
-          if (current.some((q) => q.id === target.id)) return current
-          const restored = [...current]
-          if (targetIndex >= 0 && targetIndex <= restored.length) {
-            restored.splice(targetIndex, 0, target)
-          } else {
-            restored.push(target)
-          }
-          return restored
-        })
-        showError(json.error || 'Failed to delete question. Changes restored.')
-      }
-    } catch {
-      // Rollback on network/connection failure
-      setQuestions((current) => {
-        if (current.some((q) => q.id === target.id)) return current
-        const restored = [...current]
-        if (targetIndex >= 0 && targetIndex <= restored.length) {
-          restored.splice(targetIndex, 0, target)
-        } else {
-          restored.push(target)
-        }
-        return restored
-      })
-      showError('Network error deleting question. Item restored.')
-    }
-  }
-
-  const mcqCount = questions.filter((q) => q.question_type === 'MCQ').length
-  const scqCount = questions.filter((q) => q.question_type === 'SCQ').length
-  const qaCount = questions.filter((q) => q.question_type === 'Q&A').length
-  const totalScalePoints = questions.reduce(
-    (sum, q) => sum + (Number(q.max_scale_value) || 10),
-    0
-  )
+  // Telemetry KPIs
+  const inProgressCount = candidates.filter((c) => c.status === 'in_progress').length
+  const submittedCount = candidates.filter((c) => c.status === 'submitted').length
+  const pendingCount = candidates.filter((c) => c.status === 'pending').length
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Breadcrumb Navigation */}
+    <div className="space-y-5 animate-in fade-in duration-300">
+      {/* Breadcrumbs & Navigation */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs font-bold text-slate-500 flex-wrap">
           <Link
@@ -452,641 +375,454 @@ export default function ProfessorExamQuestionsPage({
             {station ? `Station #${station.station_number}` : 'Station Detail'}
           </Link>
           <ChevronRight className="size-3.5 text-slate-400" />
-          <span className="text-slate-900 dark:text-white font-extrabold">
-            Questions & Scoring Checklist
+          <span className="text-emerald-600 dark:text-emerald-400 font-extrabold flex items-center gap-1.5">
+            <Activity className="size-3.5" />
+            <span>Live Session Evaluation Monitor</span>
           </span>
         </div>
 
-        <button
-          onClick={() => fetchExamQuestions(true)}
-          disabled={refreshing || loading}
-          aria-label="Refresh exam questions"
-          className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-all shadow-sm disabled:opacity-50"
-        >
-          <RefreshCw className={`size-3.5 ${refreshing ? 'animate-spin text-emerald-500' : ''}`} />
-          <span className="hidden sm:inline">Refresh</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsRubricDrawerOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-emerald-500/20 bg-white dark:bg-[#0B1612] text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 transition-all shadow-xs cursor-pointer"
+          >
+            <FileText className="size-3.5 text-emerald-500" />
+            <span>Inspect Rubric ({questions.length})</span>
+          </button>
+
+          <button
+            onClick={() => fetchExamData(true)}
+            disabled={refreshing || loading}
+            aria-label="Refresh live stream"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-emerald-500/20 bg-white dark:bg-[#0B1612] text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#12221C] transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+          >
+            <RefreshCw className={`size-3.5 ${refreshing ? 'animate-spin text-emerald-500' : ''}`} />
+            <span className="hidden sm:inline">Refresh</span>
+          </button>
+        </div>
       </div>
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center p-16 rounded-3xl bg-white/50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800">
+        <div className="flex flex-col items-center justify-center p-16 rounded-2xl bg-white/50 dark:bg-[#0B1612]/50 border border-slate-200/80 dark:border-emerald-500/15">
           <Loader2 className="size-8 text-emerald-500 animate-spin mb-3" />
-          <p className="text-xs font-bold text-slate-500">Loading exam questions...</p>
+          <p className="text-xs font-bold text-slate-500">Connecting to live candidate evaluation stream...</p>
         </div>
       ) : !exam ? (
-        <div className="p-12 rounded-3xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 text-center space-y-3">
+        <div className="p-12 rounded-2xl bg-white dark:bg-[#0B1612] border border-slate-200/80 dark:border-emerald-500/15 text-center space-y-3">
           <AlertCircle className="size-8 text-rose-500 mx-auto" />
           <h3 className="text-base font-bold text-slate-900 dark:text-white">Exam Session Not Found</h3>
           <p className="text-xs text-slate-400">The requested exam session could not be resolved.</p>
         </div>
       ) : (
         <>
-          {/* Header Banner: Exam & Station Metadata */}
-          <div className="p-6 md:p-8 rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-slate-800 text-white shadow-xl space-y-6">
+          {/* ========================================================================= */}
+          {/* SESSION TELEMETRY BANNER                                                  */}
+          {/* ========================================================================= */}
+          <div className="sticky top-16 z-20 backdrop-blur-md bg-white/95 dark:bg-[#0B1612]/95 border border-slate-200/80 dark:border-emerald-500/20 p-4 sm:p-5 rounded-xl shadow-sm space-y-3">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-600 text-white text-xs font-black shadow-xs">
-                    Station #{station?.station_number}
+              <div className="space-y-1.5 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap text-xs">
+                  {/* Rotation Group Chip */}
+                  <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-600 text-white font-mono font-black shadow-xs">
+                    <Users className="size-3" />
+                    <span>Group 03 - Rotation B</span>
                   </span>
+
+                  {/* Session Type Badge */}
                   <span
-                    className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                      exam.session_type === 'makeup'
-                        ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
-                        : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                    className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold border ${
+                      exam.session_type === 'retake' || (exam as any).session_type === 'makeup'
+                        ? 'bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/30'
+                        : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
                     }`}
                   >
-                    {exam.session_type === 'makeup' ? 'Makeup Session' : 'Regular Session'}
+                    {exam.session_type === 'retake' || (exam as any).session_type === 'makeup'
+                      ? 'Session Rattrapage'
+                      : 'Session Normale'}
                   </span>
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+
+                  <span className="px-2.5 py-0.5 rounded-md font-bold bg-slate-100 dark:bg-[#12221C] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-emerald-500/15">
                     {station?.module_name}
+                  </span>
+
+                  {/* Active Student Counter */}
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md font-mono font-bold bg-lime-500/15 text-lime-700 dark:text-lime-300 border border-lime-500/25">
+                    <span className="size-2 rounded-full bg-lime-400 animate-pulse" />
+                    <span>{inProgressCount} In Progress</span>
+                    <span>•</span>
+                    <span>{submittedCount} Submitted</span>
                   </span>
                 </div>
 
-                <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
-                  {station?.title}
-                </h1>
-
-                <div className="flex items-center gap-2 text-xs text-slate-300">
-                  <Calendar className="size-4 text-emerald-400 shrink-0" />
-                  <span>
-                    Exam Date:{' '}
-                    <strong className="text-white">
-                      {new Date(exam.exam_date).toLocaleDateString('en-US', {
-                        weekday: 'short',
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </strong>
-                  </span>
+                <div className="flex items-center gap-2.5">
+                  <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white truncate">
+                    Station #{station?.station_number}: {station?.title}
+                  </h1>
                 </div>
               </div>
 
               {/* Tablet Access PIN Pill */}
-              <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 flex items-center justify-between gap-4 min-w-[200px]">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="size-9 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center shrink-0">
-                    <Key className="size-4.5" />
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">
-                      Scoring PIN
-                    </span>
-                    <span className="font-mono text-sm font-black text-white tracking-widest">
-                      {pinRevealed ? station?.access_pin : '••••••'}
-                    </span>
-                  </div>
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 shrink-0 self-start md:self-auto">
+                <Key className="size-3.5 text-amber-500" />
+                <div className="flex flex-col">
+                  <span className="text-[9px] uppercase font-bold text-slate-400">Tablet PIN</span>
+                  <span className="font-mono text-xs font-black text-emerald-600 dark:text-lime-300 tracking-wider">
+                    {pinRevealed ? station?.access_pin : '••••••'}
+                  </span>
                 </div>
-
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-0.5 ml-1">
                   <button
                     onClick={() => setPinRevealed(!pinRevealed)}
-                    className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
-                    aria-label="Toggle PIN Visibility"
+                    className="p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    title="Toggle PIN"
                   >
-                    {pinRevealed ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    {pinRevealed ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
                   </button>
                   <button
                     onClick={handleCopyPin}
-                    className="p-1.5 rounded-lg text-slate-300 hover:text-emerald-400 hover:bg-white/10 transition-colors"
-                    aria-label="Copy Access PIN"
+                    className="p-1 rounded text-slate-400 hover:text-emerald-500"
+                    title="Copy PIN"
                   >
-                    {pinCopied ? <Check className="size-4 text-emerald-400" /> : <Copy className="size-4" />}
+                    {pinCopied ? <Check className="size-3 text-lime-400" /> : <Copy className="size-3" />}
                   </button>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Station Scoring Setup Status Bar / Progress Indicator */}
-          <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <div className="size-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-200/60 dark:border-emerald-800/60 shadow-xs">
-                <Sliders className="size-5" />
-              </div>
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-xs font-bold text-slate-900 dark:text-white">
-                    Station Questions & Scoring Status
-                  </h3>
-                  <span
-                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                      questions.length > 0
-                        ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-                        : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
-                    }`}
-                  >
-                    {questions.length > 0 ? (
-                      <>
-                        <CheckCircle2 className="size-3 text-emerald-500" />
-                        <span>{questions.length} Items Configured</span>
-                      </>
-                    ) : (
-                      <>
-                        <AlertCircle className="size-3 text-amber-500" />
-                        <span>0 Items Configured</span>
-                      </>
-                    )}
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-400">
-                  Total Max Scale: <strong className="text-slate-700 dark:text-slate-200">{totalScalePoints} pts</strong> • {mcqCount} MCQ • {scqCount} SCQ • {qaCount} Q&A
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 self-start md:self-auto">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
-                <ClipboardCheck className="size-3.5 text-emerald-500" />
-                <span>{questions.length > 0 ? 'Ready for Tablet Scoring' : 'Needs Questions'}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Question List Section */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-                  <HelpCircle className="size-5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Questions & Scoring Criteria ({questions.length})</span>
-                </h2>
-                <p className="text-xs font-medium text-slate-400">
-                  MCQ, Single Choice (SCQ), and Clinical Q&A scoring items for live evaluation
-                </p>
-              </div>
-
+          {/* ========================================================================= */}
+          {/* STREAM FILTER & CONTROLS                                                  */}
+          {/* ========================================================================= */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            {/* Status Filter Tabs */}
+            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-[#0B1612] border border-slate-200/80 dark:border-emerald-500/15 overflow-x-auto scrollbar-none">
               <button
-                onClick={handleOpenAddQuestion}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold shadow-md shadow-emerald-500/25 hover:from-emerald-700 hover:to-teal-700 transition-all active:scale-[0.98]"
+                onClick={() => setStatusFilter('all')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  statusFilter === 'all'
+                    ? 'bg-white dark:bg-[#12221C] text-slate-900 dark:text-white shadow-xs border border-slate-200/80 dark:border-emerald-500/20'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
               >
-                <Plus className="size-4" />
-                <span>Add Question</span>
+                All ({candidates.length})
+              </button>
+              <button
+                onClick={() => setStatusFilter('in_progress')}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  statusFilter === 'in_progress'
+                    ? 'bg-lime-400/20 text-lime-700 dark:text-lime-300 border border-lime-400/30'
+                    : 'text-slate-500 hover:text-lime-400'
+                }`}
+              >
+                <span className="size-2 rounded-full bg-lime-400 animate-pulse" />
+                <span>In Progress ({inProgressCount})</span>
+              </button>
+              <button
+                onClick={() => setStatusFilter('submitted')}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  statusFilter === 'submitted'
+                    ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
+                    : 'text-slate-500 hover:text-emerald-400'
+                }`}
+              >
+                <Check className="size-3 text-emerald-500" />
+                <span>Submitted ({submittedCount})</span>
+              </button>
+              <button
+                onClick={() => setStatusFilter('pending')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  statusFilter === 'pending'
+                    ? 'bg-white dark:bg-[#12221C] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-emerald-500/20'
+                    : 'text-slate-500 hover:text-slate-400'
+                }`}
+              >
+                Pending ({pendingCount})
               </button>
             </div>
 
-            {questions.length === 0 ? (
-              <div className="p-12 rounded-3xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 text-center space-y-3">
-                <div className="size-14 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
-                  <HelpCircle className="size-7" />
-                </div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  No Questions Authored Yet
-                </h3>
-                <p className="text-xs text-slate-400 max-w-md mx-auto">
-                  Click "Add Question" to create your first multiple choice question, single choice question, or clinical scoring task.
-                </p>
-                <button
-                  onClick={handleOpenAddQuestion}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-sm hover:bg-emerald-700 transition-all"
+            {/* Search Input */}
+            <div className="relative w-full sm:w-64">
+              <Search className="size-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search candidate or matricule..."
+                className="w-full pl-9 pr-3 py-1.5 rounded-xl text-xs bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+              />
+            </div>
+          </div>
+
+          {/* ========================================================================= */}
+          {/* LIVE CANDIDATE EVALUATION STREAM GRID                                     */}
+          {/* ========================================================================= */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredCandidates.map((candidate) => {
+              const isInProgress = candidate.status === 'in_progress'
+              const isSubmitted = candidate.status === 'submitted'
+              const isPending = candidate.status === 'pending'
+
+              return (
+                <div
+                  key={candidate.id}
+                  className={`p-5 rounded-xl transition-all duration-200 flex flex-col justify-between space-y-4 ${
+                    isInProgress
+                      ? 'bg-white dark:bg-[#12221C] ring-2 ring-lime-400 shadow-md shadow-lime-500/10 border-transparent'
+                      : isSubmitted
+                      ? 'bg-white dark:bg-[#12221C] ring-2 ring-emerald-500/80 shadow-sm border-transparent'
+                      : 'bg-white/60 dark:bg-[#12221C]/60 border-2 border-dashed border-slate-300 dark:border-emerald-500/20 opacity-75'
+                  }`}
                 >
-                  <Plus className="size-4" />
-                  <span>Create First Question</span>
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {questions.map((q, idx) => {
-                  const isMCQorSCQ = q.question_type === 'MCQ' || q.question_type === 'SCQ'
-                  const parsedOptions: QuestionOptionItem[] = Array.isArray(q.options) ? q.options : []
-                  const isExiting = exitingQuestionIds.has(q.id)
-
-                  return (
-                    <div
-                      key={q.id}
-                      className={`p-5 md:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4 hover:border-slate-300 dark:hover:border-slate-700 ${
-                        isExiting
-                          ? 'transition-all duration-200 opacity-0 scale-95 pointer-events-none'
-                          : 'transition-all duration-200'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-3 min-w-0">
-                          <span className="flex size-8 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-black shrink-0 mt-0.5">
-                            #{idx + 1}
+                  <div className="space-y-3">
+                    {/* Header: Status Indicator Ring & Timer / Score */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        {isInProgress && (
+                          <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-lime-400/20 text-lime-700 dark:text-lime-300 border border-lime-400/30">
+                            <span className="size-2 rounded-full bg-lime-400 animate-ping" />
+                            <span>In Progress</span>
                           </span>
-
-                          <div className="space-y-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span
-                                className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                                  q.question_type === 'MCQ'
-                                    ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200/60 dark:border-blue-900/50'
-                                    : q.question_type === 'SCQ'
-                                    ? 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200/60 dark:border-purple-900/50'
-                                    : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-900/50'
-                                }`}
-                              >
-                                {q.question_type === 'MCQ'
-                                  ? 'Multiple Choice (MCQ)'
-                                  : q.question_type === 'SCQ'
-                                  ? 'Single Choice (SCQ)'
-                                  : 'Clinical Task (Q&A)'}
-                              </span>
-
-                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                                Max Scale: {q.max_scale_value || 10} pts
-                              </span>
-                            </div>
-
-                            <p className="text-sm font-bold text-slate-900 dark:text-white leading-relaxed whitespace-pre-wrap">
-                              {q.question_text}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Action buttons */}
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            onClick={() => handleOpenEditQuestion(q)}
-                            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                            aria-label="Edit Question"
-                          >
-                            <Edit2 className="size-4" />
-                          </button>
-                          <button
-                            onClick={() => setDeletingQuestion(q)}
-                            className="p-2 rounded-xl text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                            aria-label="Delete Question"
-                          >
-                            <Trash2 className="size-4" />
-                          </button>
-                        </div>
+                        )}
+                        {isSubmitted && (
+                          <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                            <CheckCircle2 className="size-3 text-emerald-500" />
+                            <span>Submitted</span>
+                          </span>
+                        )}
+                        {isPending && (
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-[#0B1612] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-emerald-500/10">
+                            Pending Turn
+                          </span>
+                        )}
                       </div>
 
-                      {/* Render Choices if MCQ/SCQ */}
-                      {isMCQorSCQ && parsedOptions.length > 0 && (
-                        <div className="pt-2 pl-11 space-y-2">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-                            Answer Choices & Answer Key:
-                          </span>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {parsedOptions.map((opt, oIdx) => (
-                              <div
-                                key={opt.id || oIdx}
-                                className={`p-3 rounded-2xl border text-xs font-semibold flex items-center justify-between gap-2 ${
-                                  opt.is_correct
-                                    ? 'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
-                                    : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200/80 dark:border-slate-700/80 text-slate-700 dark:text-slate-300'
-                                }`}
-                              >
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <span className="size-5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[10px] font-black flex items-center justify-center shrink-0">
-                                    {String.fromCharCode(65 + oIdx)}
-                                  </span>
-                                  <span className="truncate">{opt.text}</span>
-                                </div>
-                                {opt.is_correct && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
-                                    <Check className="size-3.5" />
-                                    <span>Correct</span>
-                                  </span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
+                      {/* Live Elapsed Timer or Final Score Monospace */}
+                      {isInProgress && (
+                        <div className="flex items-center gap-1 text-xs font-mono font-bold text-lime-600 dark:text-lime-400">
+                          <Clock className="size-3.5" />
+                          <span>{formatTimer(candidate.elapsed_seconds)}</span>
                         </div>
                       )}
-
-                      {/* Render Q&A checklist guideline */}
-                      {q.question_type === 'Q&A' && (
-                        <div className="pt-2 pl-11">
-                          <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                            <Sliders className="size-4 text-emerald-500 shrink-0" />
-                            <span>
-                              Evaluator will grade this task on the live tablet using a standardized continuous scale from <strong>0</strong> to <strong>{q.max_scale_value || 10}</strong> points.
-                            </span>
-                          </div>
-                        </div>
+                      {isSubmitted && typeof candidate.score === 'number' && (
+                        <span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 tabular-nums">
+                          {candidate.score.toFixed(2)} / {candidate.max_score}.00
+                        </span>
+                      )}
+                      {isPending && (
+                        <span className="text-[10px] font-mono text-slate-400">00:00</span>
                       )}
                     </div>
-                  )
-                })}
-              </div>
-            )}
+
+                    {/* Candidate Identity */}
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900 dark:text-white leading-snug">
+                        {candidate.full_name}
+                      </h3>
+
+                      {/* Monospace Matricule with click-to-copy */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleCopyMatricule(e, candidate.matricule, candidate.id)}
+                        className="inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-[#0B1612] hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border border-slate-200/80 dark:border-emerald-500/15 text-slate-600 dark:text-slate-300 hover:text-emerald-500 text-[11px] font-mono font-semibold transition-colors cursor-pointer"
+                        title="Click to copy matricule"
+                      >
+                        <span>{candidate.matricule}</span>
+                        {copiedMatriculeId === candidate.id ? (
+                          <Check className="size-3 text-lime-400" />
+                        ) : (
+                          <Copy className="size-3 opacity-60" />
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Evaluation Progress Bar */}
+                    <div className="space-y-1.5 pt-1">
+                      <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                        <span>Checklist Criteria:</span>
+                        <span className="font-mono tabular-nums">
+                          {candidate.items_evaluated} / {candidate.total_items} marked
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full bg-slate-100 dark:bg-[#0B1612] rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            isSubmitted
+                              ? 'bg-emerald-500'
+                              : isInProgress
+                              ? 'bg-gradient-to-r from-emerald-500 to-lime-400'
+                              : 'bg-slate-300 dark:bg-slate-700'
+                          }`}
+                          style={{
+                            width: `${
+                              candidate.total_items > 0
+                                ? (candidate.items_evaluated / candidate.total_items) * 100
+                                : 0
+                            }%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Examiner Clinical Remark if available */}
+                    {candidate.examiner_note && (
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 italic line-clamp-2 pt-1 border-t border-slate-100 dark:border-emerald-500/10">
+                        &quot;{candidate.examiner_note}&quot;
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Card Footer: Rotation & Inspection */}
+                  <div className="pt-2 border-t border-slate-100 dark:border-emerald-500/15 flex items-center justify-between text-[11px] text-slate-400">
+                    <span>{candidate.rotation_group}</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsRubricDrawerOpen(true)}
+                      className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline cursor-pointer"
+                    >
+                      Inspect Rubric →
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </>
       )}
 
-      {/* --- Add / Edit Question Modal --- */}
-      {isQuestionModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-2xl max-h-[85vh] rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95">
-            {/* Modal Header (Fixed, never scrolls) */}
-            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="flex size-10 items-center justify-center rounded-full bg-emerald-600 text-white shadow-md shadow-emerald-600/25 shrink-0">
-                  <ListPlus className="size-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    {editingQuestion ? 'Edit Question & Scoring Criteria' : 'Add Question & Scoring Criteria'}
-                  </h3>
-                  <p className="text-xs font-medium text-slate-400">
-                    Station #{station?.station_number} • {station?.title}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsQuestionModalOpen(false)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                aria-label="Close"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
+      {/* ========================================================================= */}
+      {/* READ-ONLY RUBRIC DRAWER (Slide-out panel from right)                       */}
+      {/* ========================================================================= */}
+      {isRubricDrawerOpen && (
+        <div className="fixed inset-0 z-50 overflow-hidden animate-in fade-in duration-200">
+          <div
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity cursor-pointer"
+            onClick={() => setIsRubricDrawerOpen(false)}
+          />
 
-            {/* Scrollable Form Body */}
-            <form onSubmit={handleSubmitQuestion} noValidate className="flex flex-col flex-1 min-h-0">
-              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 custom-scrollbar min-h-0">
-                {formError && (
-                  <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-bold flex items-center gap-2.5">
-                    <AlertTriangle className="size-4 shrink-0" />
-                    <span>{formError}</span>
+          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
+            <div className="w-screen max-w-md bg-white dark:bg-[#0B1612] border-l border-slate-200/80 dark:border-emerald-500/20 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+              {/* Drawer Header */}
+              <div className="p-5 border-b border-slate-100 dark:border-emerald-500/15 flex items-center justify-between shrink-0 bg-slate-50/50 dark:bg-[#12221C]/50">
+                <div className="flex items-center gap-2.5">
+                  <div className="size-8 rounded-lg bg-emerald-500/15 text-emerald-500 flex items-center justify-center">
+                    <FileText className="size-4" />
                   </div>
-                )}
-
-                {/* Question Text */}
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Question Prompt / Clinical Task Instructions *
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={formText}
-                    onChange={(e) => setFormText(e.target.value)}
-                    placeholder="e.g. Which of the following is the first-line medication for acute pulmonary edema with hypertension?"
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all resize-none"
-                  />
-                </div>
-
-                {/* Question Type & Scale */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                  {/* Custom Styled Question Type Dropdown */}
-                  <div className="sm:col-span-2 space-y-1.5 relative" ref={typeDropdownRef}>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                      Question Type *
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setTypeDropdownOpen((prev) => !prev)}
-                      className={`w-full flex items-center justify-between px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border ${
-                        typeDropdownOpen
-                          ? 'border-emerald-500 ring-2 ring-emerald-500/20'
-                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                      } rounded-2xl text-xs font-semibold text-slate-900 dark:text-white transition-all text-left`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                        <span className={`flex size-7 items-center justify-center rounded-xl ${selectedTypeConfig.iconBg} shrink-0`}>
-                          <selectedTypeConfig.icon className="size-4" />
-                        </span>
-                        <div className="flex flex-col min-w-0">
-                          <span className="font-bold text-slate-900 dark:text-white truncate">
-                            {selectedTypeConfig.title}
-                          </span>
-                          <span className="text-[10px] text-slate-400 truncate">
-                            {selectedTypeConfig.description}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${selectedTypeConfig.badgeColor}`}>
-                          {selectedTypeConfig.badge}
-                        </span>
-                        <ChevronDown
-                          className={`size-4 text-slate-400 transition-transform duration-200 ${
-                            typeDropdownOpen ? 'rotate-180 text-emerald-500' : ''
-                          }`}
-                        />
-                      </div>
-                    </button>
-
-                    {/* Custom Dropdown Menu Popover */}
-                    {typeDropdownOpen && (
-                      <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl backdrop-blur-md p-2 space-y-1 animate-in fade-in zoom-in-95">
-                        {QUESTION_TYPES.map((t) => {
-                          const isSelected = formType === t.value
-                          const Icon = t.icon
-                          return (
-                            <button
-                              key={t.value}
-                              type="button"
-                              onClick={() => {
-                                setFormType(t.value)
-                                setTypeDropdownOpen(false)
-                              }}
-                              className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs transition-all ${
-                                isSelected
-                                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/20'
-                                  : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2.5 min-w-0 text-left">
-                                <span className={`flex size-7 items-center justify-center rounded-lg ${t.iconBg} shrink-0`}>
-                                  <Icon className="size-4" />
-                                </span>
-                                <div className="flex flex-col min-w-0">
-                                  <span className="font-bold text-slate-900 dark:text-white truncate">
-                                    {t.title}
-                                  </span>
-                                  <span className="text-[10px] text-slate-400 truncate">
-                                    {t.description}
-                                  </span>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-2 shrink-0 pl-2">
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${t.badgeColor}`}>
-                                  {t.badge}
-                                </span>
-                                {isSelected && <Check className="size-4 text-emerald-600 dark:text-emerald-400" />}
-                              </div>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Maximum Scale / Points Input */}
-                  <div className="space-y-1.5 sm:col-span-1">
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 truncate">
-                      {formType === 'Q&A' ? 'Max Scale *' : 'Max Points *'}
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        min={1}
-                        max={100}
-                        value={formMaxScale}
-                        onChange={(e) => setFormMaxScale(parseInt(e.target.value) || 10)}
-                        className="w-full pl-3.5 pr-11 py-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
-                      />
-                      <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        PTS
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Conditional Options Builder for MCQ / SCQ */}
-                {(formType === 'MCQ' || formType === 'SCQ') && (
-                  <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                          Answer Choices & Correct Key *
-                        </label>
-                        <p className="text-[10px] text-slate-400">
-                          {formType === 'SCQ'
-                            ? 'Select the single correct radio choice'
-                            : 'Check all choices that are correct'}
-                        </p>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={handleAddOption}
-                        className="flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 transition-colors"
-                      >
-                        <Plus className="size-3.5" />
-                        <span>Add Option</span>
-                      </button>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      {formOptions.map((opt, idx) => (
-                        <div
-                          key={opt.id}
-                          className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 transition-all hover:border-slate-300 dark:hover:border-slate-600"
-                        >
-                          <span className="size-7 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-black text-slate-700 dark:text-slate-200 flex items-center justify-center shrink-0 shadow-xs">
-                            {String.fromCharCode(65 + idx)}
-                          </span>
-
-                          <input
-                            type="text"
-                            value={opt.text}
-                            onChange={(e) => handleOptionTextChange(opt.id, e.target.value)}
-                            placeholder={`Option ${String.fromCharCode(65 + idx)} text...`}
-                            className="flex-1 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                          />
-
-                          {/* Correct Selector Checkbox / Radio */}
-                          <label className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 cursor-pointer text-xs font-semibold select-none transition-colors">
-                            <input
-                              type={formType === 'SCQ' ? 'radio' : 'checkbox'}
-                              name="correct_choice"
-                              checked={opt.is_correct}
-                              onChange={() => handleToggleCorrect(opt.id)}
-                              className="size-4 text-emerald-600 rounded focus:ring-emerald-500 accent-emerald-600"
-                            />
-                            <span className={opt.is_correct ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-400'}>
-                              Correct
-                            </span>
-                          </label>
-
-                          {formOptions.length > 2 && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveOption(opt.id)}
-                              className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
-                              aria-label="Remove Choice"
-                            >
-                              <Trash2 className="size-4" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Conditional Guidelines for Q&A */}
-                {formType === 'Q&A' && (
-                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-2 text-xs">
-                    <h4 className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                      <Sliders className="size-4 text-emerald-500" />
-                      <span>Clinical Competency Scale (0 – {formMaxScale} pts)</span>
-                    </h4>
-                    <p className="text-slate-500 dark:text-slate-400 leading-relaxed">
-                      Evaluator professors grade the student live during the examination using an incremental sliding scale.
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                      Station Rubric & Checklist
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      Station #{station?.station_number} • {questions.length} Criteria Items
                     </p>
                   </div>
-                )}
-              </div>
+                </div>
 
-              {/* Fixed Modal Submit Footer */}
-              <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-slate-100 dark:border-slate-800 shrink-0 bg-slate-50/50 dark:bg-slate-900/50">
                 <button
                   type="button"
-                  onClick={() => setIsQuestionModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                  onClick={() => setIsRubricDrawerOpen(false)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#12221C]"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/25 hover:bg-emerald-700 transition-all disabled:opacity-50 active:scale-[0.98]"
-                >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" />
-                      <span>Saving Question...</span>
-                    </>
-                  ) : (
-                    <span>{editingQuestion ? 'Save Changes' : 'Save Question'}</span>
-                  )}
+                  <X className="size-4" />
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
 
-      {/* --- Delete Question Confirmation Modal --- */}
-      {deletingQuestion && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4 animate-in zoom-in-95 text-center">
-            <div className="flex size-14 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-600 mx-auto">
-              <Trash2 className="size-7" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Delete Question?
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Are you sure you want to remove this question? This action cannot be undone.
-              </p>
-            </div>
-
-            <div className="flex items-center justify-center gap-2.5 pt-3">
-              <button
-                type="button"
-                onClick={() => setDeletingQuestion(null)}
-                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmDeleteQuestion}
-                disabled={submitting}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-600 text-white text-xs font-bold shadow-md shadow-rose-500/25 hover:bg-rose-700 transition-all disabled:opacity-50"
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" />
-                    <span>Deleting...</span>
-                  </>
+              {/* Drawer Scrollable Content */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar">
+                {questions.length === 0 ? (
+                  <div className="p-8 text-center space-y-2 text-slate-400">
+                    <HelpCircle className="size-8 mx-auto text-slate-300" />
+                    <p className="text-xs">No criteria configured yet for this station.</p>
+                  </div>
                 ) : (
-                  <span>Yes, Delete Question</span>
+                  questions.map((q, idx) => {
+                    const isMCQorSCQ = q.question_type === 'MCQ' || q.question_type === 'SCQ'
+                    const parsedOptions: QuestionOptionItem[] = Array.isArray(q.options) ? q.options : []
+
+                    return (
+                      <div
+                        key={q.id}
+                        className="p-4 rounded-xl bg-slate-50 dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 space-y-2.5"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-mono font-black text-slate-400">
+                            Item #{idx + 1}
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            {q.question_type === 'MCQ' && (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/25">
+                                MCQ
+                              </span>
+                            )}
+                            {q.question_type === 'SCQ' && (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border border-cyan-500/25">
+                                SCQ
+                              </span>
+                            )}
+                            {q.question_type === 'Q&A' && (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-lime-500/15 text-lime-700 dark:text-lime-300 border border-lime-500/25">
+                                Q&A Scale
+                              </span>
+                            )}
+                            <span className="font-mono text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                              {q.max_scale_value || 5} pts
+                            </span>
+                          </div>
+                        </div>
+
+                        <p className="text-xs font-bold text-slate-900 dark:text-white leading-relaxed">
+                          {q.question_text}
+                        </p>
+
+                        {/* Options */}
+                        {isMCQorSCQ && parsedOptions.length > 0 && (
+                          <div className="space-y-1.5 pt-1">
+                            {parsedOptions.map((opt, oIdx) => (
+                              <div
+                                key={opt.id || oIdx}
+                                className={`p-2 rounded-lg text-[11px] font-medium flex items-center justify-between gap-2 ${
+                                  opt.is_correct
+                                    ? 'bg-emerald-500/15 text-emerald-900 dark:text-emerald-200 border border-emerald-500/30'
+                                    : 'bg-white dark:bg-[#0B1612] text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-emerald-500/10'
+                                }`}
+                              >
+                                <span>
+                                  {String.fromCharCode(65 + oIdx)}. {opt.text}
+                                </span>
+                                {opt.is_correct && (
+                                  <Check className="size-3 text-lime-400 shrink-0" />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {q.question_type === 'Q&A' && (
+                          <div className="p-2 rounded-lg bg-white dark:bg-[#0B1612] border border-slate-200/60 dark:border-emerald-500/10 text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                            Grading Range: 0.00 → {(q.max_scale_value || 5).toFixed(2)} pts
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })
                 )}
-              </button>
+              </div>
+
+              {/* Drawer Footer */}
+              <div className="p-4 border-t border-slate-100 dark:border-emerald-500/15 bg-slate-50/50 dark:bg-[#12221C]/50 flex items-center justify-between">
+                <Link
+                  href={`/professor/stations/${station?.slug || stationId}`}
+                  className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+                >
+                  Open in Full Checklist Editor →
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setIsRubricDrawerOpen(false)}
+                  className="px-3.5 py-1.5 rounded-lg bg-slate-200 dark:bg-[#0B1612] text-xs font-bold text-slate-700 dark:text-slate-200"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

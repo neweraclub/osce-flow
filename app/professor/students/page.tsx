@@ -23,6 +23,7 @@ import {
   ChevronRight,
   ChevronUp,
   Clock,
+  Copy,
   Download,
   DownloadCloud,
   FileDown,
@@ -229,6 +230,16 @@ function ProfessorStudentsContent() {
   const groupDropdownRef = useRef<HTMLDivElement>(null)
   const statusDropdownRef = useRef<HTMLDivElement>(null)
   const sortDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Copy feedback state for matricule
+  const [copiedMatricule, setCopiedMatricule] = useState<string | null>(null)
+
+  const handleCopyMatricule = (matricule: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    navigator.clipboard.writeText(matricule)
+    setCopiedMatricule(matricule)
+    setTimeout(() => setCopiedMatricule(null), 1500)
+  }
 
   // Sync selectedStudentId with URL param
   useEffect(() => {
@@ -1485,26 +1496,26 @@ function ProfessorStudentsContent() {
 
       {/* 2. KPI Summary Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Candidates */}
-        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3 relative overflow-hidden transition-all">
+        {/* Total Cohort */}
+        <div className="p-5 rounded-xl bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 shadow-xs space-y-3 relative overflow-hidden transition-all hover:border-emerald-500/40">
           {activeStats.isFiltered && (
-            <div className="absolute top-0 right-0 px-2.5 py-0.5 rounded-bl-xl text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-l border-b border-emerald-200/60 dark:border-emerald-800/60">
+            <div className="absolute top-0 right-0 px-2 py-0.5 rounded-bl-md text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-l border-b border-emerald-500/20">
               Filtered
             </div>
           )}
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-              Enrolled Candidates
+              Total Cohort
             </span>
-            <div className="size-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-200/60 dark:border-emerald-900/60 shadow-xs">
-              <Users className="size-5" />
+            <div className="size-9 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+              <Users className="size-4.5" />
             </div>
           </div>
           <div>
             {loadingDirectory ? (
-              <div className="h-8 w-20 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
+              <div className="h-8 w-20 bg-slate-100 dark:bg-emerald-950/40 rounded-lg animate-pulse" />
             ) : (
-              <div className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tabular-nums">
+              <div className="text-2xl sm:text-3xl font-mono font-black text-slate-900 dark:text-white tabular-nums">
                 {activeStats.totalCandidates}
               </div>
             )}
@@ -1515,25 +1526,25 @@ function ProfessorStudentsContent() {
         </div>
 
         {/* Evaluated Candidates */}
-        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3 relative overflow-hidden transition-all">
+        <div className="p-5 rounded-xl bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 shadow-xs space-y-3 relative overflow-hidden transition-all hover:border-emerald-500/40">
           {activeStats.isFiltered && (
-            <div className="absolute top-0 right-0 px-2.5 py-0.5 rounded-bl-xl text-[10px] font-bold bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border-l border-b border-blue-200/60 dark:border-blue-800/60">
+            <div className="absolute top-0 right-0 px-2 py-0.5 rounded-bl-md text-[10px] font-bold bg-blue-500/15 text-blue-700 dark:text-blue-300 border-l border-b border-blue-500/20">
               Filtered
             </div>
           )}
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-              Evaluated Candidates
+              Evaluated Count
             </span>
-            <div className="size-10 rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-200/60 dark:border-blue-900/60 shadow-xs">
-              <CheckCircle className="size-5" />
+            <div className="size-9 rounded-lg bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-500/20">
+              <CheckCircle className="size-4.5" />
             </div>
           </div>
           <div>
             {loadingDirectory ? (
-              <div className="h-8 w-20 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
+              <div className="h-8 w-20 bg-slate-100 dark:bg-emerald-950/40 rounded-lg animate-pulse" />
             ) : (
-              <div className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tabular-nums">
+              <div className="text-2xl sm:text-3xl font-mono font-black text-slate-900 dark:text-white tabular-nums">
                 {activeStats.evaluatedCandidates}
               </div>
             )}
@@ -1546,29 +1557,29 @@ function ProfessorStudentsContent() {
         </div>
 
         {/* Average Score */}
-        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3 relative overflow-hidden transition-all">
+        <div className="p-5 rounded-xl bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 shadow-xs space-y-3 relative overflow-hidden transition-all hover:border-emerald-500/40">
           {activeStats.isFiltered && (
-            <div className="absolute top-0 right-0 px-2.5 py-0.5 rounded-bl-xl text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-l border-b border-emerald-200/60 dark:border-emerald-800/60">
+            <div className="absolute top-0 right-0 px-2 py-0.5 rounded-bl-md text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-l border-b border-emerald-500/20">
               Filtered
             </div>
           )}
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-              Average Score
+              Average Score (/20.00)
             </span>
-            <div className="size-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-200/60 dark:border-emerald-900/60 shadow-xs">
-              <Award className="size-5" />
+            <div className="size-9 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+              <Award className="size-4.5" />
             </div>
           </div>
           <div>
             {loadingDirectory ? (
-              <div className="h-8 w-20 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
+              <div className="h-8 w-20 bg-slate-100 dark:bg-emerald-950/40 rounded-lg animate-pulse" />
             ) : (
-              <div className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tabular-nums">
+              <div className="text-2xl sm:text-3xl font-mono font-black text-slate-900 dark:text-white tabular-nums flex items-baseline gap-1">
                 {activeStats.evaluatedCandidates > 0 ? (
                   <>
-                    {activeStats.averageScore.toFixed(2)}{' '}
-                    <span className="text-sm font-bold text-slate-400">/ 20</span>
+                    <span>{activeStats.averageScore.toFixed(2)}</span>
+                    <span className="text-xs font-bold text-slate-400">/ 20.00</span>
                   </>
                 ) : (
                   <span className="text-slate-400 font-bold">—</span>
@@ -1583,26 +1594,23 @@ function ProfessorStudentsContent() {
           </div>
         </div>
 
-        {/* Passing Rate */}
-        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3 relative overflow-hidden transition-all">
-          {activeStats.isFiltered && (
-            <div className="absolute top-0 right-0 px-2.5 py-0.5 rounded-bl-xl text-[10px] font-bold bg-purple-50 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 border-l border-b border-purple-200/60 dark:border-purple-800/60">
-              Filtered
+        {/* Passing Rate with Circular SVG Progress Ring */}
+        <div className="p-5 rounded-xl bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 shadow-xs space-y-3 relative overflow-hidden transition-all hover:border-emerald-500/40 flex items-center justify-between">
+          <div className="space-y-1 flex-1 min-w-0 pr-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                Pass Rate %
+              </span>
+              {activeStats.isFiltered && (
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-purple-500/15 text-purple-700 dark:text-purple-300">
+                  Filtered
+                </span>
+              )}
             </div>
-          )}
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-              Passing Rate
-            </span>
-            <div className="size-10 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center border border-purple-200/60 dark:border-purple-900/60 shadow-xs">
-              <Percent className="size-5" />
-            </div>
-          </div>
-          <div>
             {loadingDirectory ? (
-              <div className="h-8 w-20 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
+              <div className="h-8 w-16 bg-slate-100 dark:bg-emerald-950/40 rounded-lg animate-pulse" />
             ) : (
-              <div className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tabular-nums">
+              <div className="text-2xl sm:text-3xl font-mono font-black text-slate-900 dark:text-white tabular-nums">
                 {activeStats.evaluatedCandidates > 0 ? (
                   `${activeStats.passRate}%`
                 ) : (
@@ -1610,11 +1618,36 @@ function ProfessorStudentsContent() {
                 )}
               </div>
             )}
-            <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
+            <p className="text-[11px] font-semibold text-slate-400 truncate">
               {activeStats.evaluatedCandidates > 0
-                ? `${activeStats.passedCandidates} of ${activeStats.evaluatedCandidates} candidates (≥ 10.00 / 20)`
-                : 'No evaluated stations in selection'}
+                ? `${activeStats.passedCandidates} of ${activeStats.evaluatedCandidates} passing`
+                : 'No evaluated stations'}
             </p>
+          </div>
+
+          {/* Visual Circular SVG Progress Ring */}
+          <div className="relative size-14 shrink-0">
+            <svg className="size-full -rotate-90" viewBox="0 0 36 36">
+              <path
+                className="text-slate-100 dark:text-emerald-950/80"
+                strokeWidth="3.5"
+                stroke="currentColor"
+                fill="none"
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              />
+              <path
+                className="text-lime-500 transition-all duration-700 ease-out"
+                strokeDasharray={`${Math.min(100, Math.max(0, activeStats.passRate))}, 100`}
+                strokeWidth="3.5"
+                strokeLinecap="round"
+                stroke="currentColor"
+                fill="none"
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center text-[11px] font-mono font-black text-slate-900 dark:text-white">
+              {Math.round(activeStats.passRate)}%
+            </div>
           </div>
         </div>
       </div>
@@ -2188,20 +2221,20 @@ function ProfessorStudentsContent() {
               <div
                 key={st.id}
                 onClick={() => handleSelectStudent(st.id)}
-                className={`group p-5 rounded-3xl bg-white dark:bg-slate-900 border shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 relative overflow-hidden ${
+                className={`group p-5 rounded-xl bg-white dark:bg-[#0B1612] border shadow-xs hover:shadow-md hover:border-emerald-500/40 transition-all cursor-pointer flex flex-col justify-between space-y-4 relative overflow-hidden ${
                   isSelected
                     ? 'border-emerald-500 ring-2 ring-emerald-500/20 dark:border-emerald-500'
-                    : 'border-slate-200/80 dark:border-slate-800 hover:border-emerald-400/80 dark:hover:border-emerald-500/60'
+                    : 'border-slate-200/80 dark:border-emerald-500/15'
                 }`}
               >
                 {/* Top Accent Stripe */}
                 <div
                   className={`absolute top-0 inset-x-0 h-1 transition-all ${
                     st.status === 'passed'
-                      ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
+                      ? 'bg-gradient-to-r from-emerald-500 to-lime-500'
                       : st.status === 'failed'
                       ? 'bg-gradient-to-r from-rose-500 to-amber-500'
-                      : 'bg-slate-200 dark:bg-slate-800'
+                      : 'bg-slate-200 dark:bg-emerald-950/40'
                   }`}
                 />
 
@@ -2209,14 +2242,14 @@ function ProfessorStudentsContent() {
                   {/* Candidate Identification & Selection Checkbox */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      {/* Candidate Avatar & Selection Badge (Unified Single Circle) */}
+                      {/* Candidate Avatar & Selection Badge */}
                       <button
                         type="button"
                         onClick={(e) => toggleSelectCandidate(st.id, e)}
                         className={`group/avatar size-9.5 rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0 border select-none ${
                           isSelected
                             ? 'bg-emerald-600 border-emerald-500 text-white shadow-md ring-2 ring-emerald-500/20'
-                            : 'bg-gradient-to-br from-emerald-500 to-teal-600 dark:from-emerald-600 dark:to-teal-700 text-white border-emerald-400/30 hover:border-emerald-400 hover:shadow-xs'
+                            : 'bg-gradient-to-br from-emerald-500 to-teal-600 dark:from-emerald-700 dark:to-teal-800 text-white border-emerald-400/30 hover:border-emerald-400 hover:shadow-xs'
                         }`}
                         title={isSelected ? 'Deselect candidate' : `Select ${st.full_name} for bulk export`}
                       >
@@ -2236,9 +2269,28 @@ function ProfessorStudentsContent() {
                         <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                           {st.full_name}
                         </h3>
-                        <span className="text-[11px] font-mono font-bold text-slate-400">
-                          {st.matricule}
-                        </span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[11px] font-mono font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-[#12221C] px-1.5 py-0.5 rounded border border-slate-200/80 dark:border-emerald-500/20 tabular-nums">
+                            {st.matricule}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => handleCopyMatricule(st.matricule, e)}
+                            className="p-1 rounded text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-colors cursor-pointer"
+                            title="Copy matricule"
+                          >
+                            {copiedMatricule === st.matricule ? (
+                              <Check className="size-3 text-lime-500 stroke-[2.5]" />
+                            ) : (
+                              <Copy className="size-3" />
+                            )}
+                          </button>
+                          {copiedMatricule === st.matricule && (
+                            <span className="text-[10px] font-bold text-lime-600 dark:text-lime-400 animate-in fade-in">
+                              Copied!
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -2267,7 +2319,7 @@ function ProfessorStudentsContent() {
 
                   {/* Academic Context Pills */}
                   <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                    <span className="px-2 py-0.5 rounded-md bg-slate-50 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 font-semibold">
+                    <span className="px-2 py-0.5 rounded-md bg-slate-50 dark:bg-[#12221C] border border-slate-200/60 dark:border-emerald-500/20 font-semibold text-slate-700 dark:text-slate-300">
                       {st.section_name} · {st.group_name}
                     </span>
                     <span>·</span>
@@ -2275,7 +2327,7 @@ function ProfessorStudentsContent() {
                   </div>
 
                   {/* Score & Evaluation Meter */}
-                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 space-y-2">
+                  <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#12221C] border border-slate-200/60 dark:border-emerald-500/20 space-y-2">
                     <div className="flex items-baseline justify-between">
                       <span className="text-[10px] uppercase font-bold text-slate-400">
                         {hasEvaluations ? 'Calculated Mark' : 'Evaluation Status'}
@@ -2283,35 +2335,52 @@ function ProfessorStudentsContent() {
                       {hasEvaluations && st.final_score !== null ? (
                         <div className="flex items-baseline gap-1 font-mono">
                           <span
-                            className={`text-lg font-black ${
+                            className={`px-2 py-0.5 rounded-md text-xs font-mono font-black tabular-nums border ${
                               isPassed
-                                ? 'text-emerald-600 dark:text-emerald-400'
-                                : 'text-rose-600 dark:text-rose-400'
+                                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                                : 'bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30'
                             }`}
                           >
-                            {st.final_score.toFixed(2)}
+                            {st.final_score.toFixed(2)} / 20.00
                           </span>
-                          <span className="text-[11px] text-slate-400 font-semibold">/ 20</span>
                         </div>
                       ) : (
-                        <span className="text-xs font-semibold text-slate-400">
+                        <span className="text-xs font-semibold text-slate-400 font-mono">
                           Awaiting Examiner
                         </span>
                       )}
                     </div>
 
-                    {/* Evaluated Stations progress */}
-                    <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium pt-1">
-                      <span>Stations Completed:</span>
-                      <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
-                        {st.evaluated_stations_count} / {st.total_stations_count || '–'}
-                      </span>
+                    {/* Evaluated Stations Mini Step-Bars */}
+                    <div className="space-y-1 pt-1">
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                        <span>Stations Completed:</span>
+                        <span className="font-mono font-bold text-slate-700 dark:text-slate-300 tabular-nums">
+                          {st.evaluated_stations_count} / {st.total_stations_count || '–'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.max(1, st.total_stations_count || 1) }).map((_, idx) => {
+                          const isCompleted = idx < st.evaluated_stations_count
+                          return (
+                            <div
+                              key={idx}
+                              className={`h-1.5 flex-1 rounded-full transition-colors ${
+                                isCompleted
+                                  ? 'bg-emerald-500 dark:bg-emerald-400 shadow-xs shadow-emerald-500/30'
+                                  : 'bg-slate-200 dark:bg-emerald-950/60'
+                              }`}
+                              title={`Station ${idx + 1}: ${isCompleted ? 'Completed' : 'Pending'}`}
+                            />
+                          )
+                        })}
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Footer Action Row */}
-                <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-emerald-500/15">
                   <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
                     <span>View Transcript</span>
                     <ArrowRight className="size-3.5" />
@@ -2345,10 +2414,10 @@ function ProfessorStudentsContent() {
         </div>
       ) : (
         /* LIST VIEW */
-        <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
+        <div className="rounded-xl bg-white dark:bg-[#0B1612] border border-slate-200/80 dark:border-emerald-500/15 shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 font-bold border-b border-slate-200/80 dark:border-slate-800">
+              <thead className="bg-slate-50 dark:bg-[#0B1612] text-slate-500 dark:text-emerald-400/80 font-bold border-b border-slate-200/80 dark:border-emerald-500/15">
                 <tr>
                   <th className="px-4 py-3.5 w-12 text-center">
                     <button
@@ -2359,7 +2428,7 @@ function ProfessorStudentsContent() {
                           ? 'bg-emerald-600 border-emerald-600 text-white'
                           : isSomeDisplayedSelected
                           ? 'bg-emerald-100 dark:bg-emerald-950 border-emerald-500 text-emerald-600'
-                          : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
+                          : 'border-slate-300 dark:border-emerald-500/30 bg-white dark:bg-[#12221C]'
                       }`}
                       title={isAllDisplayedSelected ? 'Deselect all' : 'Select all displayed'}
                     >
@@ -2376,7 +2445,7 @@ function ProfessorStudentsContent() {
                   <th className="px-5 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              <tbody className="divide-y divide-slate-100 dark:divide-emerald-500/10">
                 {displayedStudents.map((st: StudentDirectoryRecord) => {
                   const hasEvaluations = st.evaluated_stations_count > 0
                   const isPassed = st.is_passed
@@ -2386,8 +2455,8 @@ function ProfessorStudentsContent() {
                     <tr
                       key={st.id}
                       onClick={() => handleSelectStudent(st.id)}
-                      className={`hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors cursor-pointer ${
-                        isSelected ? 'bg-emerald-500/5 dark:bg-emerald-950/20' : ''
+                      className={`hover:bg-emerald-500/[0.03] dark:hover:bg-emerald-500/[0.05] transition-colors cursor-pointer ${
+                        isSelected ? 'bg-emerald-500/10 dark:bg-emerald-950/30' : ''
                       }`}
                     >
                       <td className="px-4 py-4 text-center" onClick={(e) => e.stopPropagation()}>
@@ -2397,7 +2466,7 @@ function ProfessorStudentsContent() {
                           className={`size-4.5 rounded-md border flex items-center justify-center transition-colors cursor-pointer mx-auto ${
                             isSelected
                               ? 'bg-emerald-600 border-emerald-600 text-white'
-                              : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-emerald-500'
+                              : 'border-slate-300 dark:border-emerald-500/30 bg-white dark:bg-[#12221C] hover:border-emerald-500'
                           }`}
                           title={isSelected ? 'Deselect candidate' : 'Select candidate'}
                         >
@@ -2406,7 +2475,7 @@ function ProfessorStudentsContent() {
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="size-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 dark:from-emerald-600 dark:to-teal-700 flex items-center justify-center text-white shadow-2xs shrink-0 border border-emerald-400/30">
+                          <div className="size-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 dark:from-emerald-700 dark:to-teal-800 flex items-center justify-center text-white shadow-2xs shrink-0 border border-emerald-400/30">
                             <span className="font-bold font-mono text-xs leading-none text-white select-none">
                               {getStudentInitial(st.first_name, st.full_name, st.last_name)}
                             </span>
@@ -2415,9 +2484,28 @@ function ProfessorStudentsContent() {
                             <p className="font-bold text-slate-900 dark:text-white">
                               {st.full_name}
                             </p>
-                            <p className="font-mono text-[11px] text-slate-400">
-                              {st.matricule}
-                            </p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="font-mono text-[11px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-[#12221C] px-1.5 py-0.5 rounded border border-slate-200/80 dark:border-emerald-500/20 tabular-nums">
+                                {st.matricule}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => handleCopyMatricule(st.matricule, e)}
+                                className="p-1 rounded text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-colors cursor-pointer"
+                                title="Copy matricule"
+                              >
+                                {copiedMatricule === st.matricule ? (
+                                  <Check className="size-3 text-lime-500 stroke-[2.5]" />
+                                ) : (
+                                  <Copy className="size-3" />
+                                )}
+                              </button>
+                              {copiedMatricule === st.matricule && (
+                                <span className="text-[10px] font-bold text-lime-600 dark:text-lime-400 animate-in fade-in">
+                                  Copied!
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -2427,22 +2515,42 @@ function ProfessorStudentsContent() {
                         </p>
                         <p className="text-[11px] text-slate-400">{st.level_name}</p>
                       </td>
-                      <td className="px-5 py-4 text-center font-mono font-semibold text-slate-700 dark:text-slate-300">
-                        {st.evaluated_stations_count} / {st.total_stations_count || '–'}
+                      <td className="px-5 py-4 text-center">
+                        <div className="inline-flex flex-col items-center gap-1">
+                          <div className="flex items-center gap-1">
+                            {Array.from({ length: Math.max(1, st.total_stations_count || 1) }).map((_, idx) => {
+                              const isCompleted = idx < st.evaluated_stations_count
+                              return (
+                                <div
+                                  key={idx}
+                                  className={`h-1.5 w-3 rounded-full transition-colors ${
+                                    isCompleted
+                                      ? 'bg-emerald-500 dark:bg-emerald-400 shadow-xs shadow-emerald-500/30'
+                                      : 'bg-slate-200 dark:bg-emerald-950/60'
+                                  }`}
+                                  title={`Station ${idx + 1}: ${isCompleted ? 'Completed' : 'Pending'}`}
+                                />
+                              )
+                            })}
+                          </div>
+                          <span className="font-mono text-[10px] text-slate-500 dark:text-slate-400 tabular-nums">
+                            {st.evaluated_stations_count} / {st.total_stations_count || '–'}
+                          </span>
+                        </div>
                       </td>
-                      <td className="px-5 py-4 text-center font-mono font-black text-sm">
+                      <td className="px-5 py-4 text-center font-mono">
                         {hasEvaluations && st.final_score !== null ? (
                           <span
-                            className={
+                            className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-mono font-black tabular-nums border ${
                               isPassed
-                                ? 'text-emerald-600 dark:text-emerald-400'
-                                : 'text-rose-600 dark:text-rose-400'
-                            }
+                                ? 'bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                                : 'bg-rose-500/10 dark:bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30'
+                            }`}
                           >
-                            {st.final_score.toFixed(2)}
+                            {st.final_score.toFixed(2)} / 20.00
                           </span>
                         ) : (
-                          <span className="text-slate-400 text-xs font-normal">–</span>
+                          <span className="text-slate-400 text-xs font-mono">–</span>
                         )}
                       </td>
                       <td className="px-5 py-4 text-center">
@@ -2489,7 +2597,7 @@ function ProfessorStudentsContent() {
                               </button>
                             </>
                           )}
-                          <span className="p-1.5 rounded-lg text-emerald-600 hover:text-emerald-700 font-bold inline-flex items-center gap-1">
+                          <span className="p-1.5 rounded-lg text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-lime-300 font-bold inline-flex items-center gap-1">
                             <span>View</span>
                             <ArrowRight className="size-3.5" />
                           </span>

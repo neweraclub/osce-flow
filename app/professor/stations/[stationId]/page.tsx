@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, use, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
+  Activity,
   AlertCircle,
   AlertTriangle,
   ArrowLeft,
@@ -17,10 +18,12 @@ import {
   ChevronRight,
   CircleDot,
   ClipboardCheck,
+  Clock,
   Copy,
   Edit2,
   Eye,
   EyeOff,
+  GripVertical,
   Hash,
   HelpCircle,
   Key,
@@ -609,144 +612,84 @@ export default function ProfessorStationDetailPage({
         </div>
       ) : (
         <>
-          {/* Header Banner: Station Details & Metadata */}
-          <div className="p-6 md:p-8 rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-slate-800 text-white shadow-xl space-y-6">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="space-y-2.5">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-600 text-white text-xs font-black shadow-xs">
-                    <ClipboardCheck className="size-3.5" />
-                    Station #{station.station_number}
+          {/* Station Header Telemetry Strip: Sticky sub-header banner with title, module tag, duration, exam date, station weightage */}
+          <div className="sticky top-16 z-20 backdrop-blur-md bg-white/95 dark:bg-[#0B1612]/95 border border-slate-200/80 dark:border-emerald-500/20 p-4 sm:p-5 rounded-xl shadow-sm space-y-3">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+              <div className="space-y-1.5 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap text-xs">
+                  <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-600 text-white font-mono font-black shadow-xs">
+                    #{String(station.station_number).padStart(2, '0')}
                   </span>
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 tabular-nums">
-                    {station.weightage_percentage}% Weightage
-                  </span>
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                  <span className="px-2.5 py-0.5 rounded-md font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
                     {station.module_name} • {station.level_name}
                   </span>
+                  <span className="px-2.5 py-0.5 rounded-md font-mono font-bold bg-lime-500/15 text-lime-700 dark:text-lime-300 border border-lime-500/20 tabular-nums">
+                    {station.weightage_percentage}% Weightage
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/10">
+                    <Clock className="size-3 text-emerald-500" />
+                    <span>8 mins duration</span>
+                  </span>
+                  {station.exam_date && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/10">
+                      <Calendar className="size-3 text-emerald-500" />
+                      <span>{new Date(station.exam_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                    </span>
+                  )}
                   {station.session_type && (
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                      className={`px-2 py-0.5 rounded-md text-[11px] font-bold border ${
                         station.session_type === 'retake'
-                          ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
-                          : 'bg-teal-500/20 text-teal-300 border-teal-500/30'
+                          ? 'bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/30'
+                          : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
                       }`}
                     >
-                      {station.session_type === 'retake' ? 'Retake Session' : 'Regular Session'}
+                      {station.session_type === 'retake' ? 'Session Rattrapage' : 'Session Normale'}
                     </span>
                   )}
                 </div>
 
-                <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
+                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white truncate">
                   {station.title}
                 </h1>
-
-                {station.exam_date && (
-                  <div className="flex items-center gap-2 text-xs text-slate-300">
-                    <Calendar className="size-4 text-emerald-400 shrink-0" />
-                    <span>
-                      Exam Date:{' '}
-                      <strong className="text-white">
-                        {new Date(station.exam_date).toLocaleDateString('en-US', {
-                          weekday: 'short',
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
-                      </strong>
-                    </span>
-                  </div>
-                )}
               </div>
 
-              {/* Tablet Access PIN Pill */}
-              <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 flex items-center justify-between gap-4 min-w-[220px]">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="size-9 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center shrink-0">
-                    <Key className="size-4.5" />
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">
-                      Tablet Scoring PIN
-                    </span>
-                    <span className="font-mono text-sm font-black text-white tracking-widest">
-                      {pinRevealed ? station.access_pin : '••••••'}
-                    </span>
-                  </div>
+              {/* Tablet Access PIN Chip */}
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 shrink-0 self-start md:self-auto">
+                <Key className="size-3.5 text-amber-500" />
+                <div className="flex flex-col">
+                  <span className="text-[9px] uppercase font-bold text-slate-400">Tablet PIN</span>
+                  <span className="font-mono text-xs font-black text-emerald-600 dark:text-lime-300 tracking-wider">
+                    {pinRevealed ? station.access_pin : '••••••'}
+                  </span>
                 </div>
-
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-0.5 ml-1">
                   <button
                     onClick={() => setPinRevealed(!pinRevealed)}
-                    className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                    aria-label="Toggle PIN Visibility"
+                    className="p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    title="Toggle PIN"
                   >
-                    {pinRevealed ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    {pinRevealed ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
                   </button>
                   <button
                     onClick={handleCopyPin}
-                    className="p-1.5 rounded-lg text-slate-300 hover:text-emerald-400 hover:bg-white/10 transition-colors cursor-pointer"
-                    aria-label="Copy Access PIN"
+                    className="p-1 rounded text-slate-400 hover:text-emerald-500"
+                    title="Copy PIN"
                   >
-                    {pinCopied ? <Check className="size-4 text-emerald-400" /> : <Copy className="size-4" />}
+                    {pinCopied ? <Check className="size-3 text-lime-400" /> : <Copy className="size-3" />}
                   </button>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Station Scoring Setup Status Bar / Progress Indicator */}
-          <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <div className="size-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-200/60 dark:border-emerald-800/60 shadow-xs">
-                <Sliders className="size-5" />
-              </div>
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-xs font-bold text-slate-900 dark:text-white">
-                    Station Questions & Scoring Status
-                  </h3>
-                  <span
-                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                      questions.length > 0
-                        ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-                        : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
-                    }`}
-                  >
-                    {questions.length > 0 ? (
-                      <>
-                        <CheckCircle2 className="size-3 text-emerald-500" />
-                        <span>{questions.length} Items Configured</span>
-                      </>
-                    ) : (
-                      <>
-                        <AlertCircle className="size-3 text-amber-500" />
-                        <span>0 Items Configured</span>
-                      </>
-                    )}
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-400">
-                  Total Max Scale: <strong className="text-slate-700 dark:text-slate-200">{totalScalePoints} pts</strong> • {mcqCount} MCQ • {scqCount} SCQ • {qaCount} Q&A
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 self-start md:self-auto">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
-                <ClipboardCheck className="size-3.5 text-emerald-500" />
-                <span>{questions.length > 0 ? 'Ready for Tablet Scoring' : 'Needs Questions'}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Section 1: Questions & Scoring Checklist (public.questions where station_id = stationId) */}
+          {/* Section 1: Questions & Scoring Checklist */}
           <div className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
                 <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
                   <HelpCircle className="size-5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Station Questions & Checklist ({questions.length})</span>
+                  <span>Station Rubric Criteria & Checklist ({questions.length})</span>
                 </h2>
                 <p className="text-xs font-medium text-slate-400">
                   MCQ, Single Choice (SCQ), and Clinical Q&A scoring items evaluated during live OSCE examinations
@@ -755,7 +698,7 @@ export default function ProfessorStationDetailPage({
 
               <button
                 onClick={handleOpenAddQuestion}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold shadow-md shadow-emerald-500/25 hover:from-emerald-700 hover:to-teal-700 transition-all active:scale-[0.98] cursor-pointer"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/25 transition-all active:scale-[0.98] cursor-pointer"
               >
                 <Plus className="size-4" />
                 <span>Add Question</span>
@@ -763,8 +706,8 @@ export default function ProfessorStationDetailPage({
             </div>
 
             {questions.length === 0 ? (
-              <div className="p-12 rounded-3xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 text-center space-y-3">
-                <div className="size-14 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
+              <div className="p-12 rounded-xl bg-white dark:bg-[#0B1612] border border-dashed border-slate-200 dark:border-emerald-500/20 text-center space-y-3">
+                <div className="size-14 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
                   <HelpCircle className="size-7" />
                 </div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
@@ -782,7 +725,7 @@ export default function ProfessorStationDetailPage({
                 </button>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3.5">
                 {questions.map((q, idx) => {
                   const isMCQorSCQ = q.question_type === 'MCQ' || q.question_type === 'SCQ'
                   const parsedOptions: QuestionOptionItem[] = Array.isArray(q.options) ? q.options : []
@@ -791,38 +734,47 @@ export default function ProfessorStationDetailPage({
                   return (
                     <div
                       key={q.id}
-                      className={`p-5 md:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4 hover:border-slate-300 dark:hover:border-slate-700 ${
+                      className={`p-5 rounded-xl bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 shadow-sm space-y-3 hover:border-emerald-500/40 dark:hover:border-emerald-500/40 hover:ring-1 hover:ring-emerald-500/20 transition-all ${
                         isExiting
-                          ? 'transition-all duration-200 opacity-0 scale-95 pointer-events-none'
-                          : 'transition-all duration-200'
+                          ? 'opacity-0 scale-95 pointer-events-none'
+                          : ''
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-3 min-w-0">
-                          <span className="flex size-8 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-black shrink-0 mt-0.5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-2.5 min-w-0">
+                          {/* Drag-handle grip dots for future re-ordering visual cues */}
+                          <div className="mt-1 cursor-grab text-slate-400 hover:text-slate-200 shrink-0" title="Drag to reorder">
+                            <GripVertical className="size-4" />
+                          </div>
+
+                          <span className="flex size-7 items-center justify-center rounded-lg bg-slate-100 dark:bg-[#0B1612] text-slate-900 dark:text-white text-xs font-mono font-black shrink-0 mt-0.5 border border-slate-200 dark:border-emerald-500/15">
                             #{idx + 1}
                           </span>
 
                           <div className="space-y-1.5 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span
-                                className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                                  q.question_type === 'MCQ'
-                                    ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200/60 dark:border-blue-900/50'
-                                    : q.question_type === 'SCQ'
-                                    ? 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200/60 dark:border-purple-900/50'
-                                    : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-900/50'
-                                }`}
-                              >
-                                {q.question_type === 'MCQ'
-                                  ? 'Multiple Choice (MCQ)'
-                                  : q.question_type === 'SCQ'
-                                  ? 'Single Choice (SCQ)'
-                                  : 'Clinical Task (Q&A)'}
-                              </span>
+                              {/* Question Type Badges */}
+                              {q.question_type === 'MCQ' && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-gradient-to-r from-purple-500/20 to-emerald-500/20 text-purple-700 dark:text-emerald-300 border border-purple-500/30 dark:border-emerald-500/30">
+                                  <CheckSquare className="size-3 text-purple-400" />
+                                  <span>Multiple Choice (MCQ)</span>
+                                </span>
+                              )}
+                              {q.question_type === 'SCQ' && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
+                                  <CircleDot className="size-3 text-cyan-400" />
+                                  <span>Single Choice (SCQ)</span>
+                                </span>
+                              )}
+                              {q.question_type === 'Q&A' && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-lime-500/15 text-lime-700 dark:text-lime-300 border border-lime-500/30">
+                                  <Sliders className="size-3 text-lime-400" />
+                                  <span>Clinical Task (Q&A)</span>
+                                </span>
+                              )}
 
-                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                                Max Scale: {q.max_scale_value || 10} pts
+                              <span className="font-mono px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-[#0B1612] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-emerald-500/15">
+                                {q.max_scale_value || 5} pts scale
                               </span>
                             </div>
 
@@ -833,53 +785,55 @@ export default function ProfessorStationDetailPage({
                         </div>
 
                         {/* Action buttons */}
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="flex items-center gap-1 shrink-0">
                           <button
                             onClick={() => handleOpenEditQuestion(q)}
-                            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition-colors cursor-pointer"
                             aria-label="Edit Question"
                             title="Edit Question"
                           >
-                            <Edit2 className="size-4" />
+                            <Edit2 className="size-3.5" />
                           </button>
                           <button
                             onClick={() => setDeletingQuestion(q)}
-                            className="p-2 rounded-xl text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
                             aria-label="Delete Question"
                             title="Delete Question"
                           >
-                            <Trash2 className="size-4" />
+                            <Trash2 className="size-3.5" />
                           </button>
                         </div>
                       </div>
 
-                      {/* Render Choices if MCQ/SCQ */}
+                      {/* Render Choices: Correct answers marked with active emerald checkpill, false options muted in soft slate */}
                       {isMCQorSCQ && parsedOptions.length > 0 && (
-                        <div className="pt-2 pl-11 space-y-2">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
+                        <div className="pt-2 pl-9 space-y-2">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
                             Answer Choices & Answer Key:
                           </span>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {parsedOptions.map((opt, oIdx) => (
                               <div
                                 key={opt.id || oIdx}
-                                className={`p-3 rounded-2xl border text-xs font-semibold flex items-center justify-between gap-2 ${
+                                className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-between gap-2 transition-all ${
                                   opt.is_correct
-                                    ? 'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
-                                    : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200/80 dark:border-slate-700/80 text-slate-700 dark:text-slate-300'
+                                    ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-900 dark:text-emerald-200 ring-1 ring-emerald-500/20'
+                                    : 'bg-slate-50 dark:bg-[#0B1612] border-slate-200/70 dark:border-emerald-500/10 text-slate-600 dark:text-slate-400'
                                 }`}
                               >
                                 <div className="flex items-center gap-2 min-w-0">
-                                  <span className="size-5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[10px] font-black flex items-center justify-center shrink-0">
+                                  <span className="size-5 rounded bg-white dark:bg-[#12221C] border border-slate-200 dark:border-emerald-500/20 text-[10px] font-mono font-bold flex items-center justify-center shrink-0">
                                     {String.fromCharCode(65 + oIdx)}
                                   </span>
                                   <span className="truncate">{opt.text}</span>
                                 </div>
-                                {opt.is_correct && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
-                                    <Check className="size-3.5" />
+                                {opt.is_correct ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-600 dark:text-lime-300 border border-emerald-500/30 shrink-0">
+                                    <Check className="size-3 text-lime-400" />
                                     <span>Correct</span>
                                   </span>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400 font-normal">Muted</span>
                                 )}
                               </div>
                             ))}
@@ -887,16 +841,29 @@ export default function ProfessorStationDetailPage({
                         </div>
                       )}
 
-                      {/* Render Q&A checklist guideline */}
+                      {/* Q&A Task: Visual step-slider (0 to 5 points) preview */}
                       {q.question_type === 'Q&A' && (
-                        <div className="pt-1 pl-11">
-                          <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-700/60 text-xs text-slate-600 dark:text-slate-400 flex items-center justify-between">
-                            <span className="font-medium">
-                              Evaluator will score performance on a continuous 0 to {q.max_scale_value || 10} point scale based on clinical execution.
-                            </span>
-                            <span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400 shrink-0 ml-2">
-                              [0 – {q.max_scale_value || 10} pts]
-                            </span>
+                        <div className="pt-2 pl-9 space-y-2">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                            Clinical Step-Slider Rubric Preview:
+                          </span>
+                          <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#0B1612] border border-slate-200/70 dark:border-emerald-500/15 space-y-2">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-slate-500 dark:text-slate-400">Continuous Scale Grading:</span>
+                              <span className="font-mono font-bold text-lime-500 dark:text-lime-400">
+                                0.00 → {(q.max_scale_value || 5).toFixed(2)} pts
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 pt-1">
+                              {Array.from({ length: Math.min(10, (q.max_scale_value || 5) + 1) }).map((_, step) => (
+                                <div
+                                  key={step}
+                                  className="flex-1 text-center py-1 rounded bg-slate-200/70 dark:bg-[#12221C] border border-slate-300/60 dark:border-emerald-500/20 text-[10px] font-mono font-bold text-slate-700 dark:text-emerald-300"
+                                >
+                                  {step}
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         </div>
                       )}
@@ -905,6 +872,53 @@ export default function ProfessorStationDetailPage({
                 })}
               </div>
             )}
+          </div>
+
+          {/* Score Aggregator Bar (Persistent Sticky Bottom Bar Calculating Total Points in Real-Time) */}
+          <div className="sticky bottom-3 z-30 p-3.5 sm:p-4 rounded-xl shadow-xl backdrop-blur-md bg-white/95 dark:bg-[#0B1612]/95 border border-slate-200 dark:border-emerald-500/30 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Audit indicator: Turns vibrant lime if 20/20 balanced, turns amber if under or over */}
+              {totalScalePoints === 20 ? (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-lime-400/20 border border-lime-400/40 text-lime-600 dark:text-lime-300 font-mono font-bold text-xs shadow-xs">
+                  <CheckCircle2 className="size-4 text-lime-400 shrink-0" />
+                  <span>✓ 20.00 / 20.00 pts scale balanced</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-700 dark:text-amber-300 font-mono font-bold text-xs">
+                  <AlertTriangle className="size-4 text-amber-400 shrink-0" />
+                  <span>
+                    ! {totalScalePoints.toFixed(1)} / 20.00 pts — {Math.abs(20 - totalScalePoints).toFixed(1)} pts{' '}
+                    {totalScalePoints < 20 ? 'unassigned' : 'over scale'}
+                  </span>
+                </div>
+              )}
+
+              <div className="hidden md:flex items-center gap-2 text-xs text-slate-400">
+                <span>•</span>
+                <span>{questions.length} Items</span>
+                <span>({mcqCount} MCQ, {scqCount} SCQ, {qaCount} Q&A)</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-end sm:self-auto">
+              <button
+                type="button"
+                onClick={handleOpenAddQuestion}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition-all cursor-pointer"
+              >
+                <Plus className="size-4" />
+                <span>Add Item</span>
+              </button>
+              {station.exam_id && (
+                <Link
+                  href={`/professor/stations/${station.slug || stationId}/exams/${station.exam_id}`}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-lime-500/15 hover:bg-lime-500/25 text-lime-700 dark:text-lime-300 border border-lime-500/30 text-xs font-bold transition-all"
+                >
+                  <Activity className="size-4 text-lime-500" />
+                  <span>Live Monitor</span>
+                </Link>
+              )}
+            </div>
           </div>
 
 
@@ -916,7 +930,7 @@ export default function ProfessorStationDetailPage({
       {/* ========================================================================= */}
       {isQuestionModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-2xl max-h-[85vh] rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95">
+          <div className="relative w-full max-w-2xl max-h-[85vh] rounded-2xl bg-white dark:bg-[#0B1612] border border-slate-200/80 dark:border-emerald-500/20 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
               <div className="flex items-center gap-3">
@@ -1197,7 +1211,7 @@ export default function ProfessorStationDetailPage({
       {/* ========================================================================= */}
       {deletingQuestion && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4 animate-in zoom-in-95 text-center">
+          <div className="relative w-full max-w-md rounded-2xl bg-white dark:bg-[#0B1612] border border-slate-200/80 dark:border-emerald-500/20 shadow-2xl p-6 space-y-4 animate-in zoom-in-95 text-center">
             <div className="flex size-14 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-600 mx-auto">
               <Trash2 className="size-7" />
             </div>

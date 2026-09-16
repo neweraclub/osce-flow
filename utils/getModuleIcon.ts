@@ -270,6 +270,8 @@ const NORMALIZED_MAP = Object.entries(MODULE_ICON_MAP).map(([key, value]) => ({
  * Resolves the visual token configuration for any clinical module name.
  * Uses exact matching first, then normalized matching, then substring token search.
  */
+export const getModuleIcon = (moduleName: string): ModuleVisual => getModuleVisual(moduleName)
+
 export const getModuleVisual = (moduleName: string): ModuleVisual => {
   if (!moduleName) return DEFAULT_MODULE_VISUAL
 

@@ -308,21 +308,21 @@ export default function ProfessorPenaltiesPage() {
 
       {/* 2. Top Summary Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Total Penalties Logged */}
-        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
+        {/* Card 1: Total Infractions */}
+        <div className="p-5 rounded-xl bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 shadow-xs space-y-3 hover:border-emerald-500/40 transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-              Total Penalties Logged
+              Total Infractions
             </span>
-            <div className="size-10 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-200/60 dark:border-rose-900/60 shadow-xs">
+            <div className="size-10 rounded-xl bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-500/30 shadow-xs">
               <ShieldAlert className="size-5" />
             </div>
           </div>
           <div>
             {loading ? (
-              <div className="h-8 w-16 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
+              <div className="h-8 w-16 bg-slate-100 dark:bg-emerald-950/40 rounded-lg animate-pulse" />
             ) : (
-              <div className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white">
+              <div className="text-3xl font-mono font-black text-slate-900 dark:text-white tabular-nums">
                 {summary.total_penalties}
               </div>
             )}
@@ -332,22 +332,22 @@ export default function ProfessorPenaltiesPage() {
           </div>
         </div>
 
-        {/* Card 2: Total Points Deducted */}
-        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
+        {/* Card 2: Cumulative Lost Points */}
+        <div className="p-5 rounded-xl bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 shadow-xs space-y-3 hover:border-emerald-500/40 transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-              Total Points Deducted
+              Cumulative Lost Points
             </span>
-            <div className="size-10 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-200/60 dark:border-amber-900/60 shadow-xs">
+            <div className="size-10 rounded-xl bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-500/30 shadow-xs">
               <AlertTriangle className="size-5" />
             </div>
           </div>
           <div>
             {loading ? (
-              <div className="h-8 w-24 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
+              <div className="h-8 w-24 bg-slate-100 dark:bg-emerald-950/40 rounded-lg animate-pulse" />
             ) : (
-              <div className="text-2xl md:text-3xl font-black text-rose-600 dark:text-rose-400 tabular-nums">
-                -{summary.total_points_deducted.toFixed(1)} <span className="text-sm font-bold">PTS</span>
+              <div className="text-3xl font-mono font-black text-rose-600 dark:text-rose-400 tabular-nums">
+                -{summary.total_points_deducted.toFixed(2)} <span className="text-sm font-bold text-rose-500/70">pts</span>
               </div>
             )}
             <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
@@ -356,22 +356,22 @@ export default function ProfessorPenaltiesPage() {
           </div>
         </div>
 
-        {/* Card 3: Average Deduction */}
-        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
+        {/* Card 3: Average Penalty */}
+        <div className="p-5 rounded-xl bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 shadow-xs space-y-3 hover:border-emerald-500/40 transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-              Average Deduction
+              Average Penalty
             </span>
-            <div className="size-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-200/60 dark:border-emerald-900/60 shadow-xs">
+            <div className="size-10 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-500/30 shadow-xs">
               <Sliders className="size-5" />
             </div>
           </div>
           <div>
             {loading ? (
-              <div className="h-8 w-20 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
+              <div className="h-8 w-20 bg-slate-100 dark:bg-emerald-950/40 rounded-lg animate-pulse" />
             ) : (
-              <div className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tabular-nums">
-                {summary.average_deduction.toFixed(2)} <span className="text-sm font-bold text-slate-400">PTS</span>
+              <div className="text-3xl font-mono font-black text-amber-600 dark:text-amber-400 tabular-nums">
+                -{summary.average_deduction.toFixed(2)} <span className="text-sm font-bold text-amber-500/70">pts</span>
               </div>
             )}
             <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
@@ -380,21 +380,21 @@ export default function ProfessorPenaltiesPage() {
           </div>
         </div>
 
-        {/* Card 4: Impacted Candidates */}
-        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
+        {/* Card 4: Unique Flagged Students */}
+        <div className="p-5 rounded-xl bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 shadow-xs space-y-3 hover:border-emerald-500/40 transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-              Impacted Candidates
+              Unique Flagged Students
             </span>
-            <div className="size-10 rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-200/60 dark:border-blue-900/60 shadow-xs">
+            <div className="size-10 rounded-xl bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-500/30 shadow-xs">
               <Users className="size-5" />
             </div>
           </div>
           <div>
             {loading ? (
-              <div className="h-8 w-16 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
+              <div className="h-8 w-16 bg-slate-100 dark:bg-emerald-950/40 rounded-lg animate-pulse" />
             ) : (
-              <div className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white">
+              <div className="text-3xl font-mono font-black text-slate-900 dark:text-white tabular-nums">
                 {summary.impacted_students_count}
               </div>
             )}
@@ -695,7 +695,7 @@ export default function ProfessorPenaltiesPage() {
       </div>
 
       {/* 4. Tabular View of Clinical Deductions */}
-      <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
+      <div className="rounded-xl bg-white dark:bg-[#0B1612] border border-slate-200/80 dark:border-emerald-500/15 shadow-xs overflow-hidden">
         {loading ? (
           <div className="p-12 text-center space-y-4">
             <Loader2 className="size-8 text-emerald-600 dark:text-emerald-400 animate-spin mx-auto" />
@@ -703,7 +703,7 @@ export default function ProfessorPenaltiesPage() {
           </div>
         ) : displayedPenalties.length === 0 ? (
           <div className="p-12 md:p-16 text-center space-y-4">
-            <div className="size-16 rounded-3xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto border border-emerald-200/60 dark:border-emerald-800/60 shadow-xs">
+            <div className="size-16 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto border border-emerald-200/60 dark:border-emerald-800/60 shadow-xs">
               {hasActiveFilters ? <Filter className="size-8" /> : <ShieldCheck className="size-8" />}
             </div>
             <div className="space-y-1 max-w-md mx-auto">
@@ -729,15 +729,15 @@ export default function ProfessorPenaltiesPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-800/40 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                  <th className="py-4 px-6">Student / ID</th>
-                  <th className="py-4 px-6">Station & Module</th>
-                  <th className="py-4 px-6">Infraction Reason</th>
-                  <th className="py-4 px-6 text-right">Deduction (Points)</th>
-                  <th className="py-4 px-6">Evaluated Date</th>
+                <tr className="border-b border-slate-200/80 dark:border-emerald-500/15 bg-slate-50/70 dark:bg-[#0B1612] text-[11px] font-bold text-slate-500 dark:text-emerald-400/80 uppercase tracking-wider">
+                  <th className="py-3.5 px-6">Student / Candidate</th>
+                  <th className="py-3.5 px-6">Station & Module</th>
+                  <th className="py-3.5 px-6">Infraction Reason</th>
+                  <th className="py-3.5 px-6 text-right">Deduction (Points)</th>
+                  <th className="py-3.5 px-6">Evaluator Timestamp</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
+              <tbody className="divide-y divide-slate-100 dark:divide-emerald-500/10 text-xs">
                 {displayedPenalties.map((item) => {
                   const initials = item.student_name
                     .split(' ')
@@ -746,15 +746,20 @@ export default function ProfessorPenaltiesPage() {
                     .toUpperCase()
                     .slice(0, 2) || 'ST'
 
+                  const isMajor =
+                    item.deduction_amount >= 2 ||
+                    /sterile|safety|compromise|breach|violation|critical|aseptic/i.test(item.reason || '') ||
+                    /safety|protocol|aseptic/i.test(item.criteria_title || '')
+
                   return (
                     <tr
                       key={item.id}
-                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
+                      className="hover:bg-emerald-500/[0.02] dark:hover:bg-emerald-500/[0.04] transition-colors"
                     >
                       {/* Column 1: Student Name / ID */}
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
-                          <div className="size-9 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 text-slate-700 dark:text-slate-200 font-black text-xs flex items-center justify-center shrink-0 border border-slate-200/80 dark:border-slate-700 shadow-xs">
+                          <div className="size-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 dark:from-emerald-700 dark:to-teal-800 text-white font-bold text-xs flex items-center justify-center shrink-0 border border-emerald-400/30 shadow-xs">
                             {initials}
                           </div>
                           <div className="flex flex-col min-w-0">
@@ -762,7 +767,7 @@ export default function ProfessorPenaltiesPage() {
                               {item.student_name}
                             </span>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700">
+                              <span className="font-mono text-[11px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-[#12221C] text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-emerald-500/20 tabular-nums">
                                 {item.student_matricule}
                               </span>
                               {item.group_name && item.group_name !== '—' && (
@@ -779,9 +784,9 @@ export default function ProfessorPenaltiesPage() {
                       <td className="py-4 px-6">
                         <div className="space-y-1 min-w-0 max-w-xs">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800">
                               <Hash className="size-2.5 text-emerald-500" />
-                              Station {item.station_number}
+                              Station {item.station_number < 10 ? `0${item.station_number}` : item.station_number}
                             </span>
                             <span className="text-[10px] font-semibold text-slate-400 truncate max-w-[140px]">
                               {item.module_name}
@@ -795,12 +800,18 @@ export default function ProfessorPenaltiesPage() {
 
                       {/* Column 3: Penalty / Deduction Reason */}
                       <td className="py-4 px-6">
-                        <div className="space-y-1 min-w-0 max-w-sm">
+                        <div className="space-y-1.5 min-w-0 max-w-sm">
+                          {isMajor && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 shrink-0">
+                              <AlertCircle className="size-3 text-rose-500" />
+                              <span>Major Safety / Protocol Infraction</span>
+                            </span>
+                          )}
                           <p className="font-semibold text-slate-800 dark:text-slate-200 leading-snug">
                             {item.reason}
                           </p>
                           {item.criteria_title && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200/80 dark:border-slate-700 truncate max-w-xs">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-[#12221C] text-slate-600 dark:text-slate-400 border border-slate-200/80 dark:border-emerald-500/20 truncate max-w-xs">
                               <ShieldAlert className="size-3 text-amber-500 shrink-0" />
                               <span className="truncate">{item.criteria_title}</span>
                             </span>
@@ -810,16 +821,16 @@ export default function ProfessorPenaltiesPage() {
 
                       {/* Column 4: Deduction Amount (Points) */}
                       <td className="py-4 px-6 text-right">
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-black bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200/80 dark:border-rose-900/60 shadow-xs tabular-nums">
-                          <MinusCircle className="size-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
-                          <span>-{item.deduction_amount.toFixed(2)} PTS</span>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-mono font-black bg-rose-500/10 dark:bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 shadow-xs tabular-nums">
+                          <MinusCircle className="size-3.5 text-rose-500 shrink-0" />
+                          <span>-{item.deduction_amount.toFixed(2)} pts</span>
                         </span>
                       </td>
 
                       {/* Column 5: Timestamp / Evaluated Date */}
                       <td className="py-4 px-6">
-                        <div className="flex flex-col text-[11px] text-slate-500 dark:text-slate-400">
-                          <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                        <div className="flex flex-col text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                          <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1 tabular-nums">
                             <Calendar className="size-3 text-slate-400" />
                             {new Date(item.created_at).toLocaleDateString('en-US', {
                               month: 'short',
@@ -827,11 +838,12 @@ export default function ProfessorPenaltiesPage() {
                               year: 'numeric',
                             })}
                           </span>
-                          <span className="font-mono text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                          <span className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5 tabular-nums">
                             <Clock className="size-3 text-slate-400" />
                             {new Date(item.created_at).toLocaleTimeString('en-US', {
                               hour: '2-digit',
                               minute: '2-digit',
+                              second: '2-digit',
                             })}
                           </span>
                         </div>
@@ -846,14 +858,14 @@ export default function ProfessorPenaltiesPage() {
 
         {/* Footer Summary / Pagination Bar */}
         {!loading && displayedPenalties.length > 0 && (
-          <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between text-xs text-slate-400 font-semibold">
+          <div className="px-6 py-4 border-t border-slate-200/80 dark:border-emerald-500/15 bg-slate-50/50 dark:bg-[#0B1612] flex items-center justify-between text-xs text-slate-400 font-semibold">
             <span>
               Showing {displayedPenalties.length} of {penalties.length} logged deductions
             </span>
-            <span className="text-slate-600 dark:text-slate-300">
-              Total Points Deducted:{' '}
-              <strong className="text-rose-600 dark:text-rose-400">
-                -{displayedPenalties.reduce((sum, p) => sum + p.deduction_amount, 0).toFixed(2)} PTS
+            <span className="text-slate-600 dark:text-slate-300 font-mono">
+              Total Deducted:{' '}
+              <strong className="text-rose-600 dark:text-rose-400 font-black tabular-nums">
+                -{displayedPenalties.reduce((sum, p) => sum + p.deduction_amount, 0).toFixed(2)} pts
               </strong>
             </span>
           </div>

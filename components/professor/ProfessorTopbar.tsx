@@ -5,20 +5,18 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   Building2,
-  Calendar,
   ChevronDown,
   ChevronRight,
   GraduationCap,
-  Loader2,
   LogOut,
   Menu,
   Stethoscope,
   User,
+  ShieldCheck,
 } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { useToast } from '@/context/ToastContext'
 import { NavbarYearSelector } from '@/components/dean/NavbarYearSelector'
-import { ExaminerLaunchButton } from '@/components/examiner/ExaminerLaunchButton'
 import { SignOutOverlay } from '@/components/ui/SignOutOverlay'
 
 export function ProfessorTopbar({
@@ -82,13 +80,63 @@ export function ProfessorTopbar({
     loadSession()
   }, [])
 
-  const getBreadcrumbTitle = () => {
-    if (pathname === '/professor/modules') return 'My Clinical Modules'
-    if (pathname === '/professor/stations') return 'OSCE Stations & Checklists'
-    if (pathname.startsWith('/professor/students')) return 'Student Performance & Transcripts'
-    if (pathname.startsWith('/professor/penalties')) return 'Clinical Deductions & Penalties'
-    if (pathname === '/professor/profile') return 'Profile Settings'
-    return 'Professor Dashboard'
+  // Inline path chip array with monospace text for IDs
+  const renderBreadcrumbs = () => {
+    const parts: { label: string; href?: string; isId?: boolean }[] = [
+      { label: 'Professor', href: '/professor/dashboard' },
+    ]
+
+    if (pathname === '/professor/dashboard') {
+      parts.push({ label: 'Overview Cockpit' })
+    } else if (pathname === '/professor/stations') {
+      parts.push({ label: 'Stations' })
+    } else if (pathname.startsWith('/professor/stations/')) {
+      parts.push({ label: 'Stations', href: '/professor/stations' })
+      const sub = pathname.replace('/professor/stations/', '').split('/')
+      if (sub[0]) {
+        parts.push({ label: sub[0].slice(0, 8), isId: true })
+      }
+      if (sub[1] === 'exams' && sub[2]) {
+        parts.push({ label: 'Live Monitor' })
+        parts.push({ label: sub[2].slice(0, 8), isId: true })
+      } else if (sub.length === 1) {
+        parts.push({ label: 'Rubric Designer' })
+      }
+    } else if (pathname.startsWith('/professor/students')) {
+      parts.push({ label: 'Student Transcripts' })
+    } else if (pathname.startsWith('/professor/penalties')) {
+      parts.push({ label: 'Clinical Deductions' })
+    } else if (pathname === '/professor/profile') {
+      parts.push({ label: 'Profile Settings' })
+    }
+
+    return (
+      <nav aria-label="Breadcrumb" className="hidden sm:flex items-center gap-1.5 text-xs font-medium">
+        {parts.map((p, idx) => (
+          <React.Fragment key={idx}>
+            {idx > 0 && <ChevronRight className="size-3 text-slate-400 dark:text-slate-600" />}
+            {p.href && idx < parts.length - 1 ? (
+              <Link
+                href={p.href}
+                className="text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+              >
+                {p.label}
+              </Link>
+            ) : (
+              <span
+                className={`font-bold ${
+                  p.isId
+                    ? 'font-mono text-[11px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 border border-emerald-500/20'
+                    : 'text-slate-900 dark:text-white'
+                }`}
+              >
+                {p.label}
+              </span>
+            )}
+          </React.Fragment>
+        ))}
+      </nav>
+    )
   }
 
   const handleSignOut = async () => {
@@ -106,61 +154,63 @@ export function ProfessorTopbar({
   }
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 px-6 flex items-center justify-between transition-colors">
+    <header className="sticky top-0 z-30 h-16 bg-white/80 dark:bg-[#0B1612]/80 backdrop-blur-md border-b border-slate-200/80 dark:border-emerald-500/15 px-4 md:px-6 flex items-center justify-between transition-colors">
       <div className="flex items-center gap-3">
         <button
           onClick={() => setSidebarOpen(true)}
           aria-label="Open sidebar"
-          className="md:hidden p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          className="md:hidden p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-[#12221C] transition-colors"
         >
           <Menu className="size-5" />
         </button>
 
-        {/* Dynamic Breadcrumbs */}
-        <div className="hidden sm:flex items-center gap-2 text-xs font-semibold">
-          <Link
-            href="/professor/dashboard"
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-          >
-            Professor Portal
-          </Link>
-          <ChevronRight className="size-3.5 text-slate-400" />
-          <span className="text-slate-800 dark:text-slate-200 font-bold">
-            {getBreadcrumbTitle()}
-          </span>
-        </div>
+        {/* Dynamic Breadcrumbs Strip */}
+        {renderBreadcrumbs()}
       </div>
 
-      {/* Right Controls: Academic Year Selector + Theme + User Menu */}
-      <div className="flex items-center gap-3">
+      {/* Right Controls: Direct Mode Switcher + Academic Year Selector + Theme + User Menu */}
+      <div className="flex items-center gap-2.5">
+        {/* Direct Mode Switcher with emerald-to-lime border gradient */}
+        <Link
+          href="/examiner"
+          className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-[#12221C] text-emerald-700 dark:text-lime-300 border border-emerald-500/40 hover:border-lime-400 hover:shadow-md hover:shadow-lime-500/15 transition-all group"
+          title="Direct Examiner Mode Switcher"
+        >
+          <span className="size-1.5 rounded-full bg-lime-400 animate-pulse" />
+          <ShieldCheck className="size-3.5 text-emerald-600 dark:text-lime-400" />
+          <span>Examiner Mode</span>
+        </Link>
+
+        {/* Compact Year Selector with Session Active LED */}
         <NavbarYearSelector />
 
+        {/* Theme Toggle in 32px height container */}
         <ThemeToggle />
 
-        {/* User Profile Dropdown */}
+        {/* User Profile Dropdown in 32px container */}
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setDropdownOpen(!dropdownOpen)}
             disabled={loggingOut}
             aria-haspopup="true"
             aria-expanded={dropdownOpen}
-            className="flex items-center gap-2.5 p-1.5 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/20 disabled:pointer-events-none"
+            className="flex items-center gap-2 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-[#12221C] transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/20 disabled:pointer-events-none"
           >
-            <div className="flex size-8 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-lime-500 text-white font-black text-xs shadow-md shadow-lime-500/20 border border-lime-400/30">
+            <div className="size-8 rounded-lg bg-gradient-to-tr from-emerald-600 to-lime-500 text-white flex items-center justify-center font-bold text-xs shadow-sm shadow-lime-500/20 border border-lime-400/30 shrink-0">
               <Stethoscope className="size-4" />
             </div>
             {loadingSession ? (
               <div className="hidden md:flex flex-col gap-1 py-0.5 animate-pulse">
                 <div className="h-3 w-20 bg-slate-200 dark:bg-slate-700 rounded" />
-                <div className="h-2.5 w-12 bg-slate-200 dark:bg-slate-700 rounded" />
+                <div className="h-2 w-12 bg-slate-200 dark:bg-slate-700 rounded" />
               </div>
             ) : (
               <div className="hidden md:flex flex-col text-left">
                 <span className="text-xs font-bold text-slate-900 dark:text-white leading-tight truncate max-w-[120px]">
                   {userProfile?.name || 'Professor'}
                 </span>
-                <span className="text-[10px] font-semibold text-lime-600 dark:text-lime-400">
-                  Professor
+                <span className="text-[10px] font-semibold text-lime-600 dark:text-lime-400 leading-tight">
+                  Evaluator
                 </span>
               </div>
             )}
@@ -173,77 +223,82 @@ export function ProfessorTopbar({
 
           {/* Floating Dropdown Panel */}
           {dropdownOpen && (
-            <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute right-0 mt-2 w-64 rounded-xl bg-white dark:bg-[#0F121C] border border-slate-200/80 dark:border-emerald-500/20 shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
               {/* User Meta Header */}
-              <div className="p-3 border-b border-slate-100 dark:border-slate-800 space-y-1">
+              <div className="p-3 border-b border-slate-100 dark:border-white/[0.06] space-y-1">
                 {loadingSession ? (
                   <div className="space-y-1.5 animate-pulse">
-                    <div className="h-3.5 w-28 bg-slate-200 dark:bg-slate-700 rounded" />
-                    <div className="h-3 w-36 bg-slate-200 dark:bg-slate-700 rounded" />
+                    <div className="h-4 w-32 bg-slate-200 dark:bg-slate-800 rounded" />
+                    <div className="h-3 w-40 bg-slate-200 dark:bg-slate-800 rounded" />
                   </div>
                 ) : (
                   <>
-                    <span className="text-xs font-bold text-slate-900 dark:text-white block truncate">
-                      {userProfile?.name || 'Professor'}
-                    </span>
-                    <span className="text-[11px] text-slate-400 block truncate">
-                      {userProfile?.email || ''}
-                    </span>
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                      {userProfile?.name || 'Clinical Professor'}
+                    </p>
+                    <p className="text-[11px] text-slate-400 font-mono truncate">
+                      {userProfile?.email || 'professor@faculty.dz'}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-1 pt-1 text-[10px] text-emerald-600 dark:text-lime-400 font-semibold">
+                      <Building2 className="size-3 shrink-0" />
+                      <span className="truncate">{userProfile?.faculty || 'Medical Faculty'}</span>
+                    </div>
                   </>
                 )}
-                <div className="flex items-center gap-1.5 pt-1.5">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-lime-300 border border-lime-500/30">
-                    <span className="size-1.5 rounded-full bg-lime-500" />
-                    Professor
+              </div>
+
+              {/* Action Links */}
+              <div className="py-1 space-y-0.5">
+                <Link
+                  href="/professor/profile"
+                  onClick={() => setDropdownOpen(false)}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#161B2A] transition-colors"
+                >
+                  <User className="size-3.5 text-slate-400" />
+                  <span>Profile &amp; Credentials</span>
+                </Link>
+
+                <Link
+                  href="/professor/dashboard"
+                  onClick={() => setDropdownOpen(false)}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#161B2A] transition-colors"
+                >
+                  <GraduationCap className="size-3.5 text-slate-400" />
+                  <span>Overview Dashboard</span>
+                </Link>
+
+                <Link
+                  href="/examiner"
+                  onClick={() => setDropdownOpen(false)}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold text-emerald-700 dark:text-lime-300 hover:bg-emerald-500/10 transition-colors group"
+                >
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="size-3.5 text-lime-400" />
+                    <span>Direct Examiner Station</span>
+                  </div>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/20 text-emerald-600 dark:text-emerald-300 font-bold">
+                    PIN
                   </span>
-                </div>
+                </Link>
               </div>
 
-              {/* Faculty Identifier */}
-              <div className="p-2.5 my-1 rounded-xl bg-slate-50 dark:bg-slate-800/50 flex items-center gap-2">
-                <Building2 className="size-3.5 text-slate-400 shrink-0" />
-                <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 truncate">
-                  {loadingSession ? 'Loading Faculty...' : (userProfile?.faculty || 'Medical Faculty')}
-                </span>
+              {/* Sign Out Trigger */}
+              <div className="pt-1 border-t border-slate-100 dark:border-white/[0.06]">
+                <button
+                  onClick={handleSignOut}
+                  disabled={loggingOut}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                >
+                  <LogOut className="size-3.5" />
+                  <span>{loggingOut ? 'Signing out...' : 'Sign Out'}</span>
+                </button>
               </div>
-
-              {/* Enter Examiner Portal Action */}
-              <ExaminerLaunchButton variant="dropdown" onClick={() => setDropdownOpen(false)} />
-
-              {/* My Profile Action */}
-              <Link
-                href="/professor/profile"
-                onClick={() => setDropdownOpen(false)}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              >
-                <User className="size-4 text-emerald-600 dark:text-emerald-400" />
-                <span>My Profile</span>
-              </Link>
-
-              {/* Logout Action */}
-              <button
-                onClick={handleSignOut}
-                disabled={loggingOut}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors disabled:opacity-50 mt-1 cursor-pointer disabled:cursor-not-allowed"
-              >
-                {loggingOut ? (
-                  <Loader2 className="size-4 animate-spin text-rose-600 shrink-0" />
-                ) : (
-                  <LogOut className="size-4 shrink-0" />
-                )}
-                <span>{loggingOut ? 'Signing Out...' : 'Sign Out of Portal'}</span>
-              </button>
             </div>
           )}
         </div>
       </div>
 
-      {/* Global Full-Page Sign-Out Overlay */}
-      <SignOutOverlay
-        isOpen={loggingOut}
-        title="Signing out securely..."
-        subtitle="Clearing your Professor workspace session..."
-      />
+      <SignOutOverlay isOpen={loggingOut} />
     </header>
   )
 }

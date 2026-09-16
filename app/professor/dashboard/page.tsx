@@ -23,7 +23,6 @@ import {
   Layers,
   ListPlus,
   Loader2,
-  Lock,
   Plus,
   RefreshCw,
   Search,
@@ -39,6 +38,8 @@ import { StationStatusBadge, UnscheduledStationNotice } from '@/components/stati
 import { useAcademicYear } from '@/context/AcademicYearContext'
 import { useToast } from '@/context/ToastContext'
 import { getStationSlug } from '@/lib/stationSlug'
+import { ModuleSpecialtyBadge } from '@/components/dean/ModuleSpecialtyBadge'
+import { getModuleVisual } from '@/utils/getModuleIcon'
 
 export interface ProfessorProfile {
   id: string
@@ -139,7 +140,7 @@ export default function ProfessorDashboardPage() {
   // Module Preview Modal
   const [previewModule, setPreviewModule] = useState<AssignedModule | null>(null)
 
-  // Station Question / Checklist Builder Modal
+  // Station Question / Checklist Builder Drawer
   const [activeStationForQuestions, setActiveStationForQuestions] = useState<AssignedStation | null>(null)
   const [stationQuestions, setStationQuestions] = useState<QuestionItem[]>([])
   const [loadingQuestions, setLoadingQuestions] = useState(false)
@@ -202,12 +203,9 @@ export default function ProfessorDashboardPage() {
     }
   }
 
-  // Refetch when selected academic year changes
   useEffect(() => {
-    if (selectedYearId) {
+    if (!isYearLoading) {
       fetchOverview(selectedYearId)
-    } else if (!isYearLoading) {
-      fetchOverview(null)
     }
   }, [selectedYearId, isYearLoading])
 
@@ -221,29 +219,29 @@ export default function ProfessorDashboardPage() {
   const handleCopyPin = (stationId: string, pin: string) => {
     navigator.clipboard.writeText(pin)
     setCopiedPinId(stationId)
-    setTimeout(() => setCopiedPinId(null), 2000)
-    showSuccess('Access PIN copied to clipboard.')
+    showSuccess(`PIN ${pin} copied to clipboard!`)
+    setTimeout(() => {
+      setCopiedPinId(null)
+    }, 2500)
   }
 
-  // --- Question Builder Modal Logic ---
-  const handleOpenQuestionsModal = async (station: AssignedStation) => {
+  const openQuestionsBuilder = async (station: AssignedStation) => {
     setActiveStationForQuestions(station)
+    setLoadingQuestions(true)
+    setQuestionError('')
     setNewQuestionText('')
     setNewQuestionPoints(2)
-    setQuestionError('')
-    setLoadingQuestions(true)
 
     try {
       const res = await fetch(`/api/professor/questions?station_id=${station.id}`)
       const json = await res.json()
-
       if (res.ok && json.success) {
         setStationQuestions(json.questions || [])
       } else {
-        showError(json.error || 'Failed to load station questions.')
+        showError(json.error || 'Failed to load checklist criteria.')
       }
     } catch {
-      showError('Network error loading station checklist.')
+      showError('Network error loading checklist criteria.')
     } finally {
       setLoadingQuestions(false)
     }
@@ -325,31 +323,31 @@ export default function ProfessorDashboardPage() {
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       {/* 1. Welcome Header Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-slate-800 p-6 md:p-8 text-white shadow-xl">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0B1612] via-[#12221C] to-[#0B1612] border border-emerald-500/20 p-6 md:p-8 text-white shadow-xl">
         <div className="absolute right-0 top-0 -mt-10 -mr-10 size-64 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
-        <div className="absolute left-1/3 bottom-0 -mb-10 size-48 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
+        <div className="absolute left-1/3 bottom-0 -mb-10 size-48 rounded-full bg-lime-500/10 blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-2.5 flex-wrap">
-              <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 shadow-xs">
+              <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-500/20 text-lime-300 border border-emerald-500/30 flex items-center gap-1.5 shadow-xs">
                 <span className="relative flex size-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full size-2 bg-emerald-500" />
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-lime-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full size-2 bg-lime-500" />
                 </span>
-                <span>{selectedYear?.name || 'Active Session'}</span>
+                <span>{selectedYear?.name || 'Active Academic Session'}</span>
               </span>
 
-              <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-white/10 text-slate-300 border border-white/10">
+              <span className="px-3 py-1 rounded-full text-[11px] font-medium bg-white/10 text-slate-300 border border-white/10">
                 {professor?.faculty_name || 'Medical Faculty Workspace'}
               </span>
             </div>
 
-            <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
               {professor ? `Welcome back, ${professor.full_name}` : 'Welcome back, Professor'}
             </h1>
             <p className="text-xs md:text-sm font-medium text-slate-300 max-w-2xl leading-relaxed">
-              Manage your clinical modules, author scoring checklists for assigned OSCE stations, and review upcoming evaluation sessions.
+              Clinical evaluation cockpit: Author scoring rubrics, monitor upcoming OSCE sessions, and manage assigned clinical modules.
             </p>
           </div>
 
@@ -358,83 +356,121 @@ export default function ProfessorDashboardPage() {
               onClick={() => fetchOverview(selectedYearId, true)}
               disabled={refreshing || loading}
               aria-label="Refresh dashboard data"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 text-xs font-bold text-white transition-all shadow-sm active:scale-95 disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-xs font-bold text-white transition-all shadow-sm active:scale-95 disabled:opacity-50"
             >
-              <RefreshCw className={`size-3.5 ${refreshing ? 'animate-spin text-emerald-400' : ''}`} />
-              <span>Refresh</span>
+              <RefreshCw className={`size-3.5 ${refreshing ? 'animate-spin text-lime-400' : ''}`} />
+              <span>Refresh Cockpit</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* 2. Quick Summary KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* 2. Four Telemetry Cockpit Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Metric 1: Assigned Modules */}
-        <div className="p-5 rounded-3xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 shadow-sm backdrop-blur-md flex items-center gap-4 transition-all hover:border-slate-300 dark:hover:border-slate-700">
-          <div className="size-12 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 shadow-xs">
-            <BookOpen className="size-6" />
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+        <div className="p-5 rounded-xl bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 shadow-sm hover:border-emerald-500/40 transition-all group">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-emerald-400/80">
               Assigned Modules
             </span>
-            <span className="text-2xl font-black text-slate-900 dark:text-white truncate">
+            <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <BookOpen className="size-4" />
+            </div>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-3xl font-mono font-bold tracking-tight text-slate-900 dark:text-white tabular-nums">
               {stats.assignedModulesCount}
             </span>
+            <span className="text-xs text-slate-400">supervised</span>
+          </div>
+          <div className="mt-3 h-1 w-full bg-slate-100 dark:bg-emerald-950 rounded-full overflow-hidden">
+            <div className="h-full bg-emerald-500 rounded-full w-full" />
           </div>
         </div>
 
-        {/* Metric 2: Assigned Stations */}
-        <div className="p-5 rounded-3xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 shadow-sm backdrop-blur-md flex items-center gap-4 transition-all hover:border-slate-300 dark:hover:border-slate-700">
-          <div className="size-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 shadow-xs">
-            <ClipboardCheck className="size-6" />
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+        {/* Metric 2: Clinical Stations */}
+        <div className="p-5 rounded-xl bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 shadow-sm hover:border-emerald-500/40 transition-all group">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-emerald-400/80">
               Clinical Stations
             </span>
-            <span className="text-2xl font-black text-slate-900 dark:text-white truncate">
+            <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <ClipboardCheck className="size-4" />
+            </div>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-3xl font-mono font-bold tracking-tight text-slate-900 dark:text-white tabular-nums">
               {stats.assignedStationsCount}
             </span>
+            <span className="text-xs text-slate-400">stations</span>
+          </div>
+          <div className="mt-3 h-1 w-full bg-slate-100 dark:bg-emerald-950 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-emerald-500 rounded-full transition-all"
+              style={{
+                width: `${stats.assignedStationsCount > 0 ? Math.min(100, (stats.readyStationsCount / stats.assignedStationsCount) * 100) : 0}%`,
+              }}
+            />
           </div>
         </div>
 
-        {/* Metric 3: Upcoming OSCE Sessions */}
-        <div className="p-5 rounded-3xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 shadow-sm backdrop-blur-md flex items-center gap-4 transition-all hover:border-slate-300 dark:hover:border-slate-700">
-          <div className="size-12 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 shadow-xs">
-            <Calendar className="size-6" />
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              OSCE Sessions
-            </span>
-            <span className="text-2xl font-black text-slate-900 dark:text-white truncate">
-              {stats.upcomingSessionsCount}
-            </span>
-          </div>
-        </div>
-
-        {/* Metric 4: Checklist Readiness */}
-        <div className="p-5 rounded-3xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 shadow-sm backdrop-blur-md flex items-center gap-4 transition-all hover:border-slate-300 dark:hover:border-slate-700">
-          <div className="size-12 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-xs">
-            <ShieldCheck className="size-6" />
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+        {/* Metric 3: Ready Stations (Validation Badge) */}
+        <div className="p-5 rounded-xl bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 shadow-sm hover:border-emerald-500/40 transition-all group">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-emerald-400/80">
               Checklist Readiness
             </span>
-            <span className="text-2xl font-black text-slate-900 dark:text-white truncate">
+            <div className="size-8 rounded-lg bg-lime-500/10 text-lime-600 dark:text-lime-400 flex items-center justify-center">
+              <ShieldCheck className="size-4" />
+            </div>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-3xl font-mono font-bold tracking-tight text-slate-900 dark:text-white tabular-nums">
               {stats.readyStationsCount}
-              <span className="text-sm font-semibold text-slate-400">/{stats.assignedStationsCount || 0}</span>
             </span>
+            <span className="text-xs font-mono text-slate-400">/{stats.assignedStationsCount}</span>
+          </div>
+          <div className="mt-3 flex items-center justify-between">
+            {stats.assignedStationsCount > 0 && stats.readyStationsCount === stats.assignedStationsCount ? (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-lime-400 border border-emerald-500/30">
+                <CheckCircle2 className="size-3" />
+                <span>100% Validated</span>
+              </span>
+            ) : (
+              <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+                {stats.assignedStationsCount - stats.readyStationsCount} Pending Setup
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Metric 4: Upcoming Exam Sessions */}
+        <div className="p-5 rounded-xl bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 shadow-sm hover:border-emerald-500/40 transition-all group">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-emerald-400/80">
+              Upcoming Sessions
+            </span>
+            <div className="size-8 rounded-lg bg-lime-500/10 text-lime-600 dark:text-lime-400 flex items-center justify-center">
+              <Calendar className="size-4" />
+            </div>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-3xl font-mono font-bold tracking-tight text-slate-900 dark:text-white tabular-nums">
+              {stats.upcomingSessionsCount}
+            </span>
+            <span className="text-xs text-slate-400">scheduled</span>
+          </div>
+          <div className="mt-3 flex items-center gap-1.5 text-[10px] font-bold text-lime-600 dark:text-lime-400">
+            <span className="size-1.5 rounded-full bg-lime-400 animate-pulse" />
+            <span>Active Exam Track</span>
           </div>
         </div>
       </div>
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center p-16 rounded-3xl bg-white/50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800">
+        <div className="flex flex-col items-center justify-center p-16 rounded-2xl bg-white/50 dark:bg-[#0B1612] border border-slate-200/80 dark:border-emerald-500/15">
           <Loader2 className="size-8 text-emerald-500 animate-spin mb-3" />
-          <p className="text-xs font-bold text-slate-500">Loading professor teaching responsibilities...</p>
+          <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Loading clinical responsibilities...</p>
         </div>
       ) : (
         <div className="space-y-10">
@@ -442,26 +478,26 @@ export default function ProfessorDashboardPage() {
           <section className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-                  <BookOpen className="size-5 text-blue-600 dark:text-blue-400" />
-                  <span>My Academic Modules</span>
+                <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+                  <BookOpen className="size-5 text-emerald-600 dark:text-emerald-400" />
+                  <span>My Clinical Modules</span>
                 </h2>
                 <p className="text-xs font-medium text-slate-400">
-                  Curriculum modules where you are designated as the lead responsible professor
+                  Curriculum modules where you are designated as the lead responsible evaluator.
                 </p>
               </div>
             </div>
 
             {modules.length === 0 ? (
-              <div className="p-8 rounded-3xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 text-center space-y-2">
-                <div className="size-12 rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto">
+              <div className="p-8 rounded-2xl bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 text-center space-y-2">
+                <div className="size-12 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
                   <BookOpen className="size-6" />
                 </div>
                 <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
                   No modules assigned as lead
                 </h3>
                 <p className="text-xs text-slate-400 max-w-md mx-auto">
-                  You have not been assigned as a head professor to any modules for this academic year.
+                  You have not been assigned as a lead professor to any modules for this academic year.
                 </p>
               </div>
             ) : (
@@ -469,25 +505,29 @@ export default function ProfessorDashboardPage() {
                 {modules.map((mod) => (
                   <div
                     key={mod.id}
-                    className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4 flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-all group"
+                    className="p-5 rounded-xl bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 shadow-sm space-y-4 flex flex-col justify-between hover:border-emerald-500/40 transition-all group"
                   >
                     <div className="space-y-3">
                       <div className="flex items-start justify-between gap-2">
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
                           {mod.level_name}
                         </span>
-                        <span className="text-[11px] font-semibold text-slate-400">
-                          {mod.total_exams} Scheduled Exam{mod.total_exams !== 1 ? 's' : ''}
+                        <span className="text-[11px] font-mono font-bold text-slate-400">
+                          {mod.total_exams} Exam{mod.total_exams !== 1 ? 's' : ''}
                         </span>
                       </div>
 
-                      <div>
-                        <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                          {mod.module_name}
-                        </h3>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          Study Level: <strong className="text-slate-600 dark:text-slate-300">{mod.level_name}</strong>
-                        </p>
+                      {/* Organ Specialty Badge & Title */}
+                      <div className="flex items-center gap-3">
+                        <ModuleSpecialtyBadge moduleName={mod.module_name} size="md" />
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-lime-400 transition-colors truncate">
+                            {mod.module_name}
+                          </h3>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                            {getModuleVisual(mod.module_name).specialty}
+                          </p>
+                        </div>
                       </div>
 
                       {/* Module Weightage Allocation Progress */}
@@ -501,24 +541,24 @@ export default function ProfessorDashboardPage() {
                         const pct = Math.min(100, Math.max(0, totalWeightage))
 
                         return (
-                          <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                          <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-white/[0.06]">
                             <div className="flex items-center justify-between text-[11px] gap-2">
-                              <span className="font-bold text-slate-700 dark:text-slate-300">
-                                Module Weightage: {totalWeightage}% / 100%
+                              <span className="font-mono font-semibold text-slate-700 dark:text-slate-300">
+                                Weightage: {totalWeightage}% / 100%
                               </span>
                               {isFullyAllocated ? (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-lime-400 shrink-0">
                                   <CheckCircle2 className="size-3" />
-                                  <span>Fully Allocated</span>
+                                  <span>Balanced</span>
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 shrink-0">
                                   <AlertCircle className="size-3" />
-                                  <span>Unallocated Weightage Remaining</span>
+                                  <span>Unallocated</span>
                                 </span>
                               )}
                             </div>
-                            <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                            <div className="h-1.5 w-full bg-slate-100 dark:bg-emerald-950/60 rounded-full overflow-hidden">
                               <div
                                 className={`h-full rounded-full transition-all duration-300 ${
                                   isFullyAllocated ? 'bg-emerald-500' : 'bg-amber-500'
@@ -533,9 +573,9 @@ export default function ProfessorDashboardPage() {
 
                     <button
                       onClick={() => setPreviewModule(mod)}
-                      className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/70 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200/80 dark:border-slate-700 transition-all"
+                      className="w-full flex items-center justify-between px-3.5 py-2 rounded-lg bg-slate-50 dark:bg-[#0B1612] hover:bg-emerald-500/10 text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-lime-300 border border-slate-200/80 dark:border-emerald-500/20 transition-all"
                     >
-                      <span>View Module Details</span>
+                      <span>Module Specifications</span>
                       <ChevronRight className="size-4" />
                     </button>
                   </div>
@@ -548,19 +588,19 @@ export default function ProfessorDashboardPage() {
           <section className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+                <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
                   <ClipboardCheck className="size-5 text-emerald-600 dark:text-emerald-400" />
-                  <span>My Clinical Stations</span>
+                  <span>My Clinical Stations &amp; Scoring Rubrics</span>
                 </h2>
                 <p className="text-xs font-medium text-slate-400">
-                  Manage and configure your assigned clinical stations.
+                  Configure scoring checklists, examine tablet PINs, and audit readiness before live execution.
                 </p>
               </div>
             </div>
 
             {stations.length === 0 ? (
-              <div className="p-8 rounded-3xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 text-center space-y-2">
-                <div className="size-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
+              <div className="p-8 rounded-2xl bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 text-center space-y-2">
+                <div className="size-12 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
                   <ClipboardCheck className="size-6" />
                 </div>
                 <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
@@ -587,13 +627,13 @@ export default function ProfessorDashboardPage() {
                     <div
                       key={st.id}
                       onClick={() => router.push(`/professor/stations/${stationSlug}`)}
-                      className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4 flex flex-col justify-between hover:shadow-md hover:border-emerald-500/40 dark:hover:border-emerald-500/40 transition-all cursor-pointer group"
+                      className="p-5 rounded-xl bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 shadow-sm space-y-4 flex flex-col justify-between hover:border-emerald-500/40 transition-all cursor-pointer group"
                     >
                       <div className="space-y-3.5">
                         {/* Header: Station # & Status badge */}
                         <div className="flex items-center justify-between gap-2">
-                          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-600 text-white text-xs font-black shadow-xs">
-                            Station #{st.station_number}
+                          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-600 text-white text-xs font-mono font-bold shadow-xs">
+                            ST-{st.station_number < 10 ? `0${st.station_number}` : st.station_number}
                           </span>
 
                           <StationStatusBadge
@@ -605,15 +645,15 @@ export default function ProfessorDashboardPage() {
 
                         {/* Title & Metadata Subtitle */}
                         <div>
-                          <h3 className="text-base font-bold text-slate-900 dark:text-white leading-snug">
+                          <h3 className="text-base font-bold text-slate-900 dark:text-white leading-snug group-hover:text-emerald-600 dark:group-hover:text-lime-300 transition-colors">
                             {st.title}
                           </h3>
 
-                          {/* Clean Metadata Subtitle: Module, Level, Created Date */}
+                          {/* Metadata Subtitle: Module, Level */}
                           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400 mt-1.5">
                             {st.module_name && (
                               <span className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                                <BookOpen className="size-3 text-blue-500 shrink-0" />
+                                <BookOpen className="size-3 text-emerald-500 shrink-0" />
                                 <span>{st.module_name}</span>
                               </span>
                             )}
@@ -623,22 +663,14 @@ export default function ProfessorDashboardPage() {
                                 <span>{st.level_name}</span>
                               </>
                             )}
-                            {st.created_at && (
-                              <>
-                                <span>•</span>
-                                <span className="text-[11px] text-slate-400">
-                                  Created {new Date(st.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                </span>
-                              </>
-                            )}
                           </div>
 
-                          {/* Linked Exam or Action-Oriented Unscheduled Notice */}
+                          {/* Linked Exam Notice */}
                           {st.linked_exam ? (
-                            <div className="mt-2.5 p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 space-y-1">
+                            <div className="mt-2.5 p-2.5 rounded-lg bg-slate-50 dark:bg-[#0B1612] border border-slate-200/60 dark:border-white/[0.06] space-y-1">
                               <div className="flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200">
                                 <span>{st.linked_exam.module_name}</span>
-                                <span className="text-[10px] text-slate-400 capitalize">
+                                <span className="text-[10px] text-emerald-600 dark:text-lime-400 capitalize">
                                   {st.linked_exam.session_type}
                                 </span>
                               </div>
@@ -653,15 +685,15 @@ export default function ProfessorDashboardPage() {
                           )}
                         </div>
 
-                        {/* Secure Access PIN Box */}
-                        <div className="p-3 rounded-2xl bg-slate-100/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2">
+                        {/* Isolated Dark Tablet PIN Box */}
+                        <div className="p-2.5 rounded-lg bg-emerald-950/60 border border-emerald-500/25 flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
-                            <Key className="size-4 text-amber-500 shrink-0" />
+                            <Key className="size-3.5 text-lime-400 shrink-0" />
                             <div className="flex flex-col min-w-0">
-                              <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">
-                                Live Scoring Tablet PIN
+                              <span className="text-[9px] uppercase font-bold text-emerald-300 tracking-wider">
+                                Examiner Access PIN
                               </span>
-                              <span className="font-mono text-xs font-bold text-slate-900 dark:text-white tracking-widest">
+                              <span className="font-mono text-xs font-bold tracking-widest text-emerald-300">
                                 {isPinRevealed ? st.access_pin : '••••••'}
                               </span>
                             </div>
@@ -673,7 +705,7 @@ export default function ProfessorDashboardPage() {
                                 e.stopPropagation()
                                 togglePinReveal(st.id)
                               }}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                              className="p-1 rounded text-emerald-400 hover:text-white transition-colors"
                               aria-label="Toggle PIN Visibility"
                             >
                               {isPinRevealed ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
@@ -683,49 +715,47 @@ export default function ProfessorDashboardPage() {
                                 e.stopPropagation()
                                 handleCopyPin(st.id, st.access_pin)
                               }}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 transition-colors"
+                              className="p-1 rounded text-emerald-400 hover:text-lime-300 transition-colors relative"
                               aria-label="Copy Access PIN"
                             >
                               {isCopied ? (
-                                <Check className="size-3.5 text-emerald-500" />
+                                <Check className="size-3.5 text-lime-400" />
                               ) : (
                                 <Copy className="size-3.5" />
+                              )}
+                              {isCopied && (
+                                <span className="absolute -top-7 right-0 text-[10px] font-bold text-lime-300 bg-[#0B1612] px-1.5 py-0.5 rounded border border-lime-400/40 shadow-sm animate-in fade-in">
+                                  Copied!
+                                </span>
                               )}
                             </button>
                           </div>
                         </div>
-
-                        {/* Real-time Candidate Completion Progress Bar */}
-                        {typeof st.completed_count === 'number' && typeof st.total_candidates === 'number' && st.total_candidates > 0 && (
-                          <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
-                            <div className="flex items-center justify-between text-[11px]">
-                              <span className="font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                                <Users className="size-3 text-emerald-500" />
-                                <span>Candidate Progress:</span>
-                              </span>
-                              <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">
-                                {st.completed_count} / {st.total_candidates} ({st.progress_percentage ?? 0}%)
-                              </span>
-                            </div>
-                            <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-emerald-500 rounded-full transition-all duration-300"
-                                style={{ width: `${Math.min(100, st.progress_percentage ?? 0)}%` }}
-                              />
-                            </div>
-                          </div>
-                        )}
                       </div>
 
-                      {/* Direct Navigation Action */}
-                      <Link
-                        href={`/professor/stations/${stationSlug}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20 group-hover:bg-emerald-700 active:scale-[0.99]"
-                      >
-                        <span>Open Checklist</span>
-                        <ArrowRight className="size-4 group-hover:translate-x-0.5 transition-transform" />
-                      </Link>
+                      {/* Card Action Strip */}
+                      <div className="pt-2 border-t border-slate-100 dark:border-white/[0.06] flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openQuestionsBuilder(st)
+                          }}
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-800 dark:text-lime-300 text-xs font-bold border border-emerald-500/20 transition-all"
+                        >
+                          <ListPlus className="size-3.5 text-lime-400" />
+                          <span>Quick Rubric</span>
+                        </button>
+
+                        <Link
+                          href={`/professor/stations/${stationSlug}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm shadow-emerald-600/20 transition-all"
+                        >
+                          <span>Full Editor</span>
+                          <ArrowRight className="size-3.5" />
+                        </Link>
+                      </div>
                     </div>
                   )
                 })}
@@ -738,32 +768,32 @@ export default function ProfessorDashboardPage() {
             <section className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-                    <Calendar className="size-5 text-purple-600 dark:text-purple-400" />
+                  <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+                    <Calendar className="size-5 text-lime-500" />
                     <span>Upcoming OSCE Sessions</span>
                   </h2>
                   <p className="text-xs font-medium text-slate-400">
-                    Scheduled clinical examinations where you are leading the module or invigilating a station
+                    Scheduled clinical examinations requiring your supervision or evaluation.
                   </p>
                 </div>
               </div>
 
-              <div className="p-4 rounded-3xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 shadow-sm divide-y divide-slate-100 dark:divide-slate-800">
+              <div className="p-4 rounded-xl bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 shadow-sm divide-y divide-slate-100 dark:divide-white/[0.06]">
                 {upcomingExams.map((ex) => (
                   <div
                     key={ex.id}
-                    className="py-3.5 first:pt-2 last:pb-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+                    className="py-3.5 first:pt-1 last:pb-1 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex size-10 items-center justify-center rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 shrink-0 font-bold text-xs">
-                        <Calendar className="size-5" />
+                      <div className="size-9 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-lime-400 flex items-center justify-center shrink-0">
+                        <Calendar className="size-4.5" />
                       </div>
                       <div className="flex flex-col min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-slate-900 dark:text-white text-xs truncate">
                             {ex.module_name}
                           </span>
-                          <span className="px-2 py-0.2 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 capitalize">
                             {ex.session_type}
                           </span>
                         </div>
@@ -774,7 +804,7 @@ export default function ProfessorDashboardPage() {
                     </div>
 
                     <div className="flex items-center gap-3 self-end sm:self-center">
-                      <span className="px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300">
+                      <span className="px-3 py-1 rounded-md bg-slate-100 dark:bg-[#0B1612] text-xs font-mono font-bold text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-white/[0.06]">
                         {new Date(ex.exam_date).toLocaleDateString('en-US', {
                           weekday: 'short',
                           month: 'short',
@@ -793,19 +823,17 @@ export default function ProfessorDashboardPage() {
 
       {/* --- Module Details Preview Modal --- */}
       {previewModule && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-5 animate-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="flex size-9 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-500/20">
-                  <BookOpen className="size-4" />
-                </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+          <div className="relative w-full max-w-md rounded-2xl bg-white dark:bg-[#0B1612] border border-slate-200 dark:border-emerald-500/20 shadow-2xl p-6 space-y-5 animate-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/[0.06]">
+              <div className="flex items-center gap-3">
+                <ModuleSpecialtyBadge moduleName={previewModule.module_name} size="sm" />
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">
                     {previewModule.module_name}
                   </h3>
                   <p className="text-[11px] font-semibold text-slate-400">
-                    Curriculum Module Overview
+                    Curriculum Module Specifications
                   </p>
                 </div>
               </div>
@@ -818,7 +846,7 @@ export default function ProfessorDashboardPage() {
             </div>
 
             <div className="space-y-3 text-xs">
-              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 space-y-1.5">
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#12221C] border border-slate-200/60 dark:border-white/[0.06] space-y-2">
                 <div className="flex justify-between">
                   <span className="text-slate-400">Study Level:</span>
                   <span className="font-bold text-slate-800 dark:text-slate-200">
@@ -827,7 +855,7 @@ export default function ProfessorDashboardPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Total Scheduled Exams:</span>
-                  <span className="font-bold text-blue-600 dark:text-blue-400">
+                  <span className="font-mono font-bold text-emerald-600 dark:text-lime-400">
                     {previewModule.total_exams} Sessions
                   </span>
                 </div>
@@ -840,14 +868,14 @@ export default function ProfessorDashboardPage() {
               </div>
 
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                As the lead module professor, you oversee the academic curriculum standards and evaluation benchmarks for this specialty across all rotation cohorts.
+                As the lead module professor, you oversee clinical competencies, author station rubrics, and approve official student grades.
               </p>
             </div>
 
             <div className="flex justify-end pt-2">
               <button
                 onClick={() => setPreviewModule(null)}
-                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all"
+                className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-[#12221C] hover:bg-slate-200 dark:hover:bg-[#161B2A] text-xs font-bold text-slate-700 dark:text-slate-200 transition-all"
               >
                 Close
               </button>
@@ -856,22 +884,22 @@ export default function ProfessorDashboardPage() {
         </div>
       )}
 
-      {/* --- Question & Checklist Builder Modal --- */}
+      {/* --- Quick Question & Checklist Builder Slide-Over Drawer --- */}
       {activeStationForQuestions && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-2xl rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-5 animate-in zoom-in-95 max-h-[90vh] flex flex-col">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-xl h-full bg-white dark:bg-[#0B1612] border-l border-slate-200 dark:border-emerald-500/20 shadow-2xl p-6 space-y-5 animate-in slide-in-from-right duration-200 flex flex-col overflow-hidden">
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/[0.06] shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="flex size-9 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-500/20">
+                <div className="flex size-9 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-sm shadow-emerald-600/30">
                   <ListPlus className="size-4" />
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    Station Checklist Builder: Station #{activeStationForQuestions.station_number}
+                    Checklist Builder: ST-{activeStationForQuestions.station_number}
                   </h3>
                   <p className="text-[11px] font-semibold text-slate-400">
-                    {activeStationForQuestions.title} • Total Points: {totalStationPoints} pts
+                    {activeStationForQuestions.title} • Scale: {totalStationPoints} pts
                   </p>
                 </div>
               </div>
@@ -885,17 +913,17 @@ export default function ProfessorDashboardPage() {
 
             {/* Scrollable Criteria List */}
             <div className="flex-1 overflow-y-auto space-y-4 pr-1">
-              <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2">
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2">
                 <Info className="size-4 shrink-0" />
                 <span>
-                  Define scoring checklist items for the live OSCE examination. These items will be used on the evaluator tablet.
+                  Rubric checklist items will be displayed dynamically on the evaluator scoring tablet.
                 </span>
               </div>
 
               {/* Questions List */}
               <div className="space-y-2">
                 <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                  Scoring Criteria ({stationQuestions.length})
+                  Configured Criteria ({stationQuestions.length})
                 </h4>
 
                 {loadingQuestions ? (
@@ -904,21 +932,21 @@ export default function ProfessorDashboardPage() {
                     <span>Loading checklist items...</span>
                   </div>
                 ) : stationQuestions.length === 0 ? (
-                  <div className="p-6 text-center text-xs text-slate-400 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 space-y-1">
+                  <div className="p-6 text-center text-xs text-slate-400 rounded-xl border border-dashed border-slate-200 dark:border-emerald-500/20 space-y-1">
                     <p className="font-bold text-slate-600 dark:text-slate-300">
                       No scoring criteria configured yet.
                     </p>
-                    <p>Add your first clinical checklist item below to mark this station as Ready.</p>
+                    <p>Add your first clinical criteria below to validate this station.</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     {stationQuestions.map((q, idx) => (
                       <div
                         key={q.id}
-                        className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 flex items-start justify-between gap-3 group"
+                        className="p-3 rounded-xl bg-slate-50 dark:bg-[#12221C] border border-slate-200/80 dark:border-white/[0.06] flex items-start justify-between gap-3 group"
                       >
                         <div className="flex items-start gap-2.5 min-w-0">
-                          <span className="flex size-6 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[10px] font-black shrink-0 mt-0.5">
+                          <span className="flex size-6 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-700 dark:text-lime-300 text-[10px] font-mono font-bold shrink-0 mt-0.5">
                             {idx + 1}
                           </span>
                           <div className="space-y-0.5 min-w-0">
@@ -932,12 +960,12 @@ export default function ProfessorDashboardPage() {
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="px-2.5 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-black text-xs border border-emerald-500/20">
+                          <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-lime-400 font-mono font-bold text-xs border border-emerald-500/20">
                             {q.max_points} pts
                           </span>
                           <button
                             onClick={() => handleDeleteQuestion(q.id)}
-                            className="p-1 rounded-lg text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                            className="p-1 rounded-md text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
                             title="Delete criterion"
                           >
                             <Trash2 className="size-3.5" />
@@ -950,14 +978,14 @@ export default function ProfessorDashboardPage() {
               </div>
 
               {/* Add New Criteria Form */}
-              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3">
+              <div className="pt-3 border-t border-slate-100 dark:border-white/[0.06] space-y-3">
                 <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <Plus className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <Plus className="size-3.5 text-emerald-600 dark:text-lime-400" />
                   <span>Add Checklist Criterion</span>
                 </h4>
 
                 {questionError && (
-                  <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-bold flex items-center gap-2">
+                  <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-bold flex items-center gap-2">
                     <AlertTriangle className="size-3.5 shrink-0" />
                     <span>{questionError}</span>
                   </div>
@@ -965,7 +993,7 @@ export default function ProfessorDashboardPage() {
 
                 <form onSubmit={handleAddQuestion} className="space-y-3">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-500 mb-1">
+                    <label className="block text-[11px] font-bold text-slate-400 mb-1">
                       Clinical Task / Checklist Item Text *
                     </label>
                     <input
@@ -973,14 +1001,14 @@ export default function ProfessorDashboardPage() {
                       value={newQuestionText}
                       onChange={(e) => setNewQuestionText(e.target.value)}
                       placeholder="e.g. Correctly palpates radial pulse & assesses rate and rhythm"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-[#12221C] border border-slate-200 dark:border-white/[0.08] rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       required
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-500 mb-1">
+                      <label className="block text-[11px] font-bold text-slate-400 mb-1">
                         Evaluation Type
                       </label>
                       <Select
@@ -998,7 +1026,7 @@ export default function ProfessorDashboardPage() {
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-500 mb-1">
+                      <label className="block text-[11px] font-bold text-slate-400 mb-1">
                         Max Score (Points) *
                       </label>
                       <input
@@ -1007,7 +1035,7 @@ export default function ProfessorDashboardPage() {
                         max={100}
                         value={newQuestionPoints}
                         onChange={(e) => setNewQuestionPoints(parseFloat(e.target.value) || 1)}
-                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-[#12221C] border border-slate-200 dark:border-white/[0.08] rounded-lg text-xs font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                         required
                       />
                     </div>
@@ -1017,7 +1045,7 @@ export default function ProfessorDashboardPage() {
                     <button
                       type="submit"
                       disabled={savingQuestion}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition-all disabled:opacity-50"
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all disabled:opacity-50"
                     >
                       {savingQuestion ? (
                         <>
@@ -1036,15 +1064,15 @@ export default function ProfessorDashboardPage() {
               </div>
             </div>
 
-            {/* Modal Footer */}
-            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
-              <span className="text-xs font-bold text-slate-500">
-                Total Station Score: <strong className="text-emerald-600 dark:text-emerald-400">{totalStationPoints} Points</strong>
+            {/* Drawer Footer */}
+            <div className="pt-3 border-t border-slate-100 dark:border-white/[0.06] flex items-center justify-between shrink-0">
+              <span className="text-xs font-mono text-slate-400">
+                Total Station Score: <strong className="text-emerald-600 dark:text-lime-400 font-bold">{totalStationPoints} pts</strong>
               </span>
               <button
                 type="button"
                 onClick={() => setActiveStationForQuestions(null)}
-                className="px-4 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold shadow-sm hover:opacity-90 transition-opacity"
+                className="px-4 py-2 rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold shadow-sm hover:opacity-90 transition-opacity"
               >
                 Done Authoring
               </button>

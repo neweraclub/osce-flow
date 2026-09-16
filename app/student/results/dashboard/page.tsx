@@ -17,12 +17,14 @@ import {
   ChevronRight,
   ChevronUp,
   Clock,
+  ExternalLink,
   FileSpreadsheet,
   GraduationCap,
   Hash,
   HelpCircle,
   Layers,
   Loader2,
+  Lock,
   LogOut,
   MinusCircle,
   Percent,
@@ -47,6 +49,7 @@ import {
 import { ThemeToggle } from '@/components/theme-toggle'
 import { SignOutOverlay } from '@/components/ui/SignOutOverlay'
 import { PrintMarksheet } from '@/components/transcript/PrintMarksheet'
+import { getModuleVisual } from '@/utils/getModuleIcon'
 
 function StudentResultsDashboardContent() {
   const router = useRouter()
@@ -65,8 +68,8 @@ function StudentResultsDashboardContent() {
     }, 450)
   }
 
-  // Hierarchical Drill-Down State
-  // selectedModuleId: null => Level 1 (Modules Grid View); string => Level 2 (Selected Module Stations Breakdown)
+  // Hierarchical Drill-Down State:
+  // selectedModuleId: null => Level 1 (All Modules Overview); string => Level 2 (Selected Module Stations Breakdown)
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null)
   // expandedStations: Record<string, boolean> => Level 3 (Granular Questions & Scoring Checklist)
   const [expandedStations, setExpandedStations] = useState<Record<string, boolean>>({})
@@ -84,16 +87,16 @@ function StudentResultsDashboardContent() {
       try {
         const res = await getStudentResultsDashboardDataAction(studentId as string)
         if (!res.success || !res.data) {
-          setErrorMessage(res.error || 'Failed to retrieve student examination results.')
+          setErrorMessage(res.error || 'Failed to retrieve certified student examination records.')
         } else {
           setData(res.data)
-          // If only 1 module exists, optionally auto-select or stay in overview
+          // If only 1 module exists, auto-select it for maximum ergonomics
           if (res.data.modules.length === 1) {
             setSelectedModuleId(res.data.modules[0].module_id)
           }
         }
       } catch (err: any) {
-        setErrorMessage(err?.message || 'Unexpected error loading academic results.')
+        setErrorMessage(err?.message || 'Unexpected network issue while compiling transcript.')
       } finally {
         setLoading(false)
       }
@@ -121,7 +124,6 @@ function StudentResultsDashboardContent() {
     setExpandedStations({})
   }
 
-  // Print friendly handler
   const handlePrint = () => {
     if (typeof window !== 'undefined') {
       window.print()
@@ -134,18 +136,35 @@ function StudentResultsDashboardContent() {
     return data.modules.find((m) => m.module_id === selectedModuleId) || null
   }, [data, selectedModuleId])
 
+  // Overall aggregate cohort / curriculum statistics
+  const overallStats = useMemo(() => {
+    if (!data || data.modules.length === 0) {
+      return { averageGrade: 0, totalStations: 0, passRate: 0 }
+    }
+    const sum = data.modules.reduce((acc, m) => acc + m.module_final_score, 0)
+    const averageGrade = sum / data.modules.length
+    const totalStations = data.modules.reduce((acc, m) => acc + m.stations.length, 0)
+    const passRate = (data.passed_modules_count / Math.max(1, data.total_modules_count)) * 100
+    return { averageGrade, totalStations, passRate }
+  }, [data])
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center gap-4 text-slate-900 dark:text-white">
-        <div className="p-4 rounded-3xl bg-teal-500/10 border border-teal-500/20 shadow-xl">
-          <Loader2 className="size-8 animate-spin text-teal-500" />
+      <div className="min-h-screen bg-[#F7FAF8] dark:bg-[#050B08] flex flex-col items-center justify-center gap-5 text-slate-900 dark:text-white relative overflow-hidden font-sans">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_-10%,rgba(5,150,105,0.18),transparent_70%)]"
+        />
+        <div className="p-5 rounded-3xl bg-white/90 dark:bg-[#0A1510]/90 border border-emerald-500/20 shadow-2xl backdrop-blur-xl relative">
+          <div className="absolute inset-0 rounded-3xl bg-emerald-500/20 blur-lg animate-pulse" />
+          <Loader2 className="relative size-10 animate-spin text-emerald-600 dark:text-lime-400" />
         </div>
-        <div className="text-center space-y-1">
-          <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
-            Generating Academic Transcript...
+        <div className="text-center space-y-1.5 relative z-10">
+          <p className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">
+            Compiling Certified Academic Transcript...
           </p>
-          <p className="text-xs text-slate-400">
-            Calculating certified module and station grading contributions
+          <p className="text-xs text-slate-500 dark:text-emerald-400/80 font-mono">
+            Cryptographically validating station marks and scaling weighted contributions
           </p>
         </div>
       </div>
@@ -154,22 +173,26 @@ function StudentResultsDashboardContent() {
 
   if (errorMessage || !data) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-6 text-slate-900 dark:text-white">
-        <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 text-center space-y-5 shadow-2xl">
-          <div className="size-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
-            <AlertCircle className="size-6" />
+      <div className="min-h-screen bg-[#F7FAF8] dark:bg-[#050B08] flex flex-col items-center justify-center p-6 text-slate-900 dark:text-white relative overflow-hidden font-sans">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_-10%,rgba(5,150,105,0.18),transparent_70%)]"
+        />
+        <div className="w-full max-w-md bg-white/95 dark:bg-[#0A1510]/95 border border-slate-200/80 dark:border-emerald-500/20 rounded-3xl p-8 text-center space-y-6 shadow-2xl backdrop-blur-xl relative z-10">
+          <div className="size-14 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-500 flex items-center justify-center mx-auto shadow-inner">
+            <AlertCircle className="size-7" />
           </div>
-          <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-              Unable to Load Transcript
+          <div className="space-y-1.5">
+            <h2 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">
+              Unable to Retrieve Transcript
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              {errorMessage || 'The requested student academic record could not be processed.'}
+            <p className="text-xs text-slate-600 dark:text-rose-200/90 leading-relaxed">
+              {errorMessage || 'The requested student academic record could not be processed for the active session.'}
             </p>
           </div>
           <Link
             href="/student/results"
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-teal-600 to-teal-400 text-white hover:from-teal-700 hover:to-teal-500 transition-all shadow-md shadow-teal-500/20"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-lime-600 hover:to-lime-500 text-white transition-all shadow-md shadow-emerald-500/20 cursor-pointer"
           >
             <ArrowLeft className="size-4" />
             <span>Return to Student Verification</span>
@@ -182,457 +205,514 @@ function StudentResultsDashboardContent() {
   const { student, modules } = data
   const printModule = activeModule || modules[0] || null
 
+  // Active or aggregate score dial parameters
+  const activeScore = activeModule ? activeModule.module_final_score : overallStats.averageGrade
+  const activePassed = activeModule ? activeModule.is_passed : overallStats.averageGrade >= 10
+  const scorePercentage = Math.min(100, Math.max(0, (activeScore / 20) * 100))
+  // Circumference for r=44 is ~276.46
+  const circumference = 276.46
+  const strokeDashoffset = circumference - (circumference * scorePercentage) / 100
+
   return (
     <>
-      {/* Clean Marksheet for Print / PDF */}
+      {/* Clean Marksheet View for Print / PDF Engine */}
       {printModule && (
         <div className="hidden print:block w-full">
           <PrintMarksheet
             student={student}
             activeModule={printModule}
-            evaluatingProfessorName={(data as any).evaluating_professor_name || 'Prof. Evaluating Examiner'}
+            evaluatingProfessorName={(data as any).evaluating_professor_name || 'Prof. Lead Examiner'}
             facultyName={(data as any).faculty_name || 'Faculty of Medicine'}
             granularity="detailed"
           />
         </div>
       )}
 
-      {/* Screen Interactive Container */}
-      <div className="min-h-screen bg-slate-50/70 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col justify-between selection:bg-teal-500 selection:text-white relative font-sans print:hidden">
-      {/* 1. Academic Navigation Header (Top Navbar) */}
-      <header className="w-full z-20 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md sticky top-0 print:hidden shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4">
-          {/* Brand & Context */}
-          <div className="flex items-center gap-3.5">
-            <Link
-              href="/student/results"
-              className="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              title="Search another student"
-            >
-              <ArrowLeft className="size-4" />
-            </Link>
+      {/* Screen Interactive Container (Forest & Lime System) */}
+      <div className="min-h-screen bg-[#F7FAF8] dark:bg-[#050B08] text-slate-900 dark:text-slate-100 flex flex-col justify-between selection:bg-lime-500 selection:text-black relative font-sans print:hidden">
+        {/* ATMOSPHERIC CANVAS: Radial ambient gradient radiating from top-center */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_50%_-10%,rgba(5,150,105,0.18),transparent_70%)]"
+        />
 
-            <div className="flex items-center gap-2.5">
-              <div className="size-8 rounded-xl bg-gradient-to-br from-teal-600 to-teal-400 flex items-center justify-center text-white shadow-md shadow-teal-500/20 shrink-0">
-                <Stethoscope className="size-4" />
-              </div>
-              <div>
-                <span className="font-extrabold text-sm tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-                  OSCE-Flow
-                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-teal-50 dark:bg-teal-950 text-teal-700 dark:text-teal-300 border border-teal-300/60 dark:border-teal-800/60 uppercase tracking-wider">
-                    Academic Transcript
-                  </span>
+        {/* ========================================================================= */}
+        {/* 1. FLOATING COMMAND BAR & TOP METADATA NAVIGATION                          */}
+        {/* ========================================================================= */}
+        <header className="relative z-20 w-full border-b border-slate-200/80 dark:border-emerald-500/15 bg-white/80 dark:bg-[#0A1510]/85 backdrop-blur-xl sticky top-0 shadow-xs">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
+            {/* Left: Ghost Pill Return Link & Institutional Branding */}
+            <div className="flex items-center gap-3">
+              <Link
+                href="/student/results"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-emerald-300 hover:text-emerald-700 dark:hover:text-lime-300 border border-slate-200/80 dark:border-emerald-500/20 bg-slate-50/50 dark:bg-[#102019]/60 hover:bg-slate-100 dark:hover:bg-[#102019] transition-all shadow-2xs group"
+                title="Verify another student credential"
+              >
+                <ArrowLeft className="size-3.5 group-hover:-translate-x-0.5 transition-transform text-emerald-500" />
+                <span>Verify Another Student</span>
+              </Link>
+
+              <div className="hidden sm:flex items-center gap-2 border-l border-slate-200 dark:border-emerald-500/20 pl-3">
+                <span className="font-extrabold text-xs tracking-tight text-slate-900 dark:text-white">
+                  NEW ERA <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-lime-500 dark:from-emerald-400 dark:to-lime-400">ECOS</span>
+                </span>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-700 dark:text-lime-300 border border-emerald-500/25 uppercase font-mono">
+                  Official Registry
                 </span>
               </div>
             </div>
+
+            {/* Center: Academic Cycle Chip & Study Level Badge */}
+            <div className="hidden md:flex items-center gap-2 text-xs font-semibold">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-100 dark:bg-[#102019] border border-slate-200/80 dark:border-emerald-500/20 text-slate-700 dark:text-emerald-300 font-mono text-[11px]">
+                <Calendar className="size-3 text-emerald-500" />
+                <span>{student.academic_year_label || '2026-2027'}</span>
+              </span>
+
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-100 dark:bg-[#102019] border border-slate-200/80 dark:border-emerald-500/20 text-slate-700 dark:text-emerald-300 text-[11px]">
+                <GraduationCap className="size-3 text-lime-400" />
+                <span>{student.level_name || '6ème Année Médecine'}</span>
+              </span>
+            </div>
+
+            {/* Right: Actions (Print, Theme, Sign Out) */}
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-emerald-500 hover:to-lime-500 shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer"
+                title="Print official certified marksheet"
+              >
+                <Printer className="size-3.5" />
+                <span className="hidden sm:inline">Print Marksheet</span>
+              </button>
+
+              <ThemeToggle />
+
+              <button
+                type="button"
+                onClick={handleStudentSignOut}
+                className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-emerald-500/20 bg-slate-50 dark:bg-[#102019] hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all cursor-pointer"
+                title="Exit verification session"
+              >
+                <LogOut className="size-3.5" />
+                <span className="hidden sm:inline">Exit</span>
+              </button>
+            </div>
           </div>
+        </header>
 
-          {/* Academic Context Pills in Navbar */}
-          <div className="hidden md:flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70">
-              <Calendar className="size-3 text-slate-400" />
-              <span>{student.academic_year_label}</span>
-            </span>
+        {/* ========================================================================= */}
+        {/* 2. MAIN COCKPIT & CANDIDATE STANDING HERO BANNER                          */}
+        {/* ========================================================================= */}
+        <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+          {/* Candidate Standing Hero Banner */}
+          <div className="p-6 sm:p-7 rounded-2xl bg-white/80 dark:bg-[#0A1510]/85 border border-slate-200/80 dark:border-emerald-500/20 shadow-xl backdrop-blur-xl relative overflow-hidden ring-1 ring-emerald-500/20">
+            {/* Ambient inner illumination */}
+            <div className="absolute -top-20 -right-20 size-72 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700">
-              <GraduationCap className="size-3 text-slate-400" />
-              <span>{student.level_name}</span>
-            </span>
-          </div>
-
-          {/* Action Tools */}
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-              title="Print official marksheet"
-            >
-              <Printer className="size-3.5" />
-              <span className="hidden sm:inline">Print</span>
-            </button>
-            <ThemeToggle />
-            <Link
-              href="/student/results"
-              className="text-xs font-bold text-teal-700 dark:text-teal-300 hover:text-teal-800 px-3 py-1.5 rounded-xl border border-teal-200 dark:border-teal-900/60 bg-teal-50 dark:bg-teal-950/40 hover:bg-teal-100/60 transition-colors"
-            >
-              New Lookup
-            </Link>
-            <button
-              type="button"
-              onClick={handleStudentSignOut}
-              className="flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
-              title="Sign out of student portal"
-            >
-              <LogOut className="size-3.5" />
-              <span className="hidden sm:inline">Sign Out</span>
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-        {/* Student Academic Identification Banner */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs relative overflow-hidden">
-          <div className="absolute -top-12 -right-12 size-48 bg-teal-500/5 rounded-full blur-2xl pointer-events-none" />
-
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
-            <div className="flex items-start gap-4">
-              <div className="size-14 rounded-full bg-gradient-to-br from-teal-600 to-teal-400 flex items-center justify-center text-white shadow-lg shadow-teal-500/20 shrink-0 border-2 border-teal-400/40">
-                <span className="font-bold font-mono text-xl leading-none text-white select-none">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+              {/* Left: Student Identity Card */}
+              <div className="flex items-start gap-4 sm:gap-5">
+                {/* Glowing candidate initials avatar */}
+                <div className="size-16 rounded-2xl ring-2 ring-lime-400/50 bg-gradient-to-br from-emerald-900 to-[#0B1612] text-lime-300 font-mono font-black text-2xl flex items-center justify-center shadow-lg shadow-lime-500/20 shrink-0 border border-lime-400/30 select-none">
                   {(student.first_name?.trim() || student.full_name?.trim() || student.last_name?.trim() || 'S').charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                    {student.full_name}
-                  </h1>
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-teal-50 dark:bg-teal-950/80 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
-                    {student.matricule}
-                  </span>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium pt-0.5">
-                  <span className="flex items-center gap-1">
-                    <GraduationCap className="size-3.5 text-slate-400" />
-                    <span>{student.level_name}</span>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                      {student.full_name}
+                    </h1>
+                    <span className="px-3 py-0.5 rounded-lg text-xs font-mono font-bold bg-emerald-500/10 text-emerald-700 dark:text-lime-300 border border-emerald-500/30 shadow-2xs">
+                      #{student.matricule}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-emerald-400/80 font-medium">
+                    <span className="flex items-center gap-1">
+                      <GraduationCap className="size-3.5 text-emerald-500" />
+                      <span>{student.level_name}</span>
+                    </span>
+                    <span>•</span>
+                    <span className="flex items-center gap-1">
+                      <Calendar className="size-3.5 text-emerald-500" />
+                      <span>{student.academic_year_label}</span>
+                    </span>
+                    <span>•</span>
+                    <span className="px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-[#102019] text-slate-700 dark:text-emerald-300 border border-slate-200 dark:border-emerald-500/20 font-semibold font-mono text-[11px]">
+                      {student.section_name || 'Section A'} • {student.group_name || 'Group 01'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: Certified Score Dial & Official Standing Badge */}
+              <div className="flex flex-wrap items-center gap-5 sm:gap-6 pt-4 lg:pt-0 border-t lg:border-t-0 border-slate-100 dark:border-emerald-500/15">
+                {/* Certified Radial Score Dial (SVG) */}
+                <div className="flex items-center gap-3.5 bg-slate-50/80 dark:bg-[#102019]/80 p-3 pr-5 rounded-2xl border border-slate-200/80 dark:border-emerald-500/25 shadow-inner">
+                  <div className="relative size-20 shrink-0">
+                    <svg className="size-full -rotate-90" viewBox="0 0 100 100">
+                      {/* Background Track */}
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="44"
+                        fill="transparent"
+                        stroke="currentColor"
+                        strokeWidth="8"
+                        className="text-slate-200 dark:text-[#0B1612]"
+                      />
+                      {/* Animated Active Radial Progress */}
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="44"
+                        fill="transparent"
+                        stroke={
+                          activePassed
+                            ? activeScore >= 16
+                              ? '#84CC16'
+                              : '#059669'
+                            : '#F43F5E'
+                        }
+                        strokeWidth="8"
+                        strokeDasharray={circumference}
+                        strokeDashoffset={strokeDashoffset}
+                        strokeLinecap="round"
+                        className="transition-all duration-700 ease-out"
+                      />
+                    </svg>
+
+                    {/* Inner Dial Readout */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center select-none">
+                      <span className="text-base font-black font-mono leading-none text-slate-900 dark:text-white">
+                        {activeScore.toFixed(2)}
+                      </span>
+                      <span className="text-[9px] font-bold text-slate-400 dark:text-emerald-400/70 uppercase tracking-tighter mt-0.5">
+                        / 20
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1 text-left">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-emerald-400/80 block">
+                      {activeModule ? 'Module Final Grade' : 'Cumulative GPA'}
+                    </span>
+                    <div className="font-mono font-black text-xl text-slate-900 dark:text-white leading-none">
+                      {activeScore.toFixed(2)}{' '}
+                      <span className="text-xs font-normal text-slate-400 font-sans">/ 20.00 pts</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 dark:text-emerald-500/70 block">
+                      Standardized OSCE Scale
+                    </span>
+                  </div>
+                </div>
+
+                {/* Official Standing Banner */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-emerald-400/80">
+                    Official Standing
                   </span>
-                  <span>·</span>
-                  <span className="flex items-center gap-1">
-                    <Calendar className="size-3.5 text-slate-400" />
-                    <span>{student.academic_year_label}</span>
-                  </span>
-                  <span>·</span>
-                  <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-semibold">
-                    {student.section_name} · {student.group_name}
-                  </span>
+                  {activePassed ? (
+                    <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-lime-400/15 text-lime-700 dark:text-lime-300 border border-lime-500/30 ring-2 ring-lime-400/20 shadow-md shadow-lime-500/10">
+                      <ShieldCheck className="size-5 text-lime-500 shrink-0" />
+                      <div className="flex flex-col">
+                        <span className="text-xs font-black tracking-wider uppercase leading-tight">
+                          PASSED (ADMIS)
+                        </span>
+                        <span className="text-[10px] font-medium opacity-90 leading-tight">
+                          {activeScore >= 16 ? 'Mention Très Bien • Honors' : 'Validated Module'}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30 ring-2 ring-rose-500/20 shadow-md shadow-rose-500/10">
+                      <ShieldAlert className="size-5 text-rose-500 shrink-0" />
+                      <div className="flex flex-col">
+                        <span className="text-xs font-black tracking-wider uppercase leading-tight">
+                          AJOURNÉ
+                        </span>
+                        <span className="text-[10px] font-medium opacity-90 leading-tight">
+                          Retake Session Required
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Academic Standing Quick Tally */}
-            <div className="flex items-center gap-3 self-start md:self-auto pt-3 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-slate-800">
-              <div className="px-4 py-2.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 text-center">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 block">
-                  Passed Modules
-                </span>
-                <span className="text-lg font-black font-mono text-emerald-700 dark:text-emerald-300">
-                  {data.passed_modules_count} / {data.total_modules_count}
-                </span>
+            {/* Bottom Quick Telemetry Strip */}
+            <div className="mt-6 pt-4 border-t border-slate-100 dark:border-emerald-500/15 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-50/60 dark:bg-[#102019]/60 border border-slate-200/60 dark:border-emerald-500/15">
+                <BookOpen className="size-4 text-emerald-500 shrink-0" />
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Curriculum Modules
+                  </span>
+                  <span className="font-mono font-bold text-slate-900 dark:text-white">
+                    {modules.length} Assigned
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-50/60 dark:bg-[#102019]/60 border border-slate-200/60 dark:border-emerald-500/15">
+                <CheckCircle2 className="size-4 text-lime-400 shrink-0" />
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Passed Modules
+                  </span>
+                  <span className="font-mono font-bold text-emerald-600 dark:text-lime-300">
+                    {data.passed_modules_count} / {data.total_modules_count}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-50/60 dark:bg-[#102019]/60 border border-slate-200/60 dark:border-emerald-500/15">
+                <Percent className="size-4 text-emerald-500 shrink-0" />
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Success Rate
+                  </span>
+                  <span className="font-mono font-bold text-slate-900 dark:text-white">
+                    {overallStats.passRate.toFixed(0)}%
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-50/60 dark:bg-[#102019]/60 border border-slate-200/60 dark:border-emerald-500/15">
+                <Layers className="size-4 text-lime-400 shrink-0" />
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Tested Stations
+                  </span>
+                  <span className="font-mono font-bold text-slate-900 dark:text-white">
+                    {overallStats.totalStations} Encounters
+                  </span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* 2. Interactive Breadcrumb Navigation Bar */}
-        <div className="flex items-center justify-between flex-wrap gap-3 px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-xs shadow-xs">
-          <nav className="flex items-center gap-1.5 flex-wrap font-semibold" aria-label="Breadcrumb">
-            <button
-              onClick={() => setSelectedModuleId(null)}
-              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg transition-colors cursor-pointer ${
-                selectedModuleId === null
-                  ? 'text-slate-900 dark:text-white font-bold bg-slate-100 dark:bg-slate-800'
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <BookOpen className="size-3.5 text-teal-500" />
-              <span>All Modules Overview</span>
-            </button>
-
-            {activeModule && (
-              <>
-                <ChevronRight className="size-3 text-slate-300 dark:text-slate-600" />
-                <span className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-slate-900 dark:text-white font-bold bg-slate-100 dark:bg-slate-800">
-                  <Layers className="size-3.5 text-emerald-500" />
-                  <span>{activeModule.module_name}</span>
-                  <span className="text-[10px] text-slate-400 font-mono">
-                    ({activeModule.module_final_score.toFixed(2)}/20)
-                  </span>
-                </span>
-              </>
-            )}
-          </nav>
-
-          {/* Quick Back or View Switcher */}
-          {selectedModuleId && (
-            <button
-              onClick={() => setSelectedModuleId(null)}
-              className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 transition-colors cursor-pointer"
-            >
-              <ArrowLeft className="size-3.5" />
-              <span>Back to All Modules</span>
-            </button>
-          )}
-        </div>
-
-        {/* Empty State when no modules exist */}
-        {modules.length === 0 ? (
-          <div className="p-12 text-center rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3">
-            <FileSpreadsheet className="size-10 text-slate-400 mx-auto stroke-1" />
-            <h2 className="text-base font-bold text-slate-800 dark:text-slate-200">
-              No Assessment Records Found
-            </h2>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto">
-              You do not have any evaluated clinical station attempts recorded on file yet. Please check back after station examiners submit your marksheets.
-            </p>
-          </div>
-        ) : selectedModuleId === null ? (
-          /* ========================================================================= */
-          /* LEVEL 1: MODULES GRID / CARDS VIEW                                        */
-          /* ========================================================================= */
-          <div className="space-y-4 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-                  <BookOpen className="size-5 text-teal-500" />
-                  <span>Academic Modules ({modules.length})</span>
-                </h2>
-                <p className="text-xs text-slate-400">
-                  Select a module below to inspect its individual station scores, weightage, and evaluation items.
-                </p>
-              </div>
+          {/* ========================================================================= */}
+          {/* LEVEL 1 VS LEVEL 2/3 CONDITIONAL VIEWS                                    */}
+          {/* ========================================================================= */}
+          {modules.length === 0 ? (
+            /* Empty State */
+            <div className="p-12 text-center rounded-2xl bg-white/80 dark:bg-[#0A1510]/80 border border-slate-200/80 dark:border-emerald-500/15 space-y-3 shadow-lg backdrop-blur-xl">
+              <FileSpreadsheet className="size-12 text-slate-400 dark:text-emerald-500/50 mx-auto stroke-1" />
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                No Certified Examination Records Found
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-emerald-400/70 max-w-sm mx-auto">
+                Your examination encounter records are either still being finalized by the evaluating board or awaiting official consolidation.
+              </p>
             </div>
+          ) : selectedModuleId === null ? (
+            /* ========================================================================= */
+            /* LEVEL 1: CLINICAL MODULES HIERARCHY GRID                                  */
+            /* ========================================================================= */
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+                    <BookOpen className="size-5 text-emerald-500" />
+                    <span>Clinical Modules Curriculum ({modules.length})</span>
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-emerald-400/80">
+                    Click any clinical organ specialty card to drill down into station-by-station performance and rubric scores.
+                  </p>
+                </div>
+              </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {modules.map((mod) => {
-                const isPassed = mod.is_passed
-                const sessionLabel =
-                  mod.session_type === 'retake' || mod.session_type === 'makeup'
-                    ? 'Retake Exam'
-                    : 'Regular Session'
+              {/* Module Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {modules.map((mod) => {
+                  const isPassed = mod.is_passed
+                  const visual = getModuleVisual(mod.module_name)
+                  const FallbackIcon = visual.fallbackIcon
+                  const sessionLabel =
+                    mod.session_type === 'retake' || mod.session_type === 'makeup'
+                      ? 'Rattrapage / Retake'
+                      : 'Session Normale'
 
-                const scorePct = Math.min(100, Math.max(0, (mod.module_final_score / 20) * 100))
+                  const scorePct = Math.min(100, Math.max(0, (mod.module_final_score / 20) * 100))
 
-                return (
-                  <div
-                    key={`${mod.module_id}_${mod.session_type}`}
-                    onClick={() => setSelectedModuleId(mod.module_id)}
-                    className="group rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 space-y-5 shadow-xs hover:shadow-md hover:border-teal-400/80 dark:hover:border-teal-500/60 transition-all cursor-pointer flex flex-col justify-between relative overflow-hidden"
-                  >
-                    {/* Top Accent Stripe */}
+                  return (
                     <div
-                      className={`absolute top-0 inset-x-0 h-1 transition-all ${
-                        isPassed
-                          ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
-                          : 'bg-gradient-to-r from-rose-500 to-amber-500'
-                      }`}
-                    />
+                      key={`${mod.module_id}_${mod.session_type}`}
+                      onClick={() => setSelectedModuleId(mod.module_id)}
+                      className="group rounded-2xl bg-white dark:bg-[#0A1510] border border-slate-200/80 dark:border-emerald-500/15 p-6 space-y-5 shadow-xs hover:shadow-xl hover:border-emerald-500/50 hover:-translate-y-1 transition-all duration-200 cursor-pointer flex flex-col justify-between relative overflow-hidden ring-1 ring-emerald-500/10"
+                    >
+                      {/* Top Accent Gradient Stripe */}
+                      <div
+                        className={`absolute top-0 inset-x-0 h-1 transition-all ${
+                          isPassed
+                            ? 'bg-gradient-to-r from-emerald-500 via-lime-400 to-emerald-500'
+                            : 'bg-gradient-to-r from-rose-500 via-amber-400 to-rose-500'
+                        }`}
+                      />
 
-                    <div className="space-y-4">
-                      {/* Header row: Session pill & Status Badge */}
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-900/40">
-                          {sessionLabel}
-                        </span>
-
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                            isPassed
-                              ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-                              : 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
-                          }`}
-                        >
-                          {isPassed ? (
-                            <>
-                              <CheckCircle2 className="size-3 text-emerald-500" />
-                              <span>PASSED</span>
-                            </>
-                          ) : (
-                            <>
-                              <AlertCircle className="size-3 text-rose-500" />
-                              <span>RETAKE REQUIRED</span>
-                            </>
-                          )}
-                        </span>
-                      </div>
-
-                      {/* Module Title */}
-                      <div>
-                        <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
-                          {mod.module_name}
-                        </h3>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          {mod.stations.length} Clinical {mod.stations.length === 1 ? 'Station' : 'Stations'} Evaluated
-                        </p>
-                      </div>
-
-                      {/* Score Display & Progress Gauge */}
-                      <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 space-y-2">
-                        <div className="flex items-baseline justify-between">
-                          <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">
-                            Final Score (/20)
-                          </span>
-                          <div className="flex items-baseline gap-1 font-mono">
-                            <span
-                              className={`text-2xl font-black ${
-                                isPassed
-                                  ? 'text-emerald-600 dark:text-emerald-400'
-                                  : 'text-rose-600 dark:text-rose-400'
-                              }`}
-                            >
-                              {mod.module_final_score.toFixed(2)}
-                            </span>
-                            <span className="text-xs text-slate-400 font-semibold">/ 20.00 pts</span>
+                      <div className="space-y-4">
+                        {/* Header Row: Organ Specialty Box + Session Pill + Status Badge */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            {/* Specialty Organ Box */}
+                            <div className="size-12 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-emerald-600 dark:text-lime-300 shadow-xs group-hover:scale-105 transition-transform shrink-0">
+                              <FallbackIcon className="size-6" />
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-emerald-400/80 block">
+                                {visual.specialty || 'Clinical Discipline'}
+                              </span>
+                              <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight group-hover:text-emerald-600 dark:group-hover:text-lime-300 transition-colors">
+                                {mod.module_name}
+                              </h3>
+                            </div>
                           </div>
+
+                          {/* Session Type Pill */}
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${
+                              mod.session_type === 'retake' || mod.session_type === 'makeup'
+                                ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/25'
+                                : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25'
+                            }`}
+                          >
+                            {sessionLabel}
+                          </span>
                         </div>
 
-                        {/* Progress bar with 10.00 pass indicator */}
-                        <div className="relative pt-1">
-                          <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                        {/* Stations count & evaluation subtitle */}
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          {mod.stations.length} Clinical {mod.stations.length === 1 ? 'Station' : 'Stations'} Evaluated • Standardized OSCE
+                        </p>
+
+                        {/* Final Score & Segmented Contribution Progress Bar */}
+                        <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#102019] border border-slate-200/70 dark:border-emerald-500/20 space-y-2.5">
+                          <div className="flex items-baseline justify-between">
+                            <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 dark:text-emerald-400/70">
+                              Aggregated Grade
+                            </span>
+                            <div className="flex items-baseline gap-1 font-mono">
+                              <span
+                                className={`text-2xl font-black ${
+                                  isPassed
+                                    ? 'text-emerald-600 dark:text-lime-300'
+                                    : 'text-rose-600 dark:text-rose-400'
+                                }`}
+                              >
+                                {mod.module_final_score.toFixed(2)}
+                              </span>
+                              <span className="text-xs text-slate-400 font-semibold">/ 20.00 pts</span>
+                            </div>
+                          </div>
+
+                          {/* Horizontal Segmented Progress Bar */}
+                          <div className="relative pt-1">
+                            <div className="h-2.5 w-full bg-slate-200 dark:bg-[#0B1612] rounded-full overflow-hidden border border-slate-300/40 dark:border-emerald-500/20">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${
+                                  isPassed
+                                    ? 'bg-gradient-to-r from-emerald-600 to-lime-400'
+                                    : 'bg-gradient-to-r from-rose-600 to-amber-500'
+                                }`}
+                                style={{ width: `${scorePct}%` }}
+                              />
+                            </div>
+
+                            {/* 10.00 Pass Line Indicator (50%) */}
                             <div
-                              className={`h-full rounded-full transition-all duration-500 ${
-                                isPassed
-                                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
-                                  : 'bg-gradient-to-r from-rose-500 to-amber-500'
-                              }`}
-                              style={{ width: `${scorePct}%` }}
+                              className="absolute top-0 bottom-0 w-0.5 bg-slate-400 dark:bg-emerald-400/50"
+                              style={{ left: '50%' }}
+                              title="Passing Benchmark: 10.00 pts"
+                            />
+                            {/* 16.00 Honors Line Indicator (80%) */}
+                            <div
+                              className="absolute top-0 bottom-0 w-0.5 bg-lime-500/80"
+                              style={{ left: '80%' }}
+                              title="Honors Benchmark: 16.00 pts"
                             />
                           </div>
-                          {/* 50% Threshold marker */}
-                          <div
-                            className="absolute top-0 bottom-0 w-0.5 bg-slate-400 dark:bg-slate-500"
-                            style={{ left: '50%' }}
-                            title="Passing mark: 10.00 pts"
-                          />
-                        </div>
 
-                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
-                          <span>0 pts</span>
-                          <span className="text-amber-600 dark:text-amber-400">Pass: 10.00</span>
-                          <span>20 pts</span>
+                          <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 dark:text-emerald-400/60 font-mono">
+                            <span>0.00</span>
+                            <span className="text-amber-600 dark:text-amber-400">Pass: 10.00</span>
+                            <span className="text-lime-600 dark:text-lime-400">Honors: 16.00</span>
+                            <span>20.00</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Drill-down action trigger */}
-                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs font-bold text-teal-600 dark:text-teal-400 group-hover:translate-x-0.5 transition-transform">
-                      <span>View Station Breakdown</span>
-                      <ArrowRight className="size-4" />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        ) : (
-          /* ========================================================================= */
-          /* LEVEL 2 & LEVEL 3: ACTIVE MODULE DRILL-DOWN VIEW                          */
-          /* ========================================================================= */
-          activeModule && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              {/* Active Module Top Banner Card */}
-              <div className="p-6 sm:p-7 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                      <button
-                        onClick={() => setSelectedModuleId(null)}
-                        className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                        title="Back to all modules"
-                      >
-                        <ArrowLeft className="size-4" />
-                      </button>
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5">
-                        <BookOpen className="size-3 text-teal-500" />
-                        <span>Module Assessment</span>
-                      </span>
-                      <span className="text-xs text-slate-300 dark:text-slate-700">|</span>
-                      <span className="text-xs font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 px-2.5 py-0.5 rounded-full border border-purple-200/60 dark:border-purple-900/40">
-                        {activeModule.session_type === 'retake' || activeModule.session_type === 'makeup'
-                          ? 'Retake Exam'
-                          : 'Regular Session'}
-                      </span>
-                    </div>
-
-                    <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                      {activeModule.module_name}
-                    </h2>
-                  </div>
-
-                  {/* Module Final Score */}
-                  <div className="flex items-center gap-3 self-start sm:self-auto bg-slate-50 dark:bg-slate-800/80 p-3 px-5 rounded-2xl border border-slate-200/70 dark:border-slate-700/60 shadow-xs">
-                    <div className="text-right">
-                      <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 block leading-tight">
-                        Module Final Score
-                      </span>
-                      <div className="flex items-baseline gap-1 font-mono">
-                        <span
-                          className={`text-2xl sm:text-3xl font-black ${
-                            activeModule.is_passed
-                              ? 'text-emerald-600 dark:text-emerald-400'
-                              : 'text-rose-600 dark:text-rose-400'
-                          }`}
-                        >
-                          {activeModule.module_final_score.toFixed(2)}
-                        </span>
-                        <span className="text-xs text-slate-400 font-semibold">/ 20.00 pts</span>
+                      {/* Card Footer: Drill-Down Action Link */}
+                      <div className="pt-3 border-t border-slate-100 dark:border-emerald-500/15 flex items-center justify-between text-xs font-bold text-emerald-600 dark:text-lime-300 group-hover:translate-x-1 transition-transform">
+                        <span>Inspect Station Breakdown</span>
+                        <ArrowRight className="size-4" />
                       </div>
                     </div>
-                  </div>
-                </div>
-
-                {/* Status & Banner Message */}
-                {activeModule.is_passed ? (
-                  <div
-                    role="status"
-                    className="p-4 rounded-2xl bg-emerald-50/90 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/80 text-emerald-900 dark:text-emerald-200 flex items-center gap-3 shadow-xs"
-                  >
-                    <CheckCircle2 className="size-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                    <p className="text-xs sm:text-sm font-bold leading-relaxed">
-                      {activeModule.banner_message}
-                    </p>
-                  </div>
-                ) : (
-                  <div
-                    role="status"
-                    className="p-4 rounded-2xl bg-rose-50/90 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800/80 text-rose-900 dark:text-rose-200 flex items-center gap-3 shadow-xs"
-                  >
-                    <XCircle className="size-5 text-rose-600 dark:text-rose-400 shrink-0" />
-                    <p className="text-xs sm:text-sm font-bold leading-relaxed">
-                      {activeModule.banner_message}
-                    </p>
-                  </div>
-                )}
+                  )
+                })}
               </div>
+            </div>
+          ) : (
+            /* ========================================================================= */
+            /* LEVEL 2 & LEVEL 3: ACTIVE MODULE STATIONS & RUBRIC BREAKDOWN              */
+            /* ========================================================================= */
+            activeModule && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                {/* Global Action Utility / High-Density Toolbar */}
+                <div className="flex items-center justify-between flex-wrap gap-3 p-4 rounded-2xl bg-white/90 dark:bg-[#0A1510]/90 border border-slate-200/80 dark:border-emerald-500/20 text-xs shadow-xs">
+                  {/* Breadcrumb Navigation */}
+                  <nav className="flex items-center gap-2 flex-wrap font-semibold" aria-label="Breadcrumb">
+                    <button
+                      onClick={() => setSelectedModuleId(null)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-600 dark:text-emerald-300 hover:text-emerald-700 dark:hover:text-lime-300 bg-slate-100 dark:bg-[#102019] border border-slate-200/80 dark:border-emerald-500/20 transition-all cursor-pointer font-bold"
+                    >
+                      <ArrowLeft className="size-3.5" />
+                      <span>All Modules</span>
+                    </button>
 
-              {/* Station Breakdown Section */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div>
-                    <h3 className="text-base font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-                      <Layers className="size-4.5 text-emerald-600 dark:text-emerald-400" />
-                      <span>Stations Breakdown ({activeModule.stations.length})</span>
-                    </h3>
-                    <p className="text-xs text-slate-400">
-                      Weighted score contributions and granular evaluation checklist items for each station.
-                    </p>
-                  </div>
+                    <ChevronRight className="size-3 text-slate-400 dark:text-emerald-500/40" />
 
+                    <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-900 dark:text-white font-bold bg-emerald-500/10 dark:bg-emerald-500/20 border border-emerald-500/30">
+                      <Layers className="size-3.5 text-lime-400" />
+                      <span>{activeModule.module_name}</span>
+                      <span className="text-[11px] font-mono text-emerald-600 dark:text-lime-300">
+                        ({activeModule.module_final_score.toFixed(2)}/20)
+                      </span>
+                    </span>
+                  </nav>
+
+                  {/* High-density tool buttons */}
                   <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-[#102019] border border-slate-200/80 dark:border-emerald-500/20 font-mono text-[11px] font-bold text-slate-600 dark:text-emerald-300">
+                      {activeModule.stations.length} Stations Configured
+                    </span>
+
                     <button
                       type="button"
                       onClick={() => expandAllStations(activeModule.stations)}
-                      className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                      className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-[#102019] hover:bg-slate-200 dark:hover:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/20 font-semibold text-slate-700 dark:text-emerald-300 transition-colors cursor-pointer"
                     >
                       Expand All
                     </button>
+
                     <button
                       type="button"
                       onClick={collapseAllStations}
-                      className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                      className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-[#102019] hover:bg-slate-200 dark:hover:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/20 font-semibold text-slate-700 dark:text-emerald-300 transition-colors cursor-pointer"
                     >
                       Collapse All
                     </button>
                   </div>
                 </div>
 
-                {/* Level 2: Stations Breakdown Cards */}
+                {/* Level 2: Station Cards Breakdown */}
                 <div className="grid grid-cols-1 gap-5">
                   {activeModule.stations.map((st) => {
                     const isExpanded = !!expandedStations[st.station_id]
-                    const hasPenalties = st.penalties.length > 0
+                    const hasPenalties = st.penalties && st.penalties.length > 0
                     const stationPercentage = typeof st.station_percentage === 'number'
                       ? st.station_percentage
                       : (st.station_max_points > 0 ? Math.min(100, Math.max(0, (st.net_station_raw_score / st.station_max_points) * 100)) : 0)
@@ -640,55 +720,53 @@ function StudentResultsDashboardContent() {
                     return (
                       <div
                         key={st.station_id}
-                        className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-5 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all"
+                        className="rounded-2xl border border-slate-200/80 dark:border-emerald-500/20 bg-white/95 dark:bg-[#0A1510]/95 p-6 space-y-5 shadow-sm hover:border-emerald-500/40 transition-all ring-1 ring-emerald-500/10"
                       >
                         {/* Station Header Row */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800/80">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-teal-50 dark:bg-teal-950 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 font-mono">
-                                Station {st.station_number}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-emerald-500/15">
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-2.5 flex-wrap">
+                              {/* Station Identity Pill */}
+                              <span className="px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold bg-emerald-500/10 text-emerald-700 dark:text-lime-300 border border-emerald-500/30">
+                                ST-{String(st.station_number).padStart(2, '0')}
                               </span>
-                              <h4 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+                              <h4 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
                                 {st.station_title}
                               </h4>
                             </div>
-                            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                              Weightage:{' '}
-                              <strong className="text-slate-700 dark:text-slate-300">
-                                {st.weightage_percentage}%
-                              </strong>{' '}
-                              • Station Score:{' '}
-                              <strong className="text-emerald-600 dark:text-emerald-400 font-mono">
-                                {stationPercentage.toFixed(1)}%
-                              </strong>{' '}
-                              → Max Contribution:{' '}
-                              <strong className="text-teal-600 dark:text-teal-400 font-mono">
-                                {st.station_max_contribution.toFixed(2)} / 20.00 pts
-                              </strong>
+
+                            <p className="text-xs font-medium text-slate-500 dark:text-emerald-400/80">
+                              Weightage: <strong className="text-slate-800 dark:text-white font-mono">{st.weightage_percentage}%</strong>{' '}
+                              • Scaled Max: <strong className="text-slate-800 dark:text-white font-mono">{st.station_max_points} pts</strong>{' '}
+                              • Efficiency Rate: <strong className="text-emerald-600 dark:text-lime-400 font-mono">{stationPercentage.toFixed(1)}%</strong>
                             </p>
                           </div>
 
-                          {/* Station Contribution Pill */}
-                          <div className="text-left sm:text-right bg-slate-50 dark:bg-slate-800/80 p-3 px-4 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-xs self-start sm:self-auto">
-                            <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 block leading-tight">
-                              Score Contribution
+                          {/* Station Contribution Metric (Raw Score -> Net Contribution Formula) */}
+                          <div className="text-left sm:text-right bg-slate-50 dark:bg-[#102019] p-3 px-4 rounded-xl border border-slate-200/80 dark:border-emerald-500/25 shadow-2xs shrink-0 self-start sm:self-auto">
+                            <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 dark:text-emerald-400/70 block leading-tight">
+                              Net Module Contribution
                             </span>
-                            <span className="text-base font-black font-mono text-teal-600 dark:text-teal-400">
-                              {st.station_contribution.toFixed(2)}{' '}
-                              <span className="text-xs font-normal text-slate-400">
+                            <div className="flex items-baseline gap-1 font-mono">
+                              <span className="text-lg sm:text-xl font-black text-emerald-600 dark:text-lime-300">
+                                {st.station_contribution.toFixed(2)}
+                              </span>
+                              <span className="text-xs font-medium text-slate-400">
                                 / {st.station_max_contribution.toFixed(2)} pts
                               </span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 dark:text-emerald-500/70 font-mono block">
+                              {st.net_station_raw_score.toFixed(1)} raw → {(st.station_contribution).toFixed(2)} weighted
                             </span>
                           </div>
                         </div>
 
-                        {/* Points Calculation Matrix Tiles */}
+                        {/* 4 Points Calculation Metric Tiles */}
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                          {/* Raw Earned Points */}
-                          <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 space-y-0.5">
-                            <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                              Raw Earned
+                          {/* 1. Raw Earned */}
+                          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#102019] border border-slate-200/60 dark:border-emerald-500/15 space-y-0.5">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-emerald-400/70 block">
+                              Raw Earned Points
                             </span>
                             <span className="text-xs sm:text-sm font-black font-mono text-slate-900 dark:text-white">
                               {st.raw_earned_points.toFixed(2)}{' '}
@@ -698,16 +776,16 @@ function StudentResultsDashboardContent() {
                             </span>
                           </div>
 
-                          {/* Criteria Deductions */}
-                          <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 space-y-0.5">
-                            <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                              Deductions
+                          {/* 2. Deductions */}
+                          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#102019] border border-slate-200/60 dark:border-emerald-500/15 space-y-0.5">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-emerald-400/70 block">
+                              Safety Deductions
                             </span>
                             <span
                               className={`text-xs sm:text-sm font-black font-mono ${
                                 st.deductions_points < 0
                                   ? 'text-rose-600 dark:text-rose-400 font-bold'
-                                  : 'text-slate-400'
+                                  : 'text-slate-400 dark:text-emerald-500/50'
                               }`}
                             >
                               {st.deductions_points < 0
@@ -716,12 +794,12 @@ function StudentResultsDashboardContent() {
                             </span>
                           </div>
 
-                          {/* Net Station Raw Score & Percentage */}
-                          <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 space-y-0.5">
-                            <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                              Net ({stationPercentage.toFixed(1)}%)
+                          {/* 3. Net Station Raw */}
+                          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#102019] border border-slate-200/60 dark:border-emerald-500/15 space-y-0.5">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-emerald-400/70 block">
+                              Net Raw Score ({stationPercentage.toFixed(0)}%)
                             </span>
-                            <span className="text-xs sm:text-sm font-black font-mono text-emerald-600 dark:text-emerald-400">
+                            <span className="text-xs sm:text-sm font-black font-mono text-emerald-600 dark:text-lime-300">
                               {st.net_station_raw_score.toFixed(2)}{' '}
                               <span className="text-[10px] font-normal text-slate-400">
                                 / {st.station_max_points}
@@ -729,41 +807,41 @@ function StudentResultsDashboardContent() {
                             </span>
                           </div>
 
-                          {/* Scaled Contribution */}
-                          <div className="p-3.5 rounded-2xl bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200/80 dark:border-teal-900/60 space-y-0.5">
-                            <span className="text-[10px] uppercase font-bold text-teal-700 dark:text-teal-300 block">
-                              Contribution (/20)
+                          {/* 4. Scaled Contribution */}
+                          <div className="p-3.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/30 space-y-0.5">
+                            <span className="text-[10px] uppercase font-bold text-emerald-700 dark:text-lime-300 block">
+                              Module Contribution (/20)
                             </span>
-                            <span className="text-xs sm:text-sm font-black font-mono text-teal-700 dark:text-teal-300">
+                            <span className="text-xs sm:text-sm font-black font-mono text-emerald-700 dark:text-lime-300">
                               {st.station_contribution.toFixed(2)} pts
                             </span>
                           </div>
                         </div>
 
-                        {/* Deductions Feed */}
+                        {/* Protocol Infractions & Safety Deductions Ledger */}
                         {hasPenalties && (
-                          <div className="p-4 rounded-2xl bg-rose-50/60 dark:bg-rose-950/30 border border-rose-200/70 dark:border-rose-900/60 space-y-2.5">
+                          <div className="p-4 rounded-xl bg-rose-950/20 dark:bg-rose-950/30 border-l-4 border-rose-500 space-y-2.5 shadow-2xs">
                             <div className="flex items-center gap-2 text-xs font-bold text-rose-700 dark:text-rose-300">
                               <ShieldAlert className="size-4 text-rose-500" />
-                              <span>Recorded Penalties & Deductions:</span>
+                              <span>Clinical Protocol Infractions & Safety Deductions Recorded:</span>
                             </div>
                             <div className="space-y-1.5 pl-1">
                               {st.penalties.map((pen) => (
                                 <div
                                   key={pen.id}
-                                  className="flex items-center justify-between text-xs font-medium text-slate-700 dark:text-slate-200 gap-2"
+                                  className="flex items-center justify-between text-xs font-medium text-slate-800 dark:text-rose-200 gap-2"
                                 >
                                   <div className="flex items-center gap-2">
                                     <span className="size-1.5 rounded-full bg-rose-500 shrink-0" />
                                     <span>{pen.reason}</span>
                                     {pen.matched_criteria_title && (
-                                      <span className="text-[10px] text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/60 px-2 py-0.5 rounded font-semibold">
+                                      <span className="text-[10px] text-rose-600 dark:text-rose-300 bg-rose-500/10 px-2 py-0.5 rounded font-semibold border border-rose-500/20">
                                         {pen.matched_criteria_title}
                                       </span>
                                     )}
                                   </div>
                                   <span className="font-mono font-bold text-rose-600 dark:text-rose-400 shrink-0">
-                                    [ {pen.points < 0 ? pen.points.toFixed(1) : `-${pen.points.toFixed(1)}`} ]
+                                    [ {pen.points < 0 ? pen.points.toFixed(1) : `-${pen.points.toFixed(1)}`} pts ]
                                   </span>
                                 </div>
                               ))}
@@ -771,31 +849,31 @@ function StudentResultsDashboardContent() {
                           </div>
                         )}
 
-                        {/* ========================================================================= */}
-                        {/* LEVEL 3: STATION QUESTIONS & SCORING DETAILS                              */}
-                        {/* ========================================================================= */}
-                        {st.answers.length > 0 && (
+                        {/* Level 3: Station Checklist Accordion Trigger */}
+                        {st.answers && st.answers.length > 0 && (
                           <div className="pt-2">
                             <button
                               type="button"
                               onClick={() => toggleStationExpand(st.station_id)}
-                              className="w-full py-3 px-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between transition-colors cursor-pointer"
+                              className="w-full py-3 px-4 rounded-xl bg-slate-50 dark:bg-[#102019] hover:bg-slate-100 dark:hover:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/20 text-xs font-bold text-slate-700 dark:text-emerald-300 flex items-center justify-between transition-colors cursor-pointer group"
                             >
                               <div className="flex items-center gap-2">
-                                <Sliders className="size-4 text-emerald-500" />
+                                <Sliders className="size-4 text-emerald-500 group-hover:scale-110 transition-transform" />
                                 <span>
                                   {isExpanded
-                                    ? 'Hide Granular Evaluation Items'
-                                    : `View Granular Evaluation Items (${st.answers.length} Questions & Criteria)`}
+                                    ? 'Hide Granular Rubric Checklist Items'
+                                    : `View Granular Rubric Checklist Items (${st.answers.length} Itemized Criteria)`}
                                 </span>
                               </div>
-                              {isExpanded ? (
-                                <ChevronUp className="size-4 text-slate-400" />
-                              ) : (
-                                <ChevronDown className="size-4 text-slate-400" />
-                              )}
+
+                              <ChevronDown
+                                className={`size-4 text-slate-400 transition-transform duration-200 ${
+                                  isExpanded ? 'rotate-180 text-emerald-500' : ''
+                                }`}
+                              />
                             </button>
 
+                            {/* Level 3: Granular Rubric Checklists Table */}
                             {isExpanded && (
                               <div className="mt-3 space-y-3 pt-2 animate-in fade-in duration-200">
                                 {st.answers.map((ans, idx) => {
@@ -805,56 +883,66 @@ function StudentResultsDashboardContent() {
                                   const studentSelections = Array.isArray(ans.selected_options)
                                     ? ans.selected_options
                                     : []
+                                  const isFull = ans.points_awarded >= ans.max_scale_value
+                                  const isZero = ans.points_awarded === 0
 
                                   return (
                                     <div
-                                      key={ans.question_id}
-                                      className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-700/60 space-y-3"
+                                      key={ans.question_id || idx}
+                                      className="p-4 rounded-xl bg-slate-50/70 dark:bg-[#102019]/60 border border-slate-200/70 dark:border-emerald-500/15 space-y-3"
                                     >
                                       {/* Question Prompt Header */}
                                       <div className="flex items-start justify-between gap-3">
                                         <div className="space-y-1">
                                           <div className="flex items-center gap-2">
-                                            <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-slate-200/80 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
-                                              Question {idx + 1}
+                                            <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-black bg-slate-200 dark:bg-[#0B1612] text-slate-800 dark:text-white">
+                                              #{idx + 1}
                                             </span>
+
                                             <span
                                               className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${
                                                 ans.question_type === 'MCQ'
-                                                  ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200/60 dark:border-blue-900/50'
+                                                  ? 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/25'
                                                   : ans.question_type === 'SCQ'
-                                                  ? 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200/60 dark:border-purple-900/50'
-                                                  : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-900/50'
+                                                  ? 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/25'
+                                                  : 'bg-emerald-500/10 text-emerald-700 dark:text-lime-300 border-emerald-500/25'
                                               }`}
                                             >
                                               {ans.question_type === 'MCQ'
                                                 ? 'Multiple Choice'
                                                 : ans.question_type === 'SCQ'
                                                 ? 'Single Choice'
-                                                : 'Clinical Competency Task'}
+                                                : 'Clinical Task'}
                                             </span>
                                           </div>
+
                                           <p className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white leading-relaxed">
                                             {ans.question_text}
                                           </p>
                                         </div>
 
-                                        {/* Score Awarded Badge */}
+                                        {/* Points Awarded Badge */}
                                         <div className="text-right shrink-0">
-                                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-mono font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white shadow-xs">
-                                            <span className="text-emerald-600 dark:text-emerald-400">
-                                              {ans.points_awarded.toFixed(1)}
-                                            </span>
-                                            <span className="text-slate-400">/ {ans.max_scale_value} pts</span>
+                                          <span
+                                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-mono font-bold border shadow-2xs ${
+                                              isFull
+                                                ? 'bg-emerald-500/15 text-emerald-700 dark:text-lime-300 border-emerald-500/30'
+                                                : isZero
+                                                ? 'bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30'
+                                                : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30'
+                                            }`}
+                                          >
+                                            <span>{ans.points_awarded.toFixed(1)}</span>
+                                            <span className="opacity-70">/ {ans.max_scale_value} pts</span>
                                           </span>
                                         </div>
                                       </div>
 
-                                      {/* Answer Choices & Answer Key Breakdown if MCQ/SCQ */}
+                                      {/* MCQ/SCQ Options Key Breakdown */}
                                       {isMCQorSCQ && optionsList.length > 0 && (
-                                        <div className="pt-2 border-t border-slate-200/50 dark:border-slate-700/50 space-y-2">
-                                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                                            Answer Choices & Official Answer Key:
+                                        <div className="pt-2 border-t border-slate-200/50 dark:border-emerald-500/15 space-y-2">
+                                          <span className="text-[10px] font-bold text-slate-400 dark:text-emerald-400/70 uppercase tracking-wider block">
+                                            Official Evaluation Key & Candidate Selections:
                                           </span>
                                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                             {optionsList.map((opt, oIdx) => {
@@ -864,16 +952,16 @@ function StudentResultsDashboardContent() {
                                               return (
                                                 <div
                                                   key={opt.id || oIdx}
-                                                  className={`p-2.5 rounded-xl border text-xs flex items-center justify-between gap-2 ${
+                                                  className={`p-2.5 rounded-lg border text-xs flex items-center justify-between gap-2 ${
                                                     isCorrectKey
-                                                      ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
+                                                      ? 'bg-emerald-500/10 dark:bg-emerald-500/15 border-emerald-500/30 text-emerald-900 dark:text-emerald-200 font-medium'
                                                       : wasSelected
-                                                      ? 'bg-rose-50/50 dark:bg-rose-950/30 border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200'
-                                                      : 'bg-white dark:bg-slate-800/60 border-slate-200/70 dark:border-slate-700/60 text-slate-700 dark:text-slate-300'
+                                                      ? 'bg-rose-500/10 dark:bg-rose-500/15 border-rose-500/30 text-rose-900 dark:text-rose-200'
+                                                      : 'bg-white dark:bg-[#0B1612] border-slate-200/70 dark:border-emerald-500/15 text-slate-700 dark:text-slate-300'
                                                   }`}
                                                 >
                                                   <div className="flex items-center gap-2 min-w-0">
-                                                    <span className="size-5 rounded-md bg-slate-100 dark:bg-slate-700 text-[10px] font-black flex items-center justify-center shrink-0">
+                                                    <span className="size-5 rounded-md bg-slate-100 dark:bg-[#12221C] text-[10px] font-mono font-bold flex items-center justify-center shrink-0">
                                                       {String.fromCharCode(65 + oIdx)}
                                                     </span>
                                                     <span className="truncate">{opt.text}</span>
@@ -881,13 +969,13 @@ function StudentResultsDashboardContent() {
 
                                                   <div className="flex items-center gap-1.5 shrink-0">
                                                     {isCorrectKey && (
-                                                      <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">
+                                                      <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-700 dark:text-lime-300">
                                                         <Check className="size-2.5" />
                                                         <span>Key</span>
                                                       </span>
                                                     )}
                                                     {wasSelected && (
-                                                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300">
+                                                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-700 dark:text-blue-300">
                                                         Selected
                                                       </span>
                                                     )}
@@ -899,11 +987,11 @@ function StudentResultsDashboardContent() {
                                         </div>
                                       )}
 
-                                      {/* Q&A Clinical Competency Note if Continuous Scale */}
+                                      {/* Continuous Clinical Rubric Task Note */}
                                       {ans.question_type === 'Q&A' && (
-                                        <div className="pt-2 border-t border-slate-200/50 dark:border-slate-700/50 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-                                          <span>Clinical performance scored live on incremental rubric</span>
-                                          <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                                        <div className="pt-2 border-t border-slate-200/50 dark:border-emerald-500/15 flex items-center justify-between text-[11px] text-slate-500 dark:text-emerald-400/80">
+                                          <span>Assessed live via standardized clinical criteria rubric</span>
+                                          <span className="font-mono font-bold text-emerald-600 dark:text-lime-300">
                                             Score: {ans.points_awarded.toFixed(1)} / {ans.max_scale_value} pts
                                           </span>
                                         </div>
@@ -920,29 +1008,30 @@ function StudentResultsDashboardContent() {
                   })}
                 </div>
               </div>
-            </div>
-          )
-        )}
-      </main>
+            )
+          )}
+        </main>
 
-      {/* Official Footer */}
-      <footer className="w-full py-6 text-center text-xs text-slate-400 border-t border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 print:hidden mt-12">
-        <div className="max-w-7xl mx-auto px-4 space-y-1">
-          <p className="font-semibold text-slate-500 dark:text-slate-400">
-            &copy; {new Date().getFullYear()} OSCE-Flow Platform. Certified Medical Grade Transcript & Clinical Performance Record.
-          </p>
-          <p className="text-[10px] text-slate-400">
-            All marks and scoring contributions are cryptographically validated against evaluator session marksheets.
-          </p>
-        </div>
-      </footer>
+        {/* ========================================================================= */}
+        {/* 3. OFFICIAL INSTITUTIONAL FOOTER                                           */}
+        {/* ========================================================================= */}
+        <footer className="relative z-10 w-full py-6 text-center text-xs text-slate-500 dark:text-emerald-400/60 border-t border-slate-200/80 dark:border-emerald-500/15 bg-white/60 dark:bg-[#0A1510]/60 backdrop-blur-md mt-12">
+          <div className="max-w-7xl mx-auto px-4 space-y-1">
+            <p className="font-semibold text-slate-600 dark:text-emerald-400/80">
+              &copy; {new Date().getFullYear()} OSCE-Flow Platform • Faculty of Medicine Certified Transcript Registry
+            </p>
+            <p className="text-[10px] text-slate-400 dark:text-emerald-500/50 font-mono">
+              Cryptographically consolidated clinical examination records • Official Marks Authentication
+            </p>
+          </div>
+        </footer>
 
-      {/* Global Full-Page Sign-Out Overlay */}
-      <SignOutOverlay
-        isOpen={isSigningOut}
-        title="Signing out securely..."
-        subtitle="Ending your student transcript verification session..."
-      />
+        {/* Global Exit / Sign Out Overlay */}
+        <SignOutOverlay
+          isOpen={isSigningOut}
+          title="Ending verification session..."
+          subtitle="Returning to the institutional credential gateway..."
+        />
       </div>
     </>
   )
@@ -952,10 +1041,10 @@ export default function StudentResultsDashboardPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center gap-4 text-slate-900 dark:text-white">
-          <Loader2 className="size-8 animate-spin text-teal-500" />
-          <p className="text-sm font-semibold animate-pulse text-slate-400">
-            Loading Academic Record...
+        <div className="min-h-screen bg-[#F7FAF8] dark:bg-[#050B08] flex flex-col items-center justify-center gap-4 text-slate-900 dark:text-white">
+          <Loader2 className="size-8 animate-spin text-emerald-600 dark:text-lime-400" />
+          <p className="text-sm font-semibold animate-pulse text-slate-500 dark:text-emerald-400/80 font-mono">
+            Loading Certified Academic Records...
           </p>
         </div>
       }

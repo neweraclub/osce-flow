@@ -46,13 +46,6 @@ export function PublicHeader() {
             <LogIn className="size-4" />
             Sign in
           </Link>
-          <Link
-            href="/signup"
-            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md hover:shadow-blue-500/25 px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
-          >
-            <UserPlus className="size-4" />
-            Sign up
-          </Link>
         </div>
       </div>
     </header>

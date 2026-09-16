@@ -1,563 +1,757 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
 import {
   Activity,
   ArrowRight,
-  BarChart3,
-  Bell,
+  Brain,
+  Building2,
+  Calendar,
   Check,
   CheckCircle2,
-  ChevronDown,
-  ClipboardCheck,
   Clock,
-  FileText,
-  KeyRound,
-  LayoutDashboard,
-  Lock,
-  LockKeyhole,
-  Menu,
-  Radio,
-  Search,
-  Settings,
-  ShieldCheck,
-  Stethoscope,
-  UserRound,
-  Users,
-  X,
-  Mail,
-  Phone,
-  BookOpen,
-  TrendingUp,
-  Upload,
-  Download,
+  Compass,
+  Cpu,
+  Droplets,
+  ExternalLink,
   Eye,
-  EyeOff,
+  FileCheck2,
+  GraduationCap,
+  Heart,
+  HeartPulse,
   Layers,
-  LogIn,
-  UserPlus,
+  Lock,
+  Microscope,
+  Play,
+  RotateCcw,
+  ShieldCheck,
   Sparkles,
+  Stethoscope,
+  Volume2,
+  VolumeX,
+  Wind,
   Zap,
 } from 'lucide-react'
-
-import { Button } from '@/components/ui/button'
-import { SiteFooter } from '@/components/footer'
 import { ThemeToggle } from '@/components/theme-toggle'
-import { AuthView } from '@/components/auth-view'
-import { ExaminerLaunchButton } from '@/components/evaluator/ExaminerLaunchButton'
 
-type View = 'home' | 'contact' | 'auth' | 'examiner' | 'results' | 'admin'
-type Role = 'examiner' | 'student' | 'admin'
-type Score = 'pass' | 'borderline' | 'fail' | null
+export default function LandingPage() {
+  // 3D Perspective Physics State
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
+  const [isHoveringHero, setIsHoveringHero] = useState(false)
 
-const candidateSeed = [
-  { name: 'Amara Okafor', id: 'MED-2024-0087', station: 'Cardiology', status: 'In progress', initials: 'AO', score: '—' },
-  { name: 'Daniel Chen', id: 'MED-2024-0091', station: 'Respiratory', status: 'Completed', initials: 'DC', score: '82%' },
-  { name: 'Sofia Martinez', id: 'MED-2024-0102', station: 'Neurology', status: 'Not started', initials: 'SM', score: '—' },
-  { name: 'James Wilson', id: 'MED-2024-0108', station: 'Abdominal', status: 'Completed', initials: 'JW', score: '74%' },
-]
-const criteria = ['Introduces self and confirms patient identity', 'Explores presenting complaint using open questions', 'Performs focused cardiovascular examination', 'Explains findings and offers a clear plan']
+  // Soundscape State (Web Audio API Synthesizer)
+  const [soundEnabled, setSoundEnabled] = useState(false)
+  const audioCtxRef = useRef<AudioContext | null>(null)
 
-export default function Page() {
-  const [view, setView] = useState<View>('home')
-  const [role, setRole] = useState<Role>('examiner')
-  const [mobileNav, setMobileNav] = useState(false)
-  const [selectedCandidate, setSelectedCandidate] = useState(0)
-  const [scores, setScores] = useState<Score[]>([null, null, null, null])
-  const [search, setSearch] = useState('')
-  const [toast, setToast] = useState('')
-  const [showPin, setShowPin] = useState(false)
-  const [loginMode, setLoginMode] = useState<'login' | 'register'>('login')
-  const [weights, setWeights] = useState([25, 25, 25, 25])
-  const filtered = useMemo(() => candidateSeed.filter((c) => `${c.name} ${c.id}`.toLowerCase().includes(search.toLowerCase())), [search])
-  const total = scores.every(Boolean) ? scores.reduce((sum, score) => sum + (score === 'pass' ? 25 : score === 'borderline' ? 15 : 5), 0) : 0
-  const notify = (message: string) => { setToast(message); window.setTimeout(() => setToast(''), 2200) }
+  // Theme Hue Filter State: 'all' | 'indigo' | 'emerald' | 'cyan'
+  const [activeHue, setActiveHue] = useState<'all' | 'indigo' | 'emerald' | 'cyan'>('all')
 
-  useEffect(() => {
-    const syncViewFromUrl = () => {
-      if (typeof window === 'undefined') return
-      const params = new URLSearchParams(window.location.search)
-      const urlView = params.get('view') as View
-      if (urlView && ['home', 'contact', 'examiner', 'results', 'admin'].includes(urlView)) {
-        setView(urlView)
+  // Live countdown timer for Examiner tablet mockup
+  const [timerSeconds, setTimerSeconds] = useState(462) // 07:42
+  const [pinVerified, setPinVerified] = useState(false)
+
+  // Organ animation state
+  const [activeOrganHover, setActiveOrganHover] = useState<string | null>(null)
+
+  // Canvas ref for ECG background wave
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+
+  // Play subtle clinical audio tone on interaction if sound is unmuted
+  const playClinicalChime = (freq = 520, type: OscillatorType = 'sine') => {
+    if (!soundEnabled || typeof window === 'undefined') return
+    try {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
       }
-    }
-    syncViewFromUrl()
-    window.addEventListener('popstate', syncViewFromUrl)
-    return () => window.removeEventListener('popstate', syncViewFromUrl)
-  }, [])
-
-  const navigate = (next: View) => {
-    setView(next)
-    setMobileNav(false)
-    if (typeof window !== 'undefined') {
-      if (next === 'home') {
-        window.history.pushState({}, '', '/')
-      } else {
-        window.history.pushState({}, '', `/?view=${next}`)
+      const ctx = audioCtxRef.current
+      if (ctx.state === 'suspended') {
+        ctx.resume()
       }
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = type
+      osc.frequency.setValueAtTime(freq, ctx.currentTime)
+      gain.gain.setValueAtTime(0.04, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.25)
+    } catch {
+      // Audio context policy fallback
     }
   }
 
-  const openWorkspace = (nextRole: Role) => { setRole(nextRole); navigate(nextRole === 'examiner' ? 'examiner' : nextRole === 'student' ? 'results' : 'admin') }
+  // Ticking countdown timer simulation
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimerSeconds((prev) => (prev > 1 ? prev - 1 : 480))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
 
-  return <div className="min-h-screen bg-background text-foreground transition-colors duration-200">
-    {view === 'home' || view === 'contact' || view === 'auth' ? <MarketingHeader navigate={navigate} /> : <WorkspaceHeader view={view} navigate={navigate} mobileNav={mobileNav} setMobileNav={setMobileNav} />}
-    {view === 'home' && <Landing navigate={navigate} openWorkspace={openWorkspace} />}
+  // Mouse coordinate tracker for 3D card tilt
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2
+    const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2
+    setMousePos({ x, y })
+  }
 
-    {view === 'contact' && <Contact navigate={navigate} notify={notify} />}
-    {view === 'auth' && <Auth mode={loginMode} setMode={setLoginMode} openWorkspace={openWorkspace} />}
-    {view === 'examiner' && <Examiner candidates={filtered} selectedCandidate={selectedCandidate} setSelectedCandidate={setSelectedCandidate} search={search} setSearch={setSearch} scores={scores} setScores={setScores} total={total} onSave={() => notify('Draft saved locally')} onSubmit={() => setShowPin(true)} />}
-    {view === 'results' && <Results notify={notify} />}
-    {view === 'admin' && <Admin search={search} setSearch={setSearch} weights={weights} setWeights={setWeights} notify={notify} />}
-    {(view === 'home' || view === 'contact') && <Footer navigate={navigate} />}
-    {showPin && <PinModal close={() => setShowPin(false)} submit={() => { setShowPin(false); notify('Assessment submitted successfully') }} />}
-    {toast && <div role="status" className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-lg">{toast}</div>}
-  </div>
-}
+  // Interactive ECG Rhythm Canvas Loop
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
 
-function Logo({ light = false }: { light?: boolean }) { return <span className={`flex items-center gap-2 text-lg font-bold tracking-tight ${light ? 'text-white' : 'text-slate-900 dark:text-white'}`}><span className="flex size-9 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm"><Activity className="size-5" /></span>NEW ERA <span className="text-blue-600 dark:text-blue-400">ECOS</span></span> }
+    let animId: number
+    let offset = 0
 
-function MarketingHeader({ navigate }: { navigate: (v: View) => void }) {
-  return (
-    <header className="sticky top-0 z-30 backdrop-blur-md bg-white/80 dark:bg-slate-900/80 border-b border-slate-200/80 dark:border-slate-800 transition-colors duration-200">
-      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        <Link href="/" onClick={() => navigate('home')} className="focus:outline-none">
-          <Logo />
-        </Link>
-        <nav className="hidden md:flex items-center gap-1">
-          <button
-            onClick={() => navigate('home')}
-            className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
-          >
-            <Layers className="size-4" />
-            Platform
-          </button>
-          <button
-            onClick={() => navigate('contact')}
-            className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60 px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
-          >
-            <Mail className="size-4" />
-            Contact
-          </button>
-        </nav>
-        <div className="flex items-center gap-2.5 sm:gap-3">
-          <Link
-            href="/examiner"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 dark:border-amber-500/40 transition-all shadow-xs active:scale-95 cursor-pointer"
-          >
-            <KeyRound className="size-4 text-amber-600 dark:text-amber-400" />
-            <span>Access Station</span>
-          </Link>
-          <ThemeToggle />
-          <Link
-            href="/login"
-            className="border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
-          >
-            <LogIn className="size-4" />
-            Sign in
-          </Link>
-          <Link
-            href="/signup"
-            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md hover:shadow-blue-500/25 px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
-          >
-            <UserPlus className="size-4" />
-            Sign up
-          </Link>
-        </div>
-      </div>
-    </header>
-  )
-}
+    const resize = () => {
+      if (!canvas) return
+      canvas.width = window.innerWidth
+      canvas.height = window.innerHeight
+    }
+    resize()
+    window.addEventListener('resize', resize)
 
+    const render = () => {
+      offset += 1.5
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-function WorkspaceHeader({ view, navigate, mobileNav, setMobileNav }: any) {
-  return (
-    <header className="sticky top-0 z-30 backdrop-blur-md bg-white/80 dark:bg-slate-900/80 border-b border-slate-200/80 dark:border-slate-800 transition-colors duration-200">
-      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        <button onClick={() => navigate('home')} className="focus:outline-none">
-          <Logo />
-        </button>
-        <nav className={`${mobileNav ? 'flex' : 'hidden'} absolute left-0 right-0 top-16 z-20 flex-col gap-1 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 lg:static lg:flex lg:flex-row lg:border-0 lg:bg-transparent lg:p-0`}>
-          <NavItem icon={LayoutDashboard} label="Overview" active={false} onClick={() => navigate('home')} />
-          <NavItem icon={ClipboardCheck} label="Examiner station" active={view === 'examiner'} onClick={() => navigate('examiner')} />
-          <NavItem icon={BarChart3} label="Student results" active={view === 'results'} onClick={() => navigate('results')} />
-          <NavItem icon={Settings} label="Admin" active={view === 'admin'} onClick={() => navigate('admin')} />
-        </nav>
-        <div className="flex items-center gap-3">
-          <ThemeToggle />
-          <button aria-label="Notifications" className="hidden rounded-lg p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 sm:block">
-            <Bell className="size-5" />
-          </button>
-          <div className="hidden items-center gap-2 border-l border-slate-200 dark:border-slate-700 pl-3 sm:flex">
-            <span className="flex size-8 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs font-semibold">JD</span>
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Dr. Jordan Davis</span>
-            <ChevronDown className="size-4 text-slate-400" />
-          </div>
-          <button aria-label="Toggle navigation" className="rounded-lg p-2 text-slate-600 dark:text-slate-300 lg:hidden" onClick={() => setMobileNav(!mobileNav)}>
-            <Menu className="size-5" />
-          </button>
-        </div>
-      </div>
-    </header>
-  )
-}
+      // Draw faint biometric ECG wave across lower screen
+      const yBase = canvas.height * 0.72
+      ctx.beginPath()
+      ctx.strokeStyle = activeHue === 'cyan' ? 'rgba(6, 182, 212, 0.18)' : activeHue === 'indigo' ? 'rgba(99, 102, 241, 0.18)' : 'rgba(5, 150, 105, 0.20)'
+      ctx.lineWidth = 1.5
+      ctx.lineJoin = 'round'
 
-function NavItem({ icon: Icon, label, active, onClick }: any) { return <button onClick={onClick} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${active ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}><Icon className="size-4" />{label}</button> }
+      for (let x = 0; x < canvas.width; x += 3) {
+        const cycle = (x + offset) % 280
+        let dy = 0
+        if (cycle > 90 && cycle < 100) dy = -8
+        else if (cycle >= 100 && cycle < 112) dy = 10
+        else if (cycle >= 112 && cycle < 125) dy = -36 // QRS peak
+        else if (cycle >= 125 && cycle < 135) dy = 14
+        else if (cycle >= 150 && cycle < 175) dy = -10 // T wave
 
-function Landing({ navigate, openWorkspace }: any) {
-  return (
-    <main>
-      <section className="overflow-hidden bg-slate-50 dark:bg-slate-900/90 px-5 py-20 text-slate-900 dark:text-slate-100 border-b border-slate-200/80 dark:border-slate-800 transition-colors duration-200 lg:px-8 lg:py-28">
-        <div className="mx-auto grid max-w-7xl items-center gap-14 lg:grid-cols-[1.05fr_.95fr]">
-          <div>
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/80 px-3.5 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 shadow-sm">
-              <ShieldCheck className="size-3.5 text-blue-600 dark:text-blue-400" />
-              Built for modern medical education
-            </div>
-            <h1 className="max-w-2xl text-balance text-5xl font-semibold tracking-tight sm:text-6xl text-slate-900 dark:text-white">
-              Assess with confidence. <span className="text-blue-600 dark:text-blue-400">Learn with clarity.</span>
-            </h1>
-            <p className="mt-6 max-w-xl text-pretty text-lg leading-8 text-slate-600 dark:text-slate-300">
-              A calm, connected workspace for OSCE examiners, students, and administrators. Make every assessment fair, fast, and useful.
-            </p>
-            {/* Clinical Station Quick Launcher */}
-            <div className="mt-8 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <ExaminerLaunchButton variant="hero" />
+        const y = yBase + dy
+        if (x === 0) ctx.moveTo(x, y)
+        else ctx.lineTo(x, y)
+      }
+      ctx.stroke()
 
-              <Link
-                href="/login"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 border border-slate-200 dark:border-slate-800"
-              >
-                <span>Staff & Dean Sign In</span>
-                <ArrowRight className="size-4 text-slate-400" />
-              </Link>
-            </div>
+      animId = requestAnimationFrame(render)
+    }
 
-            {/* Live Station Security & Sync Highlights */}
-            <div className="mt-6 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/50">
-                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Live Stations Active
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                <Lock className="size-3 text-slate-500 dark:text-slate-400" />
-                <span>PIN Lock-In</span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                <Zap className="size-3 text-blue-500" />
-                <span>Real-time Scoring</span>
-              </span>
-            </div>
-          </div>
-          <HeroShowcaseCard />
-        </div>
-      </section>
-      <section className="mx-auto max-w-7xl px-5 py-20 lg:px-8">
-        <div className="max-w-xl">
-          <p className="text-xs font-semibold uppercase tracking-widest text-blue-600 dark:text-blue-400">One platform, every perspective</p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">A better assessment day starts here.</h2>
-          <p className="mt-4 leading-7 text-slate-600 dark:text-slate-300">Replace scattered spreadsheets and delayed feedback with a shared source of truth for every station.</p>
-        </div>
-        <div className="mt-10 grid gap-4 md:grid-cols-3">
-          <Feature icon={ClipboardCheck} title="Examiner station" text="Focused checklists, candidate context, and fast scoring designed for the room." />
-          <Feature icon={BookOpen} title="Student clarity" text="Turn results into a practical, encouraging next step for every learner." />
-          <Feature icon={TrendingUp} title="Program insight" text="See cohort trends and configure assessments without the admin overhead." />
-        </div>
-      </section>
-      <section className="border-y border-slate-200 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-900/50 px-5 py-16 text-center">
-        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Trusted by clinical education teams who care about better feedback</p>
-        <div className="mx-auto mt-8 flex max-w-3xl flex-wrap justify-center gap-x-12 gap-y-5 text-lg font-semibold text-slate-700 dark:text-slate-300">
-          <span>Northbridge Medical</span>
-          <span>Vantage Health</span>
-          <span>St. Anne&apos;s</span>
-          <span>MedEd Collective</span>
-        </div>
-      </section>
-    </main>
-  )
-}
+    render()
 
-function HeroShowcaseCard() {
-  const criteriaList = [
-    {
-      id: 1,
-      category: 'CLINICAL TECHNIQUE',
-      title: 'Apical impulse palpation & landmark localization',
-      score: '5.0 / 5.0 pts',
-      highlight: 'from-blue-500/10 to-indigo-500/10',
-      border: 'border-blue-500/20 dark:border-blue-500/30',
-      badgeColor: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60',
-    },
-    {
-      id: 2,
-      category: 'PHYSICAL EXAMINATION',
-      title: 'Four-valve auscultation (bell & diaphragm systematic sequence)',
-      score: '5.0 / 5.0 pts',
-      highlight: 'from-amber-500/10 to-orange-500/10',
-      border: 'border-amber-500/20 dark:border-amber-500/30',
-      badgeColor: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60',
-    },
-    {
-      id: 3,
-      category: 'BEDSIDE MANNER',
-      title: 'Patient consent verification & aseptic protocol adherence',
-      score: '4.5 / 5.0 pts',
-      highlight: 'from-emerald-500/10 to-teal-500/10',
-      border: 'border-emerald-500/20 dark:border-emerald-500/30',
-      badgeColor: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60',
-    },
+    return () => {
+      cancelAnimationFrame(animId)
+      window.removeEventListener('resize', resize)
+    }
+  }, [activeHue])
+
+  // Formatted countdown clock string
+  const formatTimer = (sec: number) => {
+    const m = Math.floor(sec / 60)
+    const s = sec % 60
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  }
+
+  // Organ list with custom SVGs / icons
+  const organs = [
+    { id: 'cardio', name: 'Cardiologie', specialty: 'Cardiovascular', icon: Heart, color: 'text-rose-400 bg-rose-500/10 border-rose-500/30' },
+    { id: 'pneumo', name: 'Pneumologie', specialty: 'Respiratory', icon: Wind, color: 'text-sky-400 bg-sky-500/10 border-sky-500/30' },
+    { id: 'neuro', name: 'Neurologie', specialty: 'Neuroscience', icon: Brain, color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/30' },
+    { id: 'nephro', name: 'Néphrologie', specialty: 'Renal Biology', icon: Droplets, color: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30' },
+    { id: 'hemato', name: 'Hématologie', specialty: 'Oncology', icon: Microscope, color: 'text-purple-400 bg-purple-500/10 border-purple-500/30' },
+  ]
+
+  // Real-time telemetry feed messages
+  const telemetryFeed = [
+    'CIRCUIT ALPHA: ROOM 104 [CARDIOLOGIE] ── SCORE SUBMITTED BY PROF. EXAMINER',
+    'PIN REFRESH: STATION 06 ── EXAMINER AUTHENTICATED & READY',
+    'COHORT ROTATION: SECTION A ── SQUAD 02 ADVANCING ON BELL RINGER',
+    'PNEUMOLOGIE STATION 04 ── CANDIDATE ENTERING CLINICAL ROOM',
+    'EXAMINATION TRANSCRIPTS SYNCHRONIZED ── CRYPTOGRAPHIC TLS 1.3 LEDGER',
+    'DEAN COMMAND DESK: 24/24 STATIONS ACTIVE ACROSS UNIVERSITY HOSPITALS',
   ]
 
   return (
-    <div className="relative w-full max-w-xl mx-auto lg:max-w-none select-none">
-      {/* 1. Multi-Layered Glow & Gradient Backdrops */}
-      <div className="absolute -top-10 -left-10 size-72 rounded-full bg-gradient-to-tr from-blue-500/25 via-indigo-500/20 to-transparent blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-10 -right-10 size-80 rounded-full bg-gradient-to-bl from-amber-500/20 via-orange-500/15 to-transparent blur-3xl pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 via-transparent to-amber-500/10 rounded-3xl blur-2xl pointer-events-none" />
+    <div
+      onMouseMove={handleMouseMove}
+      className="min-h-screen bg-[#05080E] text-slate-100 flex flex-col justify-between relative overflow-hidden font-sans selection:bg-cyan-500 selection:text-black"
+    >
+      {/* ========================================================================= */}
+      {/* 1. ATMOSPHERIC CANVAS & TRICOLOR RADIAL AURORA                            */}
+      {/* ========================================================================= */}
+      <canvas
+        ref={canvasRef}
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-0 opacity-60"
+      />
 
-      {/* 2. Decorative Floating Glassmorphism Badges */}
-      {/* Floating Badge 1: Real-time Sync */}
-      <motion.div
-        animate={{ y: [-5, 5, -5] }}
-        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-        className="absolute -top-5 -left-3 sm:-left-6 z-20 hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full backdrop-blur-md bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-700/80 shadow-lg text-xs font-bold text-slate-800 dark:text-slate-200 pointer-events-none"
-      >
-        <span className="flex size-2 rounded-full bg-amber-500 animate-pulse" />
-        <Zap className="size-3 text-amber-500 fill-amber-500" />
-        <span>Real-time Sync</span>
-        <span className="font-mono text-[10px] text-slate-400 font-normal">12ms</span>
-      </motion.div>
+      {/* Tricolor Radial Aurora Orbs */}
+      <div
+        aria-hidden="true"
+        className={`pointer-events-none absolute top-[-10%] left-[-5%] size-[600px] rounded-full blur-3xl transition-opacity duration-700 ${
+          activeHue === 'all' || activeHue === 'indigo' ? 'bg-indigo-600/20 opacity-100' : 'opacity-10'
+        }`}
+      />
+      <div
+        aria-hidden="true"
+        className={`pointer-events-none absolute top-[20%] right-[-5%] size-[650px] rounded-full blur-3xl transition-opacity duration-700 ${
+          activeHue === 'all' || activeHue === 'emerald' ? 'bg-emerald-600/20 opacity-100' : 'opacity-10'
+        }`}
+      />
+      <div
+        aria-hidden="true"
+        className={`pointer-events-none absolute bottom-[-10%] left-[25%] size-[700px] rounded-full blur-3xl transition-opacity duration-700 ${
+          activeHue === 'all' || activeHue === 'cyan' ? 'bg-cyan-500/20 opacity-100' : 'opacity-10'
+        }`}
+      />
 
-      {/* Floating Badge 2: Encrypted Marks */}
-      <motion.div
-        animate={{ y: [6, -6, 6] }}
-        transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut', delay: 0.6 }}
-        className="absolute -bottom-4 -right-2 sm:-right-5 z-20 hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full backdrop-blur-md bg-white/90 dark:bg-slate-900/90 border border-emerald-500/40 dark:border-emerald-500/40 shadow-xl text-xs font-bold text-emerald-700 dark:text-emerald-300 pointer-events-none"
-      >
-        <Lock className="size-3.5 text-emerald-500" />
-        <span>Encrypted Marks</span>
-        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-300">
-          AES-256
-        </span>
-      </motion.div>
+      {/* Subtle Clinical Dot-Matrix Grid Overlay */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:24px_24px] [mask-image:radial-gradient(ellipse_at_center,black_50%,transparent_90%)] opacity-30"
+      />
 
-      {/* Floating Badge 3: Station Clock */}
-      <motion.div
-        animate={{ y: [-4, 4, -4] }}
-        transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut', delay: 1.2 }}
-        className="absolute -top-4 -right-2 sm:-right-4 z-20 hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full backdrop-blur-md bg-white/90 dark:bg-slate-900/90 border border-blue-500/30 dark:border-blue-500/30 shadow-md text-[11px] font-mono font-bold text-blue-600 dark:text-blue-400 pointer-events-none"
-      >
-        <Clock className="size-3 text-blue-500" />
-        <span>06:42 Active</span>
-      </motion.div>
-
-      {/* 3. Main 3D-esque Showcase Card */}
-      <motion.div
-        animate={{ y: [-3, 3, -3] }}
-        transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-        className="relative rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl p-5 sm:p-6 shadow-2xl shadow-slate-900/10 dark:shadow-black/60 overflow-hidden space-y-4"
-      >
-        {/* Subtle Ambient Radial Highlight */}
-        <div className="absolute top-0 right-0 w-56 h-56 bg-gradient-to-bl from-amber-500/10 via-transparent to-transparent rounded-full pointer-events-none" />
-
-        {/* Header: Station Live Pulse & Meta */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/80 shadow-xs">
-              <span className="relative flex size-2 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full size-2 bg-emerald-500" />
-              </span>
-              <span>LIVE TERMINAL · STATION 03</span>
+      {/* ========================================================================= */}
+      {/* 2. FLOATING TOP COMMAND CONTROLS (NO NAVBAR CLUTTER)                     */}
+      {/* ========================================================================= */}
+      <header className="relative z-20 w-full max-w-7xl mx-auto px-6 pt-6 flex items-center justify-between">
+        {/* Left: Discreet Brand Sigil */}
+        <div className="flex items-center gap-2.5">
+          <div className="size-8 rounded-xl bg-gradient-to-tr from-indigo-500 via-emerald-500 to-cyan-400 p-0.5 shadow-md shadow-cyan-500/20">
+            <div className="size-full bg-[#05080E] rounded-[10px] flex items-center justify-center text-cyan-300">
+              <Activity className="size-4" />
             </div>
-            <h3 className="text-sm font-black text-slate-900 dark:text-white tracking-tight">
-              Cardiovascular Examination & Auscultation
-            </h3>
-            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-              Internal Medicine OSCE · Level 3 · Examination Room 4B
-            </p>
           </div>
-
-          <div className="flex items-center gap-1.5 self-start sm:self-center px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 font-mono text-[11px] font-bold text-slate-700 dark:text-slate-300">
-            <Radio className="size-3 text-emerald-500 animate-pulse" />
-            <span>EXM-TERM-SYNC</span>
-          </div>
+          <span className="font-extrabold text-sm tracking-tight text-white select-none">
+            OSCE<span className="text-cyan-400 font-mono">-flow</span>
+          </span>
         </div>
 
-        {/* Active Candidate Strip */}
-        <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-800/80 shadow-xs">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="size-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white font-black text-xs flex items-center justify-center shadow-md">
-                AO
-              </div>
-              <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-900 dark:text-white">Amara Okafor</span>
-                <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60 font-semibold">
-                  Cohort A
-                </span>
-              </div>
-              <p className="text-[11px] font-mono text-slate-400">MED-2026-0087 · Station Slot 02</p>
-            </div>
-          </div>
-
-          <div className="text-right">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-              Status
-            </span>
-            <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400">
-              <span className="size-1.5 rounded-full bg-amber-500 animate-ping" />
-              Scoring Active
-            </span>
-          </div>
+        {/* Center: Live Status Pill */}
+        <div className="hidden sm:inline-flex items-center gap-2.5 px-3.5 py-1 rounded-full bg-[#0C1424]/90 border border-emerald-500/30 text-emerald-300 text-[11px] font-mono backdrop-blur-xl shadow-lg shadow-emerald-950/40">
+          <span className="relative flex size-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full size-2 bg-emerald-500" />
+          </span>
+          <span className="tracking-wide">SYSTEM STATUS: CLINICAL ENGINES SYNCHRONIZED</span>
         </div>
 
-        {/* Abstract Assessment Flow: Criteria Rows with Checkmark Pop Animations */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between px-1">
-            <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
-              Live Clinical Scoring Stream
-            </span>
-            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">
-              3 / 3 Criteria Recorded
-            </span>
-          </div>
+        {/* Right: Direct Portal Quick Links & Theme Toggle */}
+        <div className="flex items-center gap-2.5">
+          <Link
+            href="/student/results"
+            className="text-xs font-semibold text-cyan-300 hover:text-white px-3 py-1.5 rounded-xl border border-cyan-500/30 bg-cyan-950/40 hover:bg-cyan-900/40 backdrop-blur-md transition-all shadow-xs"
+          >
+            Candidate Results
+          </Link>
 
-          {criteriaList.map((item, idx) => (
-            <div
-              key={item.id}
-              className={`p-3 rounded-2xl border ${item.border} bg-gradient-to-r ${item.highlight} to-transparent backdrop-blur-xs flex items-center justify-between gap-3`}
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <motion.div
-                  initial={{ scale: 0.8 }}
-                  animate={{ scale: [1, 1.18, 1] }}
-                  transition={{
-                    duration: 2.2,
-                    repeat: Infinity,
-                    delay: idx * 0.4,
-                    ease: 'easeInOut',
-                  }}
-                  className="flex size-7 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-sm shadow-emerald-500/30 shrink-0"
-                >
-                  <Check className="size-4 stroke-[3]" />
-                </motion.div>
+          <Link
+            href="/login"
+            className="text-xs font-bold text-white px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 via-emerald-600 to-cyan-600 hover:opacity-90 transition-all shadow-md shadow-cyan-950/40 flex items-center gap-1.5"
+          >
+            <span>Faculty Login</span>
+            <ArrowRight className="size-3.5" />
+          </Link>
 
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className={`text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded ${item.badgeColor}`}
-                    >
-                      {item.category}
+          <ThemeToggle />
+        </div>
+      </header>
+
+      {/* ========================================================================= */}
+      {/* 3. HERO IDENTITY & TYPOGRAPHY                                            */}
+      {/* ========================================================================= */}
+      <div className="relative z-10 text-center max-w-4xl mx-auto px-6 pt-8 pb-4 space-y-3">
+        {/* Mobile Status Pill */}
+        <div className="sm:hidden inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#0C1424]/90 border border-emerald-500/30 text-emerald-300 text-[10px] font-mono backdrop-blur-md mb-2">
+          <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span>Live Exam Network Active</span>
+        </div>
+
+        {/* Dynamic Brand Typography with Tricolor Gradient Sweep */}
+        <h1 className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight text-white select-none">
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-emerald-400 to-cyan-400 animate-gradient-x">
+            OSCE-flow
+          </span>
+        </h1>
+
+        <p className="text-base sm:text-xl font-medium text-slate-300 max-w-2xl mx-auto leading-relaxed">
+          The Modern Platform for Medical Clinical Exams.
+        </p>
+
+        <p className="text-xs font-mono uppercase tracking-widest text-slate-400 dark:text-cyan-400/80">
+          Next-Generation Objective Structured Clinical Examination Infrastructure
+        </p>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 4. CENTRAL SHOWCASE: 3D "TRI-PORTAL" HOLOGRAPHIC SLATES                   */}
+      {/* ========================================================================= */}
+      <main
+        className="relative z-10 max-w-6xl mx-auto w-full px-4 sm:px-6 my-auto py-6"
+        style={{ perspective: '1200px' }}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
+          {/* ===================================================================== */}
+          {/* A. THE DEAN EXECUTIVE SLATE (Upper Tier · Indigo Aura)                */}
+          {/* ===================================================================== */}
+          <div
+            onMouseEnter={() => {
+              setIsHoveringHero(true)
+              playClinicalChime(440)
+            }}
+            onMouseLeave={() => setIsHoveringHero(false)}
+            className="md:col-span-12 lg:col-span-10 lg:col-start-2 p-5 sm:p-6 rounded-2xl bg-[#0A1024]/90 border border-indigo-500/30 shadow-2xl shadow-indigo-950/40 backdrop-blur-2xl transition-transform duration-200 ease-out ring-1 ring-indigo-500/20 relative overflow-hidden group"
+            style={{
+              transform: isHoveringHero
+                ? `rotateX(${mousePos.y * -6}deg) rotateY(${mousePos.x * 6}deg) translateZ(25px)`
+                : 'none',
+            }}
+          >
+            {/* Top Indigo Glow */}
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent" />
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-indigo-500/20">
+              <div className="flex items-center gap-3">
+                <div className="size-10 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-inner shrink-0">
+                  <Building2 className="size-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black tracking-wider uppercase text-indigo-300 font-mono">
+                      DEAN COMMAND HUB
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-500/20 text-indigo-200 border border-indigo-500/30">
+                      MASTER KPI
                     </span>
                   </div>
-                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate mt-0.5">
-                    {item.title}
-                  </p>
+                  <h2 className="text-base font-bold text-white">
+                    Faculté de Médecine • Central Examination Cockpit
+                  </h2>
                 </div>
               </div>
 
-              <span className="shrink-0 font-mono text-xs font-bold text-slate-700 dark:text-slate-300 px-2 py-1 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 shadow-xs">
-                {item.score}
-              </span>
+              {/* Ticking Milestone Sync */}
+              <div className="flex items-center gap-3">
+                <div className="px-3 py-1.5 rounded-lg bg-indigo-950/60 border border-indigo-500/30 text-right">
+                  <span className="text-[9px] uppercase font-bold text-indigo-400 block font-mono">
+                    Platform Sync
+                  </span>
+                  <span className="text-sm font-black font-mono text-white">99.4% LIVE</span>
+                </div>
+                <div className="size-2 rounded-full bg-indigo-400 animate-ping" />
+              </div>
             </div>
-          ))}
-        </div>
 
-        {/* Animated Score Gauge & Real-Time Sync Indicator */}
-        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-4">
-          {/* Circular Progress Gauge */}
-          <div className="flex items-center gap-3">
-            <div className="relative size-12 flex items-center justify-center">
-              <svg className="size-12 -rotate-90" viewBox="0 0 48 48">
-                <circle
-                  cx="24"
-                  cy="24"
-                  r="20"
-                  className="stroke-slate-200 dark:stroke-slate-800"
-                  strokeWidth="4"
-                  fill="none"
-                />
-                <motion.circle
-                  cx="24"
-                  cy="24"
-                  r="20"
-                  className="stroke-amber-500"
-                  strokeWidth="4"
-                  strokeDasharray="125.6"
-                  initial={{ strokeDashoffset: 125.6 }}
-                  animate={{ strokeDashoffset: 4.2 }}
-                  transition={{ duration: 1.5, ease: 'easeOut' }}
-                  strokeLinecap="round"
-                  fill="none"
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-[11px] font-black font-mono text-slate-900 dark:text-white">
-                  96%
+            {/* KPI Counter Grid */}
+            <div className="grid grid-cols-3 gap-3 pt-4">
+              <div className="p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/20 space-y-0.5">
+                <span className="text-[10px] uppercase font-bold text-indigo-400/80 font-mono block">
+                  Configured Stations
+                </span>
+                <span className="text-xl sm:text-2xl font-black font-mono text-white">
+                  24 <span className="text-xs font-normal text-indigo-300">Active</span>
+                </span>
+              </div>
+
+              <div className="p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/20 space-y-0.5">
+                <span className="text-[10px] uppercase font-bold text-indigo-400/80 font-mono block">
+                  Enrolled Cohorts
+                </span>
+                <span className="text-xl sm:text-2xl font-black font-mono text-white">
+                  6 <span className="text-xs font-normal text-indigo-300">Sections</span>
+                </span>
+              </div>
+
+              <div className="p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/20 space-y-0.5">
+                <span className="text-[10px] uppercase font-bold text-indigo-400/80 font-mono block">
+                  Readiness
+                </span>
+                <span className="text-xl sm:text-2xl font-black font-mono text-emerald-400">
+                  READY <span className="text-xs font-normal text-indigo-300">TO LAUNCH</span>
                 </span>
               </div>
             </div>
 
-            <div>
-              <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 block">
-                Total Station Score
+            {/* 4-Step Milestone Ribbon */}
+            <div className="mt-4 pt-3 border-t border-indigo-500/20 flex items-center justify-between text-[11px] font-mono text-indigo-300/80 overflow-x-auto gap-2">
+              <span className="flex items-center gap-1 shrink-0 text-white font-bold">
+                <Check className="size-3 text-indigo-400" /> 1. Academic Year
               </span>
-              <span className="text-sm font-black font-mono text-amber-600 dark:text-amber-400">
-                14.5{' '}
-                <span className="text-[11px] font-normal text-slate-400">/ 15.0 pts</span>
+              <span className="text-indigo-500">→</span>
+              <span className="flex items-center gap-1 shrink-0 text-white font-bold">
+                <Check className="size-3 text-indigo-400" /> 2. Study Levels
+              </span>
+              <span className="text-indigo-500">→</span>
+              <span className="flex items-center gap-1 shrink-0 text-white font-bold">
+                <Check className="size-3 text-indigo-400" /> 3. Modules Provisioned
+              </span>
+              <span className="text-indigo-500">→</span>
+              <span className="flex items-center gap-1 shrink-0 text-emerald-300 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
+                4. Live Assessment
               </span>
             </div>
           </div>
 
-          {/* Sync Status Badge */}
-          <div className="flex flex-col items-end">
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 className="size-3.5" />
-              <span>Marksheet Locked</span>
-            </span>
-            <span className="text-[10px] font-mono text-slate-400 mt-0.5">
-              Synced to Central Cloud
-            </span>
+          {/* ===================================================================== */}
+          {/* B. THE EVALUATOR TERMINAL SLATE (Mid-Left · Emerald Aura)             */}
+          {/* ===================================================================== */}
+          <div
+            onMouseEnter={() => {
+              setIsHoveringHero(true)
+              playClinicalChime(520)
+            }}
+            onMouseLeave={() => setIsHoveringHero(false)}
+            className="md:col-span-6 p-5 sm:p-6 rounded-2xl bg-[#061610]/90 border border-emerald-500/30 shadow-2xl shadow-emerald-950/40 backdrop-blur-2xl transition-transform duration-200 ease-out ring-1 ring-emerald-500/20 relative overflow-hidden group"
+            style={{
+              transform: isHoveringHero
+                ? `rotateX(${mousePos.y * -8}deg) rotateY(${mousePos.x * 8 + 4}deg) translateZ(15px)`
+                : 'none',
+            }}
+          >
+            {/* Emerald Top Glow */}
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-emerald-500 to-transparent" />
+
+            <div className="flex items-center justify-between pb-3 border-b border-emerald-500/20">
+              <div className="flex items-center gap-2">
+                <div className="size-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                  <Stethoscope className="size-4" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-mono font-bold text-emerald-300 uppercase block">
+                    EXAMINER TERMINAL
+                  </span>
+                  <span className="text-xs font-bold text-white">ST-01 Cardiologie</span>
+                </div>
+              </div>
+
+              {/* Countdown Timer with SVG Depleting Ring */}
+              <div className="flex items-center gap-2 bg-emerald-950/70 px-3 py-1.5 rounded-xl border border-emerald-500/30">
+                <Clock className="size-3.5 text-emerald-400 animate-pulse" />
+                <span className="font-mono font-black text-sm text-emerald-300">
+                  {formatTimer(timerSeconds)}
+                </span>
+                <span className="text-[9px] font-mono text-emerald-400/80">LEFT</span>
+              </div>
+            </div>
+
+            {/* Live Masked PIN Chip (Hover Flashes VERIFIED) */}
+            <div
+              onMouseEnter={() => setPinVerified(true)}
+              onMouseLeave={() => setPinVerified(false)}
+              className="mt-3.5 p-2.5 rounded-xl bg-emerald-950/50 border border-emerald-500/25 flex items-center justify-between text-xs cursor-pointer transition-colors"
+            >
+              <span className="text-[11px] font-bold text-emerald-400/80 font-mono">
+                Station PIN Gate:
+              </span>
+              <span
+                className={`px-2.5 py-0.5 rounded font-mono text-xs font-bold transition-all ${
+                  pinVerified
+                    ? 'bg-emerald-500 text-black border border-emerald-300 shadow-md shadow-emerald-500/40'
+                    : 'bg-[#0B1A14] text-emerald-300 border border-emerald-500/30'
+                }`}
+              >
+                {pinVerified ? 'VERIFIED ✓' : '•••• 7821'}
+              </span>
+            </div>
+
+            {/* Checklist items with animated checkmarks */}
+            <div className="mt-3.5 space-y-2">
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#0B1A14] border border-emerald-500/20 text-xs">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="size-4 text-emerald-400 shrink-0" />
+                  <span className="font-medium text-slate-200">Patient Greeting & ID Confirm</span>
+                </div>
+                <span className="font-mono text-[11px] font-bold text-emerald-400">+2.0 pts</span>
+              </div>
+
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#0B1A14] border border-emerald-500/20 text-xs">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="size-4 text-emerald-400 shrink-0" />
+                  <span className="font-medium text-slate-200">Aseptic Hand Hygiene & Gloves</span>
+                </div>
+                <span className="font-mono text-[11px] font-bold text-emerald-400">+3.0 pts</span>
+              </div>
+
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#0B1A14] border border-emerald-500/20 text-xs">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="size-4 text-emerald-400 shrink-0" />
+                  <span className="font-medium text-slate-200">Auscultation of Heart Sounds</span>
+                </div>
+                <span className="font-mono text-[11px] font-bold text-emerald-400">+5.0 pts</span>
+              </div>
+            </div>
+
+            {/* Station Contribution Readout */}
+            <div className="mt-3.5 pt-3 border-t border-emerald-500/20 flex items-center justify-between text-xs font-mono">
+              <span className="text-slate-400">Total Station Mark:</span>
+              <span className="font-black text-emerald-300 text-sm">18.50 / 20.00 pts</span>
+            </div>
+          </div>
+
+          {/* ===================================================================== */}
+          {/* C. THE ANALYTICAL CANDIDATE SLATE (Mid-Right · Cyan Aura)             */}
+          {/* ===================================================================== */}
+          <div
+            onMouseEnter={() => {
+              setIsHoveringHero(true)
+              playClinicalChime(660)
+            }}
+            onMouseLeave={() => setIsHoveringHero(false)}
+            className="md:col-span-6 p-5 sm:p-6 rounded-2xl bg-[#051422]/90 border border-cyan-500/30 shadow-2xl shadow-cyan-950/40 backdrop-blur-2xl transition-transform duration-200 ease-out ring-1 ring-cyan-500/20 relative overflow-hidden group"
+            style={{
+              transform: isHoveringHero
+                ? `rotateX(${mousePos.y * -8}deg) rotateY(${mousePos.x * 8 - 4}deg) translateZ(15px)`
+                : 'none',
+            }}
+          >
+            {/* Cyan Top Glow */}
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent" />
+
+            <div className="flex items-center justify-between pb-3 border-b border-cyan-500/20">
+              <div className="flex items-center gap-2">
+                <div className="size-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                  <GraduationCap className="size-4" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-mono font-bold text-cyan-300 uppercase block">
+                    CANDIDATE TRANSCRIPT
+                  </span>
+                  <span className="text-xs font-bold text-white">Nihad BENNACEUR</span>
+                </div>
+              </div>
+
+              {/* Matricule Tag */}
+              <span className="font-mono text-xs px-2.5 py-0.5 rounded-lg bg-cyan-950/80 border border-cyan-500/30 text-cyan-300 font-bold">
+                #2026-MED-8491
+              </span>
+            </div>
+
+            {/* Candidate Result Radial Gauge & Organ Badge */}
+            <div className="mt-4 flex items-center justify-between gap-4 p-4 rounded-xl bg-[#0A1828] border border-cyan-500/20">
+              {/* Radial Meter */}
+              <div className="relative size-20 shrink-0">
+                <svg className="size-full -rotate-90" viewBox="0 0 100 100">
+                  <defs>
+                    <linearGradient id="landingCyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#06B6D4" />
+                      <stop offset="100%" stopColor="#0EA5E9" />
+                    </linearGradient>
+                  </defs>
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="44"
+                    fill="transparent"
+                    stroke="currentColor"
+                    strokeWidth="8"
+                    className="text-[#081525]"
+                  />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="44"
+                    fill="transparent"
+                    stroke="url(#landingCyanGrad)"
+                    strokeWidth="8"
+                    strokeDasharray={276.46}
+                    strokeDashoffset={276.46 - (276.46 * 0.79)} // ~15.80 / 20
+                    strokeLinecap="round"
+                    className="transition-all duration-1000 ease-out"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                  <span className="text-base font-black font-mono text-cyan-300 leading-none">
+                    15.80
+                  </span>
+                  <span className="text-[8px] font-bold text-cyan-400/60 uppercase">/ 20</span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5 flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  {/* Beating Heart Icon */}
+                  <div className="size-6 rounded-md bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0">
+                    <Heart className="size-3.5 animate-pulse" />
+                  </div>
+                  <span className="text-xs font-bold text-white truncate">Cardiologie Module</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                    <ShieldCheck className="size-3 text-emerald-400" />
+                    ADMIS (VALIDÉ)
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Station Breakdown Matrix */}
+            <div className="mt-3.5 grid grid-cols-3 gap-2 text-center text-xs font-mono">
+              <div className="p-2 rounded-lg bg-[#0A1828] border border-cyan-500/15">
+                <span className="text-[9px] text-slate-400 block">Station 1</span>
+                <span className="font-bold text-cyan-300">18.5/20</span>
+              </div>
+              <div className="p-2 rounded-lg bg-[#0A1828] border border-cyan-500/15">
+                <span className="text-[9px] text-slate-400 block">Station 2</span>
+                <span className="font-bold text-cyan-300">14.0/20</span>
+              </div>
+              <div className="p-2 rounded-lg bg-[#0A1828] border border-cyan-500/15">
+                <span className="text-[9px] text-slate-400 block">Station 3</span>
+                <span className="font-bold text-cyan-300">16.2/20</span>
+              </div>
+            </div>
+
+            {/* Cryptographic Validated Stamp */}
+            <div className="mt-3.5 pt-3 border-t border-cyan-500/20 flex items-center justify-between text-[10px] font-mono text-cyan-400/70">
+              <span>Examiner Consolidated Record</span>
+              <span className="text-emerald-400 font-bold">100% Validated</span>
+            </div>
           </div>
         </div>
-      </motion.div>
+      </main>
+
+      {/* ========================================================================= */}
+      {/* 5. INTERACTIVE AMBIENT FEATURE STRIP & REAL-TIME TICKER                   */}
+      {/* ========================================================================= */}
+      <div className="relative z-10 w-full space-y-4 pt-4 pb-8">
+        {/* Organ Specialty Micro-Badges Carousel */}
+        <div className="max-w-4xl mx-auto px-6">
+          <div className="flex items-center justify-center flex-wrap gap-2.5">
+            {organs.map((organ) => {
+              const OrganIcon = organ.icon
+              const isHovered = activeOrganHover === organ.id
+              return (
+                <button
+                  key={organ.id}
+                  type="button"
+                  onMouseEnter={() => {
+                    setActiveOrganHover(organ.id)
+                    playClinicalChime(580)
+                  }}
+                  onMouseLeave={() => setActiveOrganHover(null)}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl border backdrop-blur-md transition-all duration-200 cursor-pointer ${
+                    isHovered
+                      ? 'bg-white/15 scale-105 shadow-lg border-cyan-400 text-white'
+                      : 'bg-white/5 border-white/10 hover:border-white/20 text-slate-300'
+                  }`}
+                >
+                  <div className={`size-6 rounded-lg flex items-center justify-center ${organ.color}`}>
+                    <OrganIcon className={`size-3.5 ${isHovered ? 'animate-bounce' : ''}`} />
+                  </div>
+                  <span className="text-xs font-bold font-mono tracking-tight">
+                    {organ.name}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Real-Time Clinical Data Ribbon (Infinite Scrolling Ticker) */}
+        <div className="w-full border-y border-white/10 bg-[#080E1C]/80 backdrop-blur-md py-2.5 overflow-hidden flex items-center">
+          <div className="flex animate-marquee whitespace-nowrap gap-8 text-[11px] font-mono text-cyan-300/80">
+            {[...telemetryFeed, ...telemetryFeed].map((item, idx) => (
+              <span key={idx} className="flex items-center gap-3">
+                <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span>{item}</span>
+                <span className="text-white/20">///</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 6. ERGONOMIC FLOATING CONTROLS (AUDIO & THEME TONE SLIDER)                 */}
+      {/* ========================================================================= */}
+      <div className="relative z-20 w-full max-w-7xl mx-auto px-6 pb-6 flex items-center justify-between text-xs">
+        {/* Bottom-Left: Global Soundscape Toggle */}
+        <button
+          type="button"
+          onClick={() => {
+            const next = !soundEnabled
+            setSoundEnabled(next)
+            if (next) playClinicalChime(520)
+          }}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#0A1322]/90 border border-white/15 text-slate-300 hover:text-white hover:border-cyan-500/40 backdrop-blur-md transition-all shadow-md cursor-pointer"
+          title="Toggle clinical ambient audio soundscape"
+        >
+          {soundEnabled ? (
+            <>
+              <Volume2 className="size-3.5 text-cyan-400" />
+              <span className="font-mono text-[11px] text-cyan-300">Audio: Clinical Feedback Active</span>
+              <span className="flex gap-0.5 items-end h-3">
+                <span className="w-0.5 h-2 bg-cyan-400 animate-pulse" />
+                <span className="w-0.5 h-3 bg-cyan-400 animate-pulse" />
+                <span className="w-0.5 h-1.5 bg-cyan-400 animate-pulse" />
+              </span>
+            </>
+          ) : (
+            <>
+              <VolumeX className="size-3.5 text-slate-500" />
+              <span className="font-mono text-[11px] text-slate-400">Audio: Muted (Click to enable)</span>
+            </>
+          )}
+        </button>
+
+        {/* Bottom-Right: Theme Tone Hue Selector */}
+        <div className="flex items-center gap-1.5 p-1 rounded-full bg-[#0A1322]/90 border border-white/15 backdrop-blur-md shadow-md text-[10px] font-mono">
+          <span className="px-2 text-slate-400">Aura Tone:</span>
+          <button
+            type="button"
+            onClick={() => setActiveHue('all')}
+            className={`px-2.5 py-0.5 rounded-full transition-all cursor-pointer ${
+              activeHue === 'all'
+                ? 'bg-white/20 text-white font-bold'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Tricolor
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveHue('indigo')}
+            className={`px-2.5 py-0.5 rounded-full transition-all cursor-pointer ${
+              activeHue === 'indigo'
+                ? 'bg-indigo-500/30 text-indigo-300 font-bold border border-indigo-500/40'
+                : 'text-slate-400 hover:text-indigo-300'
+            }`}
+          >
+            Dean
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveHue('emerald')}
+            className={`px-2.5 py-0.5 rounded-full transition-all cursor-pointer ${
+              activeHue === 'emerald'
+                ? 'bg-emerald-500/30 text-emerald-300 font-bold border border-emerald-500/40'
+                : 'text-slate-400 hover:text-emerald-300'
+            }`}
+          >
+            Examiner
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveHue('cyan')}
+            className={`px-2.5 py-0.5 rounded-full transition-all cursor-pointer ${
+              activeHue === 'cyan'
+                ? 'bg-cyan-500/30 text-cyan-300 font-bold border border-cyan-500/40'
+                : 'text-slate-400 hover:text-cyan-300'
+            }`}
+          >
+            Candidate
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
-
-function Feature({ icon: Icon, title, text }: any) {
-  return (
-    <div className="glass-card rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 bg-white/70 dark:bg-slate-800/50">
-      <span className="mb-5 flex size-10 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
-        <Icon className="size-5" />
-      </span>
-      <h3 className="font-semibold text-slate-900 dark:text-white">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">{text}</p>
-    </div>
-  )
-}
-
-
-function Auth({ mode, setMode, openWorkspace }: any) {
-  return <AuthView initialMode={mode} onSuccess={() => openWorkspace('examiner')} />
-}
-
-
-function Contact({ navigate, notify }: any) { return <main className="mx-auto max-w-6xl px-5 py-16 lg:px-8"><div className="grid gap-14 lg:grid-cols-[.8fr_1.2fr]"><div><p className="text-xs font-semibold uppercase tracking-widest text-primary">Contact our team</p><h1 className="mt-3 text-4xl font-semibold tracking-tight">Let&apos;s make assessment clearer.</h1><p className="mt-5 leading-7 text-muted-foreground">Tell us what your program needs. Our team can help you design a smoother assessment day.</p><div className="mt-10 flex flex-col gap-5"><div className="flex gap-3"><Mail className="mt-1 size-5 text-primary" /><div><p className="font-medium">Email us</p><p className="text-sm text-muted-foreground">hello@ne-ecos.com</p></div></div><div className="flex gap-3"><Phone className="mt-1 size-5 text-primary" /><div><p className="font-medium">Talk to support</p><p className="text-sm text-muted-foreground">Mon–Fri, 9:00–17:00</p></div></div></div></div><form className="rounded-2xl border border-border bg-card p-6 shadow-sm" onSubmit={(e) => { e.preventDefault(); notify('Thanks — we will be in touch shortly') }}><div className="grid gap-5 sm:grid-cols-2"><label className="text-sm font-medium">First name<input required className="mt-2 h-11 w-full rounded-md border border-input bg-background px-3" /></label><label className="text-sm font-medium">Last name<input required className="mt-2 h-11 w-full rounded-md border border-input bg-background px-3" /></label></div><label className="mt-5 block text-sm font-medium">Work email<input required type="email" className="mt-2 h-11 w-full rounded-md border border-input bg-background px-3" /></label><label className="mt-5 block text-sm font-medium">How can we help?<textarea required rows={5} className="mt-2 w-full rounded-md border border-input bg-background p-3" /></label><Button className="mt-6" type="submit">Send message <ArrowRight data-icon="inline-end" /></Button></form></div></main> }
-
-function Examiner({ candidates, selectedCandidate, setSelectedCandidate, search, setSearch, scores, setScores, total, onSave, onSubmit }: any) { const candidate = candidates[selectedCandidate] || candidateSeed[0]; return <main className="mx-auto max-w-7xl px-5 py-8 lg:px-8"><PageIntro eyebrow="Examiner station" title="Station 04 · Cardiology" description="Assess candidate performance against the station checklist." action={<Button variant="outline" onClick={onSave}><Check data-icon="inline-start" />Save draft</Button>} /><div className="mt-8 grid gap-6 lg:grid-cols-[280px_1fr]"><aside className="glass-card rounded-3xl border border-white/70 p-4"><div className="mb-4 flex items-center justify-between"><h2 className="font-semibold">Candidates <span className="ml-1 text-xs font-normal text-muted-foreground">({candidates.length})</span></h2><Users className="size-4 text-muted-foreground" /></div><div className="relative mb-4"><Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" /><input aria-label="Search candidates" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name or ID" className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring" /></div><div className="flex flex-col gap-1">{candidates.map((item: any, i: number) => <button key={item.id} onClick={() => setSelectedCandidate(i)} className={`flex items-center gap-3 rounded-lg p-3 text-left ${i === selectedCandidate ? 'bg-primary/10' : 'hover:bg-muted'}`}><span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold">{item.initials}</span><span className="min-w-0"><span className="block truncate text-sm font-medium">{item.name}</span><span className="block truncate text-xs text-muted-foreground">{item.id}</span></span><span className={`ml-auto size-2 rounded-full ${item.status === 'Completed' ? 'bg-primary' : item.status === 'In progress' ? 'bg-amber-500' : 'bg-muted-foreground/30'}`} /></button>)}</div></aside><section className="glass-card rounded-3xl border border-white/70 p-6"><div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-5"><div><p className="text-xs uppercase tracking-widest text-muted-foreground">Current candidate</p><h2 className="mt-1 text-2xl font-semibold">{candidate.name}</h2><p className="text-sm text-muted-foreground">{candidate.id} · {candidate.station}</p></div><div className="text-right"><p className="text-xs text-muted-foreground">Station score</p><p className="text-3xl font-semibold text-primary">{total}<span className="text-base text-muted-foreground"> / 100</span></p></div></div><div className="mt-6 flex flex-col gap-3">{criteria.map((item, i) => <div key={item} className="rounded-lg border border-border p-4"><div className="flex items-start gap-3"><span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">{i + 1}</span><p className="text-sm leading-6">{item}</p></div><div className="mt-4 flex gap-2 pl-10">{(['pass', 'borderline', 'fail'] as const).map((score) => <button key={score} onClick={() => setScores((prev: Score[]) => prev.map((x, index) => index === i ? score : x))} className={`rounded-md border px-3 py-1.5 text-xs font-semibold capitalize ${scores[i] === score ? (score === 'pass' ? 'border-primary bg-accent text-accent-foreground' : score === 'fail' ? 'border-destructive bg-destructive/10 text-destructive' : 'border-amber-500 bg-amber-500/10 text-amber-700') : 'border-border text-muted-foreground hover:bg-muted'}`}>{score}</button>)}</div></div>)}</div><div className="mt-6 flex justify-end"><Button disabled={!scores.every(Boolean)} onClick={onSubmit}>Submit assessment <ArrowRight data-icon="inline-end" /></Button></div></section></div></main> }
-function PageIntro({ eyebrow, title, description, action }: any) { return <div className="flex flex-wrap items-end justify-between gap-5"><div><p className="text-xs font-semibold uppercase tracking-widest text-primary">{eyebrow}</p><h1 className="mt-2 text-3xl font-semibold tracking-tight">{title}</h1><p className="mt-2 text-sm text-muted-foreground">{description}</p></div>{action}</div> }
-function Results({ notify }: any) { return <main className="mx-auto max-w-5xl px-5 py-8 lg:px-8"><PageIntro eyebrow="Student results" title="Your assessment results" description="Review your performance and identify your next learning focus." action={<Button variant="outline" onClick={() => notify('Report prepared for download')}><Download data-icon="inline-start" />Export report</Button>} /><div className="mt-8 grid gap-5 md:grid-cols-[1.2fr_.8fr]"><div className="glass-card rounded-3xl border border-white/70 p-6"><div className="flex items-center gap-4"><span className="flex size-14 items-center justify-center rounded-full bg-primary text-lg font-semibold text-primary-foreground">AO</span><div><h2 className="text-xl font-semibold">Amara Okafor</h2><p className="text-sm text-muted-foreground">MED-2024-0087 · Spring Assessment 2026</p></div></div><div className="mt-8 flex items-end justify-between"><div><p className="text-sm text-muted-foreground">Overall performance</p><p className="mt-1 text-5xl font-semibold text-primary">78<span className="text-lg text-muted-foreground"> / 100</span></p></div><span className="rounded-full bg-accent px-3 py-1.5 text-sm font-semibold text-accent-foreground">Pass</span></div><div className="mt-6 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full w-[78%] rounded-full bg-primary" /></div><div className="mt-8 grid gap-3 sm:grid-cols-2">{['Communication & rapport', 'Clinical examination', 'Clinical reasoning', 'Professionalism'].map((item, i) => <div key={item} className="flex items-center justify-between rounded-lg bg-muted/60 p-3"><span className="text-sm">{item}</span><span className="font-semibold">{[86, 74, 71, 89][i]}%</span></div>)}</div></div><div className="rounded-xl border border-border bg-primary p-6 text-primary-foreground"><p className="text-xs font-semibold uppercase tracking-widest text-[#0077b6]">Feedback summary</p><h2 className="mt-3 text-2xl font-semibold">You are building strong clinical presence.</h2><p className="mt-4 text-sm leading-6 text-[#03045e]/70">Your communication and professionalism stood out. Focus your next practice session on structuring the cardiovascular examination.</p><Button className="mt-8 bg-primary-foreground text-primary hover:bg-primary-foreground/90" onClick={() => notify('Practice plan saved')}>Save practice plan</Button></div></div></main> }
-function Admin({ search, setSearch, weights, setWeights, notify }: any) { const sum = weights.reduce((a: number, b: number) => a + Number(b), 0); return <main className="mx-auto max-w-7xl px-5 py-8 lg:px-8"><PageIntro eyebrow="Program administration" title="Assessment overview" description="Configure stations, review cohorts, and keep your assessment program moving." action={<Button onClick={() => notify('Roster import opened')}><Upload data-icon="inline-start" />Import roster</Button>} /><div className="mt-8 grid gap-4 sm:grid-cols-3"><Stat label="Assessments completed" value="248" trend="+12.4%" /><Stat label="Average score" value="76.8%" trend="+3.2%" /><Stat label="Pass rate" value="84.2%" trend="+5.8%" /></div><div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_.6fr]"><section className="glass-card rounded-3xl border border-white/70 p-5"><div className="flex flex-wrap items-center justify-between gap-4"><div><h2 className="font-semibold">Candidate roster</h2><p className="mt-1 text-sm text-muted-foreground">Spring Assessment 2026 · 312 candidates</p></div><div className="relative"><Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" /><input aria-label="Search roster" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search roster" className="h-9 rounded-md border border-input bg-background pl-9 pr-3 text-sm" /></div></div><div className="mt-5 overflow-x-auto"><table className="w-full text-left text-sm"><thead className="border-b border-border text-xs uppercase tracking-wider text-muted-foreground"><tr><th className="pb-3 font-medium">Candidate</th><th className="pb-3 font-medium">Station</th><th className="pb-3 font-medium">Score</th><th className="pb-3 font-medium">Status</th></tr></thead><tbody>{candidateSeed.filter(c => c.name.toLowerCase().includes(search.toLowerCase())).map(c => <tr key={c.id} className="border-b border-border last:border-0"><td className="py-4"><div className="flex items-center gap-3"><span className="flex size-8 items-center justify-center rounded-full bg-secondary text-xs font-semibold">{c.initials}</span><span><span className="block font-medium">{c.name}</span><span className="text-xs text-muted-foreground">{c.id}</span></span></div></td><td className="py-4 text-muted-foreground">{c.station}</td><td className="py-4 font-semibold">{c.score}</td><td className="py-4"><span className="rounded-full bg-muted px-2 py-1 text-xs">{c.status}</span></td></tr>)}</tbody></table></div></section><section className="glass-card rounded-3xl border border-white/70 p-5"><h2 className="font-semibold">Station weighting</h2><p className="mt-1 text-sm text-muted-foreground">Adjust the contribution of each domain.</p><div className="mt-6 flex flex-col gap-4">{['Communication','Examination','Reasoning','Professionalism'].map((name, i) => <label key={name} className="text-sm"><span className="flex justify-between"><span>{name}</span><span className="font-semibold">{weights[i]}%</span></span><input type="range" min="0" max="100" value={weights[i]} onChange={(e) => setWeights((prev: number[]) => prev.map((x, index) => index === i ? Number(e.target.value) : x))} className="mt-2 w-full accent-primary" /></label>)}</div><div className={`mt-6 flex items-center justify-between rounded-lg p-3 text-sm ${sum === 100 ? 'bg-accent text-accent-foreground' : 'bg-destructive/10 text-destructive'}`}><span>Total weighting</span><strong>{sum}%</strong></div><Button className="mt-5 w-full" disabled={sum !== 100} onClick={() => notify('Station configuration saved')}>Save configuration</Button></section></div></main> }
-function Footer({ navigate }: { navigate: (v: View) => void }) { return <SiteFooter /> }
-
-function Stat({ label, value, trend }: any) { return <div className="glass-card rounded-3xl border border-white/70 p-5"><p className="text-sm text-muted-foreground">{label}</p><div className="mt-2 flex items-end justify-between"><p className="text-3xl font-semibold tracking-tight">{value}</p><span className="text-xs font-semibold text-primary">{trend}</span></div></div> }
-function PinModal({ close, submit }: any) { return <div className="fixed inset-0 z-40 flex items-center justify-center bg-foreground/30 p-5"><div role="dialog" aria-modal="true" aria-labelledby="pin-title" className="w-full max-w-sm glass-card rounded-3xl border border-white/70 p-6 shadow-xl"><div className="flex items-start justify-between"><div><h2 id="pin-title" className="text-lg font-semibold">Confirm submission</h2><p className="mt-1 text-sm text-muted-foreground">Enter your examiner PIN to submit this assessment.</p></div><button aria-label="Close" onClick={close} className="rounded-md p-1 text-muted-foreground hover:bg-muted"><X className="size-5" /></button></div><input aria-label="Examiner PIN" type="password" placeholder="••••" className="mt-6 h-11 w-full rounded-md border border-input bg-background px-3 text-center text-lg tracking-[0.5em] outline-none focus:ring-2 focus:ring-ring" /><div className="mt-5 flex gap-3"><Button variant="outline" className="flex-1" onClick={close}>Cancel</Button><Button className="flex-1" onClick={submit}>Submit</Button></div></div></div> }
-

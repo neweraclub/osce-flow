@@ -403,10 +403,7 @@ export default function LoginPage() {
               </form>
 
               <p className="text-center text-xs text-slate-500 dark:text-slate-400 mt-6">
-                Don't have an account?{' '}
-                <Link href="/signup" className="text-sky-600 dark:text-sky-400 font-semibold hover:underline">
-                  Sign up
-                </Link>
+                Authorized clinical and faculty accounts only. Contact administration for credentials.
               </p>
             </div>
           )}

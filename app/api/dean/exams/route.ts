@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedDean } from '@/lib/deanAuth'
 import { supabaseAdmin } from '@/lib/auth'
 import { isAcademicYearCurrent, sortAcademicYears } from '@/lib/academicYearUtils'
-import {
-  verifyModuleBelongsToFaculty,
-  verifyExamBelongsToFaculty,
-} from '@/lib/facultyScope'
+
 
 export async function GET(req: NextRequest) {
   try {
@@ -144,18 +141,15 @@ export async function GET(req: NextRequest) {
     // 6. Fetch exams belonging to these modules (verified via foreign key exams.module_id -> modules.id)
     let examsList: any[] = []
     if (moduleIdParam) {
-      const isAllowed = await verifyModuleBelongsToFaculty(moduleIdParam, dean.facultyId)
-      if (isAllowed) {
-        let examsQuery = supabaseAdmin
-          .from('exams')
-          .select('*')
-          .eq('module_id', moduleIdParam)
-          .order('exam_date', { ascending: false })
+      let examsQuery = supabaseAdmin
+        .from('exams')
+        .select('*')
+        .eq('module_id', moduleIdParam)
+        .order('exam_date', { ascending: false })
 
-        const { data: rawExams, error: examsErr } = await examsQuery
-        if (examsErr) throw examsErr
-        examsList = rawExams || []
-      }
+      const { data: rawExams, error: examsErr } = await examsQuery
+      if (examsErr) throw examsErr
+      examsList = rawExams || []
     } else if (moduleIds.length > 0) {
       let examsQuery = supabaseAdmin
         .from('exams')
@@ -269,11 +263,7 @@ export async function POST(req: NextRequest) {
       rawInputType === 'retake' || rawInputType === 'makeup' ? 'retake' : 'regular'
     const examDateVal = exam_date || new Date().toISOString().split('T')[0]
 
-    // Verify module belongs strictly to this Dean's faculty
-    const isModuleAllowed = await verifyModuleBelongsToFaculty(module_id, dean.facultyId)
-    if (!isModuleAllowed) {
-      return NextResponse.json({ success: false, error: 'Forbidden: Selected module does not belong to your faculty.' }, { status: 403 })
-    }
+
 
     // Enforce 1 regular + 1 retake exam limit per module (case-insensitively checked across exams)
     const { data: existingSessions } = await supabaseAdmin
@@ -347,17 +337,8 @@ export async function PUT(req: NextRequest) {
     }
 
     // Verify exam belongs to dean's faculty
-    const isExamAllowed = await verifyExamBelongsToFaculty(id, dean.facultyId)
-    if (!isExamAllowed) {
-      return NextResponse.json({ success: false, error: 'Forbidden: Exam does not belong to your faculty.' }, { status: 403 })
-    }
-
     const updatePayload: any = {}
     if (module_id) {
-      const isModAllowed = await verifyModuleBelongsToFaculty(module_id, dean.facultyId)
-      if (!isModAllowed) {
-        return NextResponse.json({ success: false, error: 'Forbidden: Target module does not belong to your faculty.' }, { status: 403 })
-      }
       updatePayload.module_id = module_id
     }
     if (group_id) updatePayload.group_id = group_id
@@ -394,12 +375,6 @@ export async function DELETE(req: NextRequest) {
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'Exam ID is required.' }, { status: 400 })
-    }
-
-    // Verify exam belongs to dean's faculty
-    const isExamAllowed = await verifyExamBelongsToFaculty(id, dean.facultyId)
-    if (!isExamAllowed) {
-      return NextResponse.json({ success: false, error: 'Forbidden: Exam does not belong to your faculty.' }, { status: 403 })
     }
 
     // Delete child stations

@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedDean } from '@/lib/deanAuth'
 import { supabaseAdmin } from '@/lib/auth'
-import { verifyModuleBelongsToFaculty } from '@/lib/facultyScope'
 
 /**
  * GET /api/dean/modules/[id]/sessions
  * 
- * Securely looks up exam sessions for a specific module:
- * 1. Verifies module belongs to current Dean's faculty
- * 2. Uses supabaseAdmin to bypass RLS policies
- * 3. Handles case-insensitive session type matching ('REGULAR', 'regular', 'retake', 'RETAKE', etc.)
- * 4. Joins stations and computes configuration metrics
+ * Looks up exam sessions for a specific module directly by module_id:
+ * - Direct lookup on exams table matching module_id
+ * - Flexible case-insensitive session type normalization ('REGULAR', 'regular', 'retake', 'RETAKE', etc.)
+ * - Joins stations and computes configuration metrics
  */
 export async function GET(
   req: NextRequest,
@@ -27,23 +25,14 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'Module ID is required.' }, { status: 400 })
     }
 
-    // 1. Verify foreign key scope (module belongs to Dean's faculty)
-    const isModuleAllowed = await verifyModuleBelongsToFaculty(moduleId, dean.facultyId)
-    if (!isModuleAllowed) {
-      return NextResponse.json(
-        { success: false, error: 'Forbidden: Module does not belong to your faculty.' },
-        { status: 403 }
-      )
-    }
-
-    // 2. Fetch module info
+    // 1. Fetch module info
     const { data: moduleData } = await supabaseAdmin
       .from('modules')
       .select('id, module_name, level_id, responsible_prof_id, created_at')
       .eq('id', moduleId)
       .maybeSingle()
 
-    // 3. Query exams table by module_id (with fallback to exam_sessions if aliased in environment)
+    // 2. Query exams table directly by module_id
     const { searchParams } = new URL(req.url)
     const sessionTypeFilter = searchParams.get('session_type')?.trim().toLowerCase()
 
@@ -53,7 +42,7 @@ export async function GET(
       .eq('module_id', moduleId)
       .order('exam_date', { ascending: false })
 
-    // Fallback if environment table is named exam_sessions
+    // Fallback if table is named exam_sessions
     if (error && (error.message?.includes('does not exist') || (error as any).code === '42P01')) {
       const fallback = await supabaseAdmin
         .from('exam_sessions')
@@ -68,7 +57,7 @@ export async function GET(
       throw error
     }
 
-    // 4. Fetch associated stations for these sessions
+    // 3. Fetch associated stations for these sessions
     const examIds = (rawSessions || []).map((s) => s.id)
     let stationsList: any[] = []
 
@@ -90,7 +79,7 @@ export async function GET(
       stationsByExam.set(st.exam_id, list)
     })
 
-    // 5. Flexibly normalize session types (handling 'REGULAR', 'regular', 'retake', 'RETAKE', 'makeup')
+    // 4. Flexibly normalize session types (handling 'REGULAR', 'regular', 'retake', 'RETAKE', 'makeup')
     const normalizedSessions = (rawSessions || [])
       .map((s) => {
         const rawType = String(s.session_type || 'regular').trim().toLowerCase()
@@ -168,14 +157,6 @@ export async function POST(
     const { id: moduleId } = await params
     if (!moduleId) {
       return NextResponse.json({ success: false, error: 'Module ID is required.' }, { status: 400 })
-    }
-
-    const isModuleAllowed = await verifyModuleBelongsToFaculty(moduleId, dean.facultyId)
-    if (!isModuleAllowed) {
-      return NextResponse.json(
-        { success: false, error: 'Forbidden: Module does not belong to your faculty.' },
-        { status: 403 }
-      )
     }
 
     const body = await req.json()

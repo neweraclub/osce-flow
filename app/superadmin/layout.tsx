@@ -115,11 +115,11 @@ export default function SuperadminLayout({
               href="/superadmin"
               className="flex items-center gap-2.5 text-base font-bold tracking-tight text-slate-900 dark:text-white"
             >
-              <span className="flex size-9 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-500/20">
+              <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-500 text-white shadow-md shadow-purple-500/20">
                 <Activity className="size-5" />
               </span>
               <span>
-                NEW ERA <span className="text-blue-600 dark:text-blue-400">ECOS</span>
+                NEW ERA <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-500 dark:from-indigo-400 dark:to-purple-400">ECOS</span>
               </span>
             </Link>
             <button
@@ -132,11 +132,11 @@ export default function SuperadminLayout({
 
           {/* Central System Scope Badge */}
           <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800/60">
-            <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-xs font-semibold text-indigo-700 dark:text-indigo-300">
-              <Shield className="size-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
+            <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600/10 to-purple-500/10 border border-purple-500/25 text-xs font-semibold text-indigo-950 dark:text-purple-200 shadow-xs">
+              <Shield className="size-4 shrink-0 text-purple-500" />
               <div className="min-w-0 flex-1">
                 <p className="font-extrabold text-slate-900 dark:text-white text-[11px]">Central Command Hub</p>
-                <p className="text-[10px] font-semibold text-indigo-600/90 dark:text-indigo-300/90 truncate" title="Algerian Medical Faculties • Central Command">
+                <p className="text-[10px] font-semibold text-purple-600 dark:text-purple-400 truncate" title="Algerian Medical Faculties • Central Command">
                   Algerian Medical Faculties • Central Command
                 </p>
               </div>
@@ -153,9 +153,9 @@ export default function SuperadminLayout({
                   key={item.href}
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold transition-all ${
+                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold transition-all relative ${
                     isActive
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 border-l-4 border-purple-400 pl-3'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/60'
                   }`}
                 >
@@ -169,31 +169,33 @@ export default function SuperadminLayout({
 
         {/* Footer Status Pill */}
         <div className="p-4 border-t border-slate-100 dark:border-slate-800">
-          <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
-            <span className="font-semibold">System Operational</span>
-            <span className="inline-flex size-2 rounded-full bg-emerald-500 animate-pulse" />
+          <div className="p-3 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/50 border border-indigo-200/60 dark:border-indigo-800/50 text-[11px] text-slate-600 dark:text-slate-300 flex items-center justify-between">
+            <span className="font-semibold text-indigo-900 dark:text-indigo-200">System Operational</span>
+            <span className="relative flex size-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
+              <span className="relative inline-flex rounded-full size-2 bg-purple-500" />
+            </span>
           </div>
         </div>
       </aside>
 
       {/* Main Shell Container */}
       <div className="flex-1 md:pl-72 flex flex-col min-w-0">
-        {/* Topbar Header */}
-        <header className="sticky top-0 z-30 h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 px-6 flex items-center justify-between transition-colors">
+        {/* Top Header Bar */}
+        <header className="h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 px-4 sm:px-8 flex items-center justify-between sticky top-0 z-30 transition-colors">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
-              aria-label="Open sidebar"
-              className="md:hidden text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 p-2 rounded-lg"
+              className="md:hidden text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 p-2 rounded-xl transition-colors"
             >
               <Menu className="size-5" />
             </button>
 
-            {/* Breadcrumb Navigation */}
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-slate-400 dark:text-slate-500 font-medium">Platform</span>
-              <ChevronRight className="size-4 text-slate-300 dark:text-slate-600" />
-              <h1 className="font-bold text-slate-900 dark:text-white text-base tracking-tight">
+            {/* Breadcrumbs */}
+            <div className="flex items-center gap-2 text-xs font-semibold">
+              <span className="text-slate-400 dark:text-slate-500">Superadmin Hub</span>
+              <ChevronRight className="size-3 text-slate-300 dark:text-slate-600" />
+              <h1 className="text-slate-900 dark:text-white font-bold text-sm">
                 {getBreadcrumbTitle()}
               </h1>
             </div>
@@ -201,9 +203,9 @@ export default function SuperadminLayout({
             {/* Central Command Badge */}
             <div
               title="Algerian Medical Faculties • Central Command"
-              className="hidden lg:flex items-center gap-2 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20 px-3 py-1.5 rounded-xl font-semibold text-xs max-w-[280px] xl:max-w-[340px] truncate"
+              className="hidden lg:flex items-center gap-2 bg-gradient-to-r from-indigo-600/10 to-purple-500/10 text-indigo-950 dark:text-purple-200 border border-purple-500/25 px-3 py-1.5 rounded-xl font-semibold text-xs max-w-[280px] xl:max-w-[340px] truncate shadow-xs"
             >
-              <Building2 className="size-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+              <Building2 className="size-4 text-purple-500 shrink-0" />
               <span className="truncate">Algerian Medical Faculties • Central Command</span>
             </div>
           </div>
@@ -217,12 +219,12 @@ export default function SuperadminLayout({
                 onClick={() => setDropdownOpen(!dropdownOpen)}
                 className="flex items-center gap-3 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-all focus:outline-none"
               >
-                <div className="flex size-9 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-sm shadow-md shadow-blue-500/20">
+                <div className="flex size-9 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-600 to-purple-500 text-white font-bold text-sm shadow-md shadow-purple-500/20 border border-purple-400/30">
                   SA
                 </div>
                 <div className="hidden sm:flex flex-col text-left">
                   <span className="text-xs font-bold text-slate-900 dark:text-white">Administrator</span>
-                  <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400">Superadmin</span>
+                  <span className="text-[10px] font-semibold text-purple-600 dark:text-purple-400">Superadmin</span>
                 </div>
               </button>
 
@@ -230,14 +232,14 @@ export default function SuperadminLayout({
               {dropdownOpen && (
                 <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95">
                   <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
-                    <div className="flex size-10 items-center justify-center rounded-full bg-blue-600 text-white font-bold text-sm">
+                    <div className="flex size-10 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-600 to-purple-500 text-white font-bold text-sm shadow-md shadow-purple-500/20 border border-purple-400/30">
                       SA
                     </div>
                     <div className="flex flex-col min-w-0">
                       <p className="text-sm font-bold text-slate-900 dark:text-white truncate">Administrator</p>
                       <p className="text-xs text-slate-500 dark:text-slate-400 truncate">Central Command</p>
-                      <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 text-[10px] font-bold w-fit border border-blue-200/60 dark:border-blue-900/50">
-                        <Shield className="size-3" />
+                      <span className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-900 dark:text-purple-300 text-[10px] font-bold w-fit border border-purple-500/30">
+                        <span className="size-1.5 rounded-full bg-purple-500" />
                         Superadmin
                       </span>
                     </div>

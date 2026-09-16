@@ -79,12 +79,12 @@ export function ProfessorSidebar({
         <div className="p-6 border-b border-slate-100 dark:border-slate-800/80 space-y-3">
           <div className="flex items-center justify-between">
             <Link href="/professor/dashboard" className="flex items-center gap-2.5">
-              <div className="flex size-9 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-500/20 shrink-0">
+              <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-lime-500 text-white shadow-md shadow-lime-500/20 shrink-0">
                 <Stethoscope className="size-5" />
               </div>
               <div className="flex flex-col min-w-0">
                 <span className="font-bold tracking-tight text-slate-900 dark:text-white text-base truncate">
-                  NEW ERA <span className="text-emerald-600 dark:text-emerald-400">ECOS</span>
+                  NEW ERA <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-lime-500 dark:from-emerald-400 dark:to-lime-400">ECOS</span>
                 </span>
                 <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
                   Professor Portal
@@ -101,10 +101,10 @@ export function ProfessorSidebar({
           </div>
 
           {/* Bound Faculty Banner */}
-          <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 flex items-center gap-2.5">
-            <Building2 className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <div className="p-3 rounded-2xl bg-emerald-500/10 border border-lime-500/25 text-emerald-950 dark:text-lime-200 flex items-center gap-2.5 shadow-xs">
+            <Building2 className="size-4 text-lime-500 shrink-0" />
             <div className="flex flex-col min-w-0">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600/80 dark:text-emerald-400/80">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-lime-600 dark:text-lime-400">
                 Faculty Workspace
               </span>
               {loadingSession ? (
@@ -130,9 +130,9 @@ export function ProfessorSidebar({
                 key={item.href}
                 href={item.href}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all relative ${
                   isActive
-                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/25'
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25 border-l-4 border-lime-400 pl-3'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
@@ -145,10 +145,10 @@ export function ProfessorSidebar({
 
         {/* Footer Professor Status Indicator */}
         <div className="p-4 border-t border-slate-100 dark:border-slate-800/80">
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/50">
-            <span className="relative flex size-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full size-3 bg-emerald-500" />
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/60 dark:border-emerald-800/50">
+            <span className="relative flex size-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-lime-400 opacity-75" />
+              <span className="relative inline-flex rounded-full size-2.5 bg-lime-500" />
             </span>
             <div className="flex flex-col min-w-0">
               {loadingSession ? (
@@ -158,10 +158,10 @@ export function ProfessorSidebar({
                 </div>
               ) : (
                 <>
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">
+                  <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200 truncate">
                     {professorName || 'Professor'}
                   </span>
-                  <span className="text-[10px] text-slate-400 truncate">Professor</span>
+                  <span className="text-[10px] text-lime-600 dark:text-lime-400 font-semibold truncate">Faculty Examiner</span>
                 </>
               )}
             </div>

@@ -137,8 +137,8 @@ function StudentResultsDashboardContent() {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center gap-4 text-slate-900 dark:text-white">
-        <div className="p-4 rounded-3xl bg-amber-500/10 border border-amber-500/20 shadow-xl">
-          <Loader2 className="size-8 animate-spin text-amber-500" />
+        <div className="p-4 rounded-3xl bg-teal-500/10 border border-teal-500/20 shadow-xl">
+          <Loader2 className="size-8 animate-spin text-teal-500" />
         </div>
         <div className="text-center space-y-1">
           <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
@@ -169,7 +169,7 @@ function StudentResultsDashboardContent() {
           </div>
           <Link
             href="/student/results"
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 text-white hover:bg-amber-600 transition-colors shadow-md shadow-amber-500/20"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-teal-600 to-teal-400 text-white hover:from-teal-700 hover:to-teal-500 transition-all shadow-md shadow-teal-500/20"
           >
             <ArrowLeft className="size-4" />
             <span>Return to Student Verification</span>
@@ -198,7 +198,7 @@ function StudentResultsDashboardContent() {
       )}
 
       {/* Screen Interactive Container */}
-      <div className="min-h-screen bg-slate-50/70 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col justify-between selection:bg-amber-500 selection:text-white relative font-sans print:hidden">
+      <div className="min-h-screen bg-slate-50/70 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col justify-between selection:bg-teal-500 selection:text-white relative font-sans print:hidden">
       {/* 1. Academic Navigation Header (Top Navbar) */}
       <header className="w-full z-20 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md sticky top-0 print:hidden shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4">
@@ -213,13 +213,13 @@ function StudentResultsDashboardContent() {
             </Link>
 
             <div className="flex items-center gap-2.5">
-              <div className="size-8 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white shadow-md shadow-amber-500/20 shrink-0">
+              <div className="size-8 rounded-xl bg-gradient-to-br from-teal-600 to-teal-400 flex items-center justify-center text-white shadow-md shadow-teal-500/20 shrink-0">
                 <Stethoscope className="size-4" />
               </div>
               <div>
                 <span className="font-extrabold text-sm tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
                   OSCE-Flow
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300/60 dark:border-amber-800/60 uppercase tracking-wider">
+                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-teal-50 dark:bg-teal-950 text-teal-700 dark:text-teal-300 border border-teal-300/60 dark:border-teal-800/60 uppercase tracking-wider">
                     Academic Transcript
                   </span>
                 </span>
@@ -254,7 +254,7 @@ function StudentResultsDashboardContent() {
             <ThemeToggle />
             <Link
               href="/student/results"
-              className="text-xs font-bold text-amber-700 dark:text-amber-300 hover:text-amber-800 px-3 py-1.5 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100/60 transition-colors"
+              className="text-xs font-bold text-teal-700 dark:text-teal-300 hover:text-teal-800 px-3 py-1.5 rounded-xl border border-teal-200 dark:border-teal-900/60 bg-teal-50 dark:bg-teal-950/40 hover:bg-teal-100/60 transition-colors"
             >
               New Lookup
             </Link>
@@ -275,11 +275,11 @@ function StudentResultsDashboardContent() {
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         {/* Student Academic Identification Banner */}
         <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs relative overflow-hidden">
-          <div className="absolute -top-12 -right-12 size-48 bg-amber-500/5 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute -top-12 -right-12 size-48 bg-teal-500/5 rounded-full blur-2xl pointer-events-none" />
 
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
             <div className="flex items-start gap-4">
-              <div className="size-14 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white shadow-lg shadow-amber-500/20 shrink-0 border-2 border-amber-400/40">
+              <div className="size-14 rounded-full bg-gradient-to-br from-teal-600 to-teal-400 flex items-center justify-center text-white shadow-lg shadow-teal-500/20 shrink-0 border-2 border-teal-400/40">
                 <span className="font-bold font-mono text-xl leading-none text-white select-none">
                   {(student.first_name?.trim() || student.full_name?.trim() || student.last_name?.trim() || 'S').charAt(0).toUpperCase()}
                 </span>
@@ -289,7 +289,7 @@ function StudentResultsDashboardContent() {
                   <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
                     {student.full_name}
                   </h1>
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-teal-50 dark:bg-teal-950/80 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
                     {student.matricule}
                   </span>
                 </div>
@@ -337,7 +337,7 @@ function StudentResultsDashboardContent() {
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              <BookOpen className="size-3.5 text-amber-500" />
+              <BookOpen className="size-3.5 text-teal-500" />
               <span>All Modules Overview</span>
             </button>
 
@@ -386,7 +386,7 @@ function StudentResultsDashboardContent() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-                  <BookOpen className="size-5 text-amber-500" />
+                  <BookOpen className="size-5 text-teal-500" />
                   <span>Academic Modules ({modules.length})</span>
                 </h2>
                 <p className="text-xs text-slate-400">
@@ -409,7 +409,7 @@ function StudentResultsDashboardContent() {
                   <div
                     key={`${mod.module_id}_${mod.session_type}`}
                     onClick={() => setSelectedModuleId(mod.module_id)}
-                    className="group rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 space-y-5 shadow-xs hover:shadow-md hover:border-amber-400/80 dark:hover:border-amber-500/60 transition-all cursor-pointer flex flex-col justify-between relative overflow-hidden"
+                    className="group rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 space-y-5 shadow-xs hover:shadow-md hover:border-teal-400/80 dark:hover:border-teal-500/60 transition-all cursor-pointer flex flex-col justify-between relative overflow-hidden"
                   >
                     {/* Top Accent Stripe */}
                     <div
@@ -450,7 +450,7 @@ function StudentResultsDashboardContent() {
 
                       {/* Module Title */}
                       <div>
-                        <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
                           {mod.module_name}
                         </h3>
                         <p className="text-xs text-slate-400 mt-0.5">
@@ -507,7 +507,7 @@ function StudentResultsDashboardContent() {
                     </div>
 
                     {/* Drill-down action trigger */}
-                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs font-bold text-amber-600 dark:text-amber-400 group-hover:translate-x-0.5 transition-transform">
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs font-bold text-teal-600 dark:text-teal-400 group-hover:translate-x-0.5 transition-transform">
                       <span>View Station Breakdown</span>
                       <ArrowRight className="size-4" />
                     </div>
@@ -535,7 +535,7 @@ function StudentResultsDashboardContent() {
                         <ArrowLeft className="size-4" />
                       </button>
                       <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5">
-                        <BookOpen className="size-3 text-amber-500" />
+                        <BookOpen className="size-3 text-teal-500" />
                         <span>Module Assessment</span>
                       </span>
                       <span className="text-xs text-slate-300 dark:text-slate-700">|</span>
@@ -646,7 +646,7 @@ function StudentResultsDashboardContent() {
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800/80">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 font-mono">
+                              <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-teal-50 dark:bg-teal-950 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 font-mono">
                                 Station {st.station_number}
                               </span>
                               <h4 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
@@ -663,7 +663,7 @@ function StudentResultsDashboardContent() {
                                 {stationPercentage.toFixed(1)}%
                               </strong>{' '}
                               → Max Contribution:{' '}
-                              <strong className="text-amber-600 dark:text-amber-400 font-mono">
+                              <strong className="text-teal-600 dark:text-teal-400 font-mono">
                                 {st.station_max_contribution.toFixed(2)} / 20.00 pts
                               </strong>
                             </p>
@@ -674,7 +674,7 @@ function StudentResultsDashboardContent() {
                             <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 block leading-tight">
                               Score Contribution
                             </span>
-                            <span className="text-base font-black font-mono text-amber-600 dark:text-amber-400">
+                            <span className="text-base font-black font-mono text-teal-600 dark:text-teal-400">
                               {st.station_contribution.toFixed(2)}{' '}
                               <span className="text-xs font-normal text-slate-400">
                                 / {st.station_max_contribution.toFixed(2)} pts
@@ -730,11 +730,11 @@ function StudentResultsDashboardContent() {
                           </div>
 
                           {/* Scaled Contribution */}
-                          <div className="p-3.5 rounded-2xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/60 space-y-0.5">
-                            <span className="text-[10px] uppercase font-bold text-amber-700 dark:text-amber-400 block">
+                          <div className="p-3.5 rounded-2xl bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200/80 dark:border-teal-900/60 space-y-0.5">
+                            <span className="text-[10px] uppercase font-bold text-teal-700 dark:text-teal-300 block">
                               Contribution (/20)
                             </span>
-                            <span className="text-xs sm:text-sm font-black font-mono text-amber-700 dark:text-amber-300">
+                            <span className="text-xs sm:text-sm font-black font-mono text-teal-700 dark:text-teal-300">
                               {st.station_contribution.toFixed(2)} pts
                             </span>
                           </div>
@@ -953,7 +953,7 @@ export default function StudentResultsDashboardPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center gap-4 text-slate-900 dark:text-white">
-          <Loader2 className="size-8 animate-spin text-amber-500" />
+          <Loader2 className="size-8 animate-spin text-teal-500" />
           <p className="text-sm font-semibold animate-pulse text-slate-400">
             Loading Academic Record...
           </p>

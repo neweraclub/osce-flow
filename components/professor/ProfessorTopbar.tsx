@@ -146,7 +146,7 @@ export function ProfessorTopbar({
             aria-expanded={dropdownOpen}
             className="flex items-center gap-2.5 p-1.5 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/20 disabled:pointer-events-none"
           >
-            <div className="flex size-8 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white font-black text-xs shadow-md shadow-emerald-500/20">
+            <div className="flex size-8 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-lime-500 text-white font-black text-xs shadow-md shadow-lime-500/20 border border-lime-400/30">
               <Stethoscope className="size-4" />
             </div>
             {loadingSession ? (
@@ -159,7 +159,7 @@ export function ProfessorTopbar({
                 <span className="text-xs font-bold text-slate-900 dark:text-white leading-tight truncate max-w-[120px]">
                   {userProfile?.name || 'Professor'}
                 </span>
-                <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                <span className="text-[10px] font-semibold text-lime-600 dark:text-lime-400">
                   Professor
                 </span>
               </div>
@@ -192,7 +192,8 @@ export function ProfessorTopbar({
                   </>
                 )}
                 <div className="flex items-center gap-1.5 pt-1.5">
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-lime-300 border border-lime-500/30">
+                    <span className="size-1.5 rounded-full bg-lime-500" />
                     Professor
                   </span>
                 </div>

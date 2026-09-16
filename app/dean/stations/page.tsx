@@ -41,6 +41,8 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { Select, SelectOption } from '@/components/ui/Select'
 import { useAcademicYear } from '@/context/AcademicYearContext'
 import { useToast } from '@/context/ToastContext'
+import { ModuleSpecialtyBadge } from '@/components/dean/ModuleSpecialtyBadge'
+import { getModuleVisual } from '@/utils/getModuleIcon'
 
 export interface AcademicYearItem {
   id: string
@@ -950,9 +952,7 @@ function DeanStationsContent() {
                     <div className="space-y-3.5">
                       {/* Top Badges */}
                       <div className="flex items-center justify-between gap-2">
-                        <span className="flex size-10 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
-                          <BookOpen className="size-5" />
-                        </span>
+                        <ModuleSpecialtyBadge moduleName={mod.module_name} size="md" />
                         <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                           {mod.level_name}
                         </span>
@@ -964,7 +964,7 @@ function DeanStationsContent() {
                           {mod.module_name}
                         </h3>
                         <p className="text-xs text-slate-400 mt-0.5">
-                          Clinical Curriculum Module
+                          {getModuleVisual(mod.module_name).specialty}
                         </p>
                       </div>
 
@@ -1036,9 +1036,7 @@ function DeanStationsContent() {
           {/* Module Summary Banner */}
           <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="size-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                <BookOpen className="size-6" />
-              </div>
+              <ModuleSpecialtyBadge moduleName={activeModule.module_name} size="lg" />
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
                   <h2 className="text-lg font-black text-slate-900 dark:text-white">
@@ -1046,6 +1044,9 @@ function DeanStationsContent() {
                   </h2>
                   <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                     {activeModule.level_name}
+                  </span>
+                  <span className="text-xs text-slate-400 font-medium">
+                    • {getModuleVisual(activeModule.module_name).specialty}
                   </span>
                 </div>
                 <p className="text-xs text-slate-400">

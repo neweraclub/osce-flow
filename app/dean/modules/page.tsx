@@ -23,6 +23,8 @@ import { FilterDropdown } from '@/components/ui/FilterDropdown'
 import { TableToolbar } from '@/components/ui/TableToolbar'
 import { useToast } from '@/context/ToastContext'
 import { useAcademicYear } from '@/context/AcademicYearContext'
+import { getModuleVisual } from '@/utils/getModuleIcon'
+import { ModuleSpecialtyBadge } from '@/components/dean/ModuleSpecialtyBadge'
 
 export interface ResponsibleProfessor {
   id: string
@@ -493,10 +495,10 @@ export default function ClinicalModulesPage() {
                       return (
                         <div
                           key={m.id}
-                          className="rounded-xl bg-slate-50/50 dark:bg-[#161B2A]/50 border border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/[0.15] p-4 flex flex-col justify-between space-y-3.5 transition-all shadow-2xs hover:shadow-xs"
+                          className="rounded-xl bg-slate-50/50 dark:bg-[#161B2A]/50 border border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/[0.15] p-4 flex flex-col justify-between space-y-3.5 transition-all shadow-2xs hover:shadow-xs group"
                         >
                           {/* Structured Header Ribbon */}
-                          <div className="space-y-2">
+                          <div className="space-y-3">
                             <div className="flex items-center justify-between gap-2">
                               <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white dark:bg-[#0F121C] text-slate-500 dark:text-slate-400 border border-slate-200/60 dark:border-white/[0.06]">
                                 {m.level_name}
@@ -506,17 +508,21 @@ export default function ClinicalModulesPage() {
                               </span>
                             </div>
 
-                            <div className="flex items-start gap-2.5">
-                              <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                                <BookOpen className="size-4" />
-                              </div>
+                            <div className="flex items-center gap-3">
+                              <ModuleSpecialtyBadge moduleName={m.module_name} size="md" />
                               <div className="min-w-0 flex-1">
-                                <h4 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white truncate">
+                                <h4 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                                   {m.module_name}
                                 </h4>
-                                <p className="text-[10px] text-slate-400 font-mono">
-                                  ID: {m.id.substring(0, 8)}
-                                </p>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <span className="text-[10px] text-slate-400 font-mono">
+                                    ID: {m.id.substring(0, 8)}
+                                  </span>
+                                  <span className="text-[10px] text-slate-300 dark:text-slate-600">•</span>
+                                  <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate">
+                                    {getModuleVisual(m.module_name).specialty}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -601,9 +607,7 @@ export default function ClinicalModulesPage() {
           <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#0F121C] border border-slate-200/80 dark:border-white/[0.08] shadow-2xl p-6 space-y-5 animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/[0.06] pb-4">
               <div className="flex items-center gap-3">
-                <div className="size-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                  <BookOpen className="size-5" />
-                </div>
+                <ModuleSpecialtyBadge moduleName={moduleName || 'Cardiologie'} size="sm" />
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">Add Clinical Module</h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">Register new clinical module for {selectedYear?.name || 'session'}.</p>
@@ -690,9 +694,7 @@ export default function ClinicalModulesPage() {
           <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#0F121C] border border-slate-200/80 dark:border-white/[0.08] shadow-2xl p-6 space-y-5 animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/[0.06] pb-4">
               <div className="flex items-center gap-3">
-                <div className="size-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                  <Edit2 className="size-5" />
-                </div>
+                <ModuleSpecialtyBadge moduleName={moduleName || 'Clinical Module'} size="sm" />
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">Edit Clinical Module</h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">Update module name, level, and assigned professor.</p>

@@ -169,6 +169,17 @@ function DeanStationsContent() {
   // PIN Visibility toggles and copy feedback
   const [revealedPins, setRevealedPins] = useState<Record<string, boolean>>({})
   const [copiedPinId, setCopiedPinId] = useState<string | null>(null)
+  const [publishedMap, setPublishedMap] = useState<Record<string, boolean>>({})
+
+  const handleTogglePublish = (e: React.MouseEvent, stationId: string) => {
+    e.stopPropagation()
+    setPublishedMap((prev) => {
+      const current = prev[stationId] ?? true
+      const next = !current
+      showSuccess(`Station status updated to ${next ? 'Published' : 'Draft'}.`)
+      return { ...prev, [stationId]: next }
+    })
+  }
 
   // --- Modals ---
   // 1. Create Exam Session Modal
@@ -677,97 +688,92 @@ function DeanStationsContent() {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* ========================================================================= */}
-      {/* TOP HEADER & INTERACTIVE BREADCRUMB DRILLDOWN TRAIL                       */}
+      {/* FIXED STICKY WIZARD STEPPER SUB-HEADER (STEPS 1, 2, 3)                     */}
       {/* ========================================================================= */}
-      <div className="p-5 sm:p-6 rounded-3xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 shadow-sm backdrop-blur-md space-y-3">
-        {/* Breadcrumb Trail */}
-        <div className="flex items-center gap-2 text-xs font-bold text-slate-400 flex-wrap">
-          <button
-            type="button"
-            onClick={() => {
-              setCurrentStep(1)
-              setSelectedModuleId('')
-            }}
-            className={`hover:text-indigo-600 transition-colors flex items-center gap-1.5 cursor-pointer ${
-              currentStep === 1 ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' : ''
-            }`}
-          >
-            <BookOpen className="size-3.5" />
-            <span>1. Clinical Modules</span>
-          </button>
-
-          {(currentStep === 2 || currentStep === 3) && activeModule && (
-            <>
-              <ChevronRight className="size-3.5 text-slate-300 dark:text-slate-600" />
-              <button
-                type="button"
-                onClick={() => setCurrentStep(2)}
-                className={`hover:text-indigo-600 transition-colors flex items-center gap-1.5 cursor-pointer ${
-                  currentStep === 2 ? 'text-indigo-600 dark:text-indigo-400 font-extrabold' : ''
-                }`}
-              >
-                <Calendar className="size-3.5" />
-                <span>2. {activeModule.module_name} Exam Sessions</span>
-              </button>
-            </>
-          )}
-
-          {currentStep === 3 && activeExam && (
-            <>
-              <ChevronRight className="size-3.5 text-slate-300 dark:text-slate-600" />
-              <span className="text-emerald-600 dark:text-emerald-400 font-extrabold flex items-center gap-1.5 capitalize">
-                <ClipboardCheck className="size-3.5" />
-                <span>3. {isRetakeSession(activeExam.session_type) ? 'Retake' : 'Regular'} Session Stations</span>
+      <div className="sticky top-16 z-20 rounded-xl bg-white/90 dark:bg-[#0F121C]/90 backdrop-blur-md border border-slate-200/80 dark:border-white/[0.08] shadow-sm p-3.5 sm:px-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          {/* Connecting Chevron Wizard Steps */}
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            {/* Step 1 */}
+            <button
+              type="button"
+              onClick={() => {
+                setCurrentStep(1)
+                setSelectedModuleId('')
+              }}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                currentStep === 1
+                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/25'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#161B2A]'
+              }`}
+            >
+              <span className={`size-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                currentStep > 1 ? 'bg-emerald-500 text-white' : currentStep === 1 ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-white/[0.08]'
+              }`}>
+                {currentStep > 1 ? <Check className="size-3" /> : '1'}
               </span>
-            </>
-          )}
-        </div>
+              <span>Clinical Modules</span>
+            </button>
 
-        {/* Dynamic Header Titles based on Step */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
-          <div className="space-y-1">
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
-              {currentStep === 1 && (
-                <>
-                  <div className="size-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
-                    <BookOpen className="size-5" />
-                  </div>
-                  <span>Clinical Modules Directory</span>
-                </>
-              )}
+            {/* Chevron connector line */}
+            <div className="flex items-center gap-1 text-slate-300 dark:text-white/[0.15]">
+              <div className="w-3 sm:w-6 h-[1px] bg-slate-200 dark:bg-white/[0.1]" />
+              <ChevronRight className="size-3.5" />
+            </div>
 
-              {currentStep === 2 && activeModule && (
-                <>
-                  <div className="size-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
-                    <Calendar className="size-5" />
-                  </div>
-                  <span>{activeModule.module_name} — Exam Sessions</span>
-                </>
-              )}
+            {/* Step 2 */}
+            <button
+              type="button"
+              disabled={!activeModule}
+              onClick={() => activeModule && setCurrentStep(2)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                !activeModule
+                  ? 'opacity-40 cursor-not-allowed text-slate-400'
+                  : currentStep === 2
+                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/25 cursor-pointer'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#161B2A] cursor-pointer'
+              }`}
+            >
+              <span className={`size-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                currentStep > 2 ? 'bg-emerald-500 text-white' : currentStep === 2 ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-white/[0.08]'
+              }`}>
+                {currentStep > 2 ? <Check className="size-3" /> : '2'}
+              </span>
+              <span className="truncate max-w-[140px] sm:max-w-none">
+                {activeModule ? activeModule.module_name : 'Exam Sessions'}
+              </span>
+            </button>
 
-              {currentStep === 3 && activeModule && activeExam && (
-                <>
-                  <div className="size-9 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
-                    <ClipboardCheck className="size-5" />
-                  </div>
-                  <span className="capitalize">
-                    {activeModule.module_name} — {isRetakeSession(activeExam.session_type) ? 'Retake' : 'Regular'} Session Stations
-                  </span>
-                </>
-              )}
-            </h1>
+            {/* Chevron connector line */}
+            <div className="flex items-center gap-1 text-slate-300 dark:text-white/[0.15]">
+              <div className="w-3 sm:w-6 h-[1px] bg-slate-200 dark:bg-white/[0.1]" />
+              <ChevronRight className="size-3.5" />
+            </div>
 
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-              {currentStep === 1 &&
-                'Step 1: Select a curriculum module below to view its exam sessions and stations.'}
-              {currentStep === 2 &&
-                'Step 2: Explicitly select an active exam session (Regular or Retake) to view and manage its stations.'}
-              {currentStep === 3 &&
-                'Step 3: Full professor workspace parity. Author clinical stations, configure PINs, and link rubrics.'}
-            </p>
+            {/* Step 3 */}
+            <button
+              type="button"
+              disabled={!activeExam}
+              onClick={() => activeExam && setCurrentStep(3)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                !activeExam
+                  ? 'opacity-40 cursor-not-allowed text-slate-400'
+                  : currentStep === 3
+                  ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-500/25 cursor-pointer'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#161B2A] cursor-pointer'
+              }`}
+            >
+              <span className={`size-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                currentStep === 3 ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-white/[0.08]'
+              }`}>
+                3
+              </span>
+              <span>Stations Hub</span>
+            </button>
           </div>
 
-          <div className="flex items-center gap-2.5 self-start sm:self-auto">
+          {/* Action Tools in Sticky Header */}
+          <div className="flex items-center gap-2 self-end sm:self-auto">
             {currentStep === 2 && (
               <button
                 type="button"
@@ -775,10 +781,10 @@ function DeanStationsContent() {
                   setCurrentStep(1)
                   setSelectedModuleId('')
                 }}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-xs cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200/80 dark:border-white/[0.08] bg-white dark:bg-[#161B2A] text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-all cursor-pointer"
               >
                 <ArrowLeft className="size-3.5" />
-                <span>Back to Modules</span>
+                <span>Modules</span>
               </button>
             )}
 
@@ -786,10 +792,10 @@ function DeanStationsContent() {
               <button
                 type="button"
                 onClick={() => setCurrentStep(2)}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-xs cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200/80 dark:border-white/[0.08] bg-white dark:bg-[#161B2A] text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-all cursor-pointer"
               >
                 <ArrowLeft className="size-3.5" />
-                <span>Back to Exam Sessions</span>
+                <span>Sessions</span>
               </button>
             )}
 
@@ -797,10 +803,10 @@ function DeanStationsContent() {
               type="button"
               onClick={() => fetchAllFacultyData(selectedYearId, true)}
               disabled={refreshing || loading}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+              className="p-2 rounded-lg border border-slate-200/80 dark:border-white/[0.08] bg-white dark:bg-[#161B2A] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-all disabled:opacity-50 cursor-pointer"
+              title="Refresh records"
             >
-              <RefreshCw className={`size-3.5 ${refreshing ? 'animate-spin text-emerald-500' : ''}`} />
-              <span>Refresh</span>
+              <RefreshCw className={`size-3.5 ${refreshing ? 'animate-spin text-indigo-500' : ''}`} />
             </button>
           </div>
         </div>
@@ -1517,62 +1523,94 @@ function DeanStationsContent() {
               {displayedStations.map((st) => {
                 const isPinRevealed = !!revealedPins[st.id]
                 const isCopied = copiedPinId === st.id
+                const isPublished = publishedMap[st.id] ?? true
+                const roomName = `Room 10${st.station_number}`
+                const duration = '8 Mins'
 
                 return (
                   <div
                     key={st.id}
-                    className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4 flex flex-col justify-between hover:shadow-md hover:border-emerald-500/40 dark:hover:border-emerald-500/40 transition-all group"
+                    className="p-4 rounded-xl bg-white dark:bg-[#161B2A] border border-slate-200/80 dark:border-white/[0.08] shadow-xs space-y-3.5 flex flex-col justify-between hover:shadow-md hover:border-indigo-500/40 dark:hover:border-indigo-500/40 transition-all group"
                   >
                     <div className="space-y-3">
-                      {/* Station Header Pill & Weightage */}
+                      {/* Station Header Pill, Weightage & Draft/Published Toggle */}
                       <div className="flex items-center justify-between gap-2">
-                        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-black shadow-sm shadow-emerald-500/20">
-                          <ClipboardCheck className="size-3" />
-                          Station #{st.station_number}
-                        </span>
-                        <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 tabular-nums">
-                          {st.weightage_percentage}% Weightage
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#4F46E5] text-white text-xs font-bold shadow-xs">
+                            <ClipboardCheck className="size-3" />
+                            Station #{st.station_number}
+                          </span>
+
+                          {/* Subtle Tag Pills: Room Location & Duration */}
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-medium bg-slate-100 dark:bg-[#0F121C] text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-white/[0.06]">
+                            {roomName}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-medium bg-slate-100 dark:bg-[#0F121C] text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-white/[0.06]">
+                            {duration}
+                          </span>
+                        </div>
+
+                        {/* Toggle switch for Draft / Published */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleTogglePublish(e, st.id)}
+                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all cursor-pointer ${
+                            isPublished
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
+                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20'
+                          }`}
+                          title="Click to toggle Draft / Published status"
+                        >
+                          <span className={`size-1.5 rounded-full ${isPublished ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                          <span>{isPublished ? 'Published' : 'Draft'}</span>
+                        </button>
                       </div>
 
-                      {/* Station Title */}
-                      <div>
-                        <h3 className="text-base font-bold text-slate-900 dark:text-white leading-snug group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                          {st.title}
-                        </h3>
-                        <div className="flex items-center gap-2 mt-1.5">
-                          <p className="text-xs text-slate-400">
+                      {/* Station Title & Weightage */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                            {st.title}
+                          </h3>
+                          <p className="text-[11px] text-slate-400 mt-0.5 font-medium">
                             {activeModule.module_name} • {activeModule.level_name}
                           </p>
                         </div>
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-mono font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 shrink-0">
+                          {st.weightage_percentage}% Weight
+                        </span>
                       </div>
 
                       {/* Evaluator Professor Badge */}
-                      <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between gap-2">
+                      <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-[#0F121C] border border-slate-200/60 dark:border-white/[0.06] flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
-                          <Stethoscope className="size-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <Stethoscope className="size-3.5 text-indigo-500 shrink-0" />
                           <div className="flex flex-col min-w-0">
                             <span className="text-[9px] uppercase font-bold text-slate-400">
-                              Evaluator Professor
+                              Evaluator Examiner
                             </span>
-                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                            <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
                               {st.invigilator_prof_name && st.invigilator_prof_name !== 'Unassigned'
                                 ? st.invigilator_prof_name
-                                : 'Unassigned (Assign Below)'}
+                                : 'Unassigned (Select in Edit)'}
                             </span>
                           </div>
                         </div>
                       </div>
 
-                      {/* Live Tablet Scoring PIN Card */}
-                      <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2">
+                      {/* Interactive Examiner PIN Mono Chip with Tooltip Feedback */}
+                      <div
+                        onClick={(e) => handleCopyPin(e, st.id, st.access_pin)}
+                        className="relative p-2.5 rounded-lg bg-slate-50 dark:bg-[#0F121C] border border-slate-200/80 dark:border-white/[0.08] hover:border-indigo-500/40 flex items-center justify-between gap-2 transition-all cursor-pointer group/pin"
+                        title="Click to copy Examiner PIN"
+                      >
                         <div className="flex items-center gap-2 min-w-0">
-                          <Key className="size-4 text-amber-500 shrink-0" />
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">
-                              Tablet Scoring PIN
+                          <Key className="size-3.5 text-amber-500 shrink-0" />
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                              Examiner PIN:
                             </span>
-                            <span className="font-mono text-xs font-black text-slate-900 dark:text-white tracking-widest">
+                            <span className="font-mono text-xs font-bold tracking-widest text-slate-900 dark:text-white bg-slate-200/60 dark:bg-white/[0.08] px-2 py-0.5 rounded">
                               {isPinRevealed ? st.access_pin : '••••••'}
                             </span>
                           </div>
@@ -1581,35 +1619,36 @@ function DeanStationsContent() {
                         <div className="flex items-center gap-1">
                           <button
                             type="button"
-                            onClick={(e) => togglePinReveal(e, st.id)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              togglePinReveal(e, st.id)
+                            }}
+                            className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
                             aria-label="Toggle PIN Visibility"
                           >
                             {isPinRevealed ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
                           </button>
-                          <button
-                            type="button"
-                            onClick={(e) => handleCopyPin(e, st.id, st.access_pin)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 transition-colors cursor-pointer"
-                            aria-label="Copy Access PIN"
-                          >
-                            {isCopied ? (
-                              <Check className="size-3.5 text-emerald-500" />
-                            ) : (
-                              <Copy className="size-3.5" />
+
+                          {/* 1-click clipboard feedback tooltip */}
+                          <div className="relative flex items-center">
+                            <Copy className="size-3.5 text-slate-400 group-hover/pin:text-indigo-500 transition-colors" />
+                            {isCopied && (
+                              <span className="absolute -top-7 right-0 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-600 text-white shadow-md animate-in fade-in zoom-in-95 duration-150 whitespace-nowrap z-10">
+                                Copied!
+                              </span>
                             )}
-                          </button>
+                          </div>
                         </div>
                       </div>
                     </div>
 
                     {/* Card Footer Actions */}
-                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-0.5 text-slate-400">
+                    <div className="pt-2.5 border-t border-slate-100 dark:border-white/[0.06] flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1 text-slate-400">
                         <button
                           type="button"
                           onClick={(e) => handleOpenEditStation(e, st)}
-                          className="p-1.5 rounded-lg hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-all cursor-pointer"
+                          className="p-1.5 rounded-lg hover:text-indigo-600 hover:bg-indigo-500/10 transition-all cursor-pointer"
                           title="Edit Station Details & Evaluator"
                         >
                           <Edit2 className="size-3.5" />
@@ -1618,21 +1657,9 @@ function DeanStationsContent() {
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation()
-                            navigator.clipboard.writeText(st.access_pin)
-                            showSuccess('PIN copied!')
-                          }}
-                          className="p-1.5 rounded-lg hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-all cursor-pointer"
-                          title="Quick Copy PIN"
-                        >
-                          <Key className="size-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
                             setDeletingStation(st)
                           }}
-                          className="p-1.5 rounded-lg hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all cursor-pointer"
+                          className="p-1.5 rounded-lg hover:text-rose-500 hover:bg-rose-500/10 transition-all cursor-pointer"
                           title="Delete Station"
                         >
                           <Trash2 className="size-3.5" />
@@ -1641,7 +1668,7 @@ function DeanStationsContent() {
 
                       <Link
                         href={`/professor/stations/${st.id}/exams/${activeExam.id}`}
-                        className="flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 group-hover:translate-x-1 transition-all duration-200"
+                        className="flex items-center gap-1.5 font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 group-hover:translate-x-0.5 transition-all duration-150 text-xs"
                       >
                         <span>Open Checklist</span>
                         <ArrowRight className="size-3.5" />

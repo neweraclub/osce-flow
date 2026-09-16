@@ -16,7 +16,7 @@ export function NavbarYearSelector() {
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Outside click and Escape key listener
+  // Outside click and Escape / Cmd+Y listener
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -27,18 +27,20 @@ export function NavbarYearSelector() {
       if (event.key === 'Escape') {
         setIsOpen(false)
       }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'y') {
+        event.preventDefault()
+        setIsOpen((prev) => !prev)
+      }
     }
 
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-      window.addEventListener('keydown', handleKeyDown)
-    }
+    document.addEventListener('mousedown', handleClickOutside)
+    window.addEventListener('keydown', handleKeyDown)
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [isOpen])
+  }, [])
 
   const displayName =
     selectedYear?.name ||
@@ -47,37 +49,50 @@ export function NavbarYearSelector() {
 
   return (
     <div className="relative" ref={containerRef}>
-      {/* Trigger Pill Badge */}
+      {/* Segmented Command Chip Trigger (32px height) */}
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
         disabled={isLoading && years.length === 0}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        title="Switch active academic year"
-        className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 cursor-pointer select-none ${
+        title="Switch active academic year (⌘Y)"
+        className={`hidden sm:inline-flex items-center h-8 rounded-lg text-xs font-semibold transition-all border shadow-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/30 cursor-pointer select-none overflow-hidden ${
           isOpen
-            ? 'bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500/20'
-            : 'bg-slate-100 dark:bg-slate-800/90 hover:bg-slate-200/70 dark:hover:bg-slate-700/70 border border-slate-200/80 dark:border-slate-700/80 text-slate-700 dark:text-slate-200'
+            ? 'bg-indigo-500/10 border-indigo-500/40 text-indigo-700 dark:text-indigo-300'
+            : 'bg-white dark:bg-[#0F121C] hover:bg-slate-100/70 dark:hover:bg-white/[0.04] border-slate-200/80 dark:border-white/[0.08] text-slate-800 dark:text-slate-200'
         }`}
       >
-        <Calendar className="size-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
-        <span className="text-slate-400 dark:text-slate-400 font-semibold text-[11px]">Year:</span>
-        {isLoading && !selectedYear ? (
-          <span className="inline-flex items-center gap-1 text-slate-400 font-medium">
-            <Loader2 className="size-3 animate-spin text-indigo-500" />
-            Loading...
+        {/* Left Segment: Icon + Active Status Dot */}
+        <span className="flex items-center gap-1.5 px-2.5 h-full border-r border-slate-200/60 dark:border-white/[0.08] bg-slate-50/50 dark:bg-white/[0.02]">
+          <Calendar className="size-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+          <span className="relative flex size-1.5 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full size-1.5 bg-emerald-500" />
           </span>
-        ) : (
-          <span className="text-slate-900 dark:text-white font-bold tracking-tight">
-            {displayName}
-          </span>
-        )}
-        <ChevronDown
-          className={`size-3 text-slate-400 dark:text-slate-400 transition-transform duration-200 shrink-0 ${
-            isOpen ? 'rotate-180 text-indigo-600 dark:text-indigo-400' : ''
-          }`}
-        />
+        </span>
+
+        {/* Center Segment: Display Label */}
+        <span className="px-2.5 flex items-center gap-1 min-w-0 font-mono tracking-tight font-bold">
+          {isLoading && !selectedYear ? (
+            <span className="inline-flex items-center gap-1 text-slate-400 font-medium">
+              <Loader2 className="size-3 animate-spin text-indigo-500" />
+              Loading...
+            </span>
+          ) : (
+            <span className="truncate max-w-[140px]">{displayName}</span>
+          )}
+        </span>
+
+        {/* Right Segment: Shortcut Badge + Chevron */}
+        <span className="flex items-center gap-1 px-2 h-full border-l border-slate-200/60 dark:border-white/[0.08] bg-slate-50/50 dark:bg-white/[0.02] text-[10px] text-slate-400 font-mono">
+          <kbd className="px-1 py-0.5 rounded bg-slate-200/70 dark:bg-slate-800/80 text-[9px] font-semibold">⌘Y</kbd>
+          <ChevronDown
+            className={`size-3 text-slate-400 transition-transform duration-200 shrink-0 ${
+              isOpen ? 'rotate-180 text-indigo-500' : ''
+            }`}
+          />
+        </span>
       </button>
 
       {/* Floating Dropdown Menu Panel */}

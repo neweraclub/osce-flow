@@ -340,30 +340,49 @@ export default function ProfessorsPage() {
     }
   }
 
+  const getPastelColor = (name: string) => {
+    const palettes = [
+      'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20',
+      'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+      'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20',
+      'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
+      'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+      'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
+    ]
+    let hash = 0
+    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
+    return palettes[Math.abs(hash) % palettes.length]
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-150">
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-            Professors & Invigilators Roster
+          <div className="flex items-center gap-2 mb-1">
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold tracking-wide uppercase bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/20">
+              Faculty Examiner Roster
+            </span>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            Evaluators & Invigilators Roster
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Faculty examiner accounts authorized for OSCE station scoring and invigilation.
+            Authorized examiner accounts for clinical station authoring, invigilation, and tablet scoring.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={() => fetchProfessors(true)}
             disabled={refreshing}
-            className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-all"
+            className="p-2.5 rounded-lg bg-white dark:bg-[#0F121C] border border-slate-200/80 dark:border-white/[0.08] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#161B2A] transition-all"
             title="Refresh records"
           >
-            <RefreshCw className={`size-4 ${refreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`size-4 ${refreshing ? 'animate-spin text-indigo-500' : ''}`} />
           </button>
           <button
             onClick={openAddModal}
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-500/25 transition-all"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#4F46E5] hover:bg-[#4338CA] text-white font-semibold text-xs shadow-sm shadow-indigo-500/25 transition-all"
           >
             <Plus className="size-4" />
             Register Professor
@@ -371,89 +390,97 @@ export default function ProfessorsPage() {
         </div>
       </div>
 
-      {/* Search Bar */}
-      <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+      {/* Search Toolbar */}
+      <div className="p-3.5 rounded-xl bg-white dark:bg-[#0F121C] border border-slate-200/80 dark:border-white/[0.08] shadow-sm">
         <div className="relative max-w-md">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search professor name or email..."
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            placeholder="Search by professor name, surname, or email..."
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-[#161B2A] border border-slate-200 dark:border-white/[0.08] rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
           />
         </div>
       </div>
 
-      {/* Professors Table */}
-      <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+      {/* Modernized Data Table with Sticky Headers & Zebra Hover */}
+      <div className="rounded-xl bg-white dark:bg-[#0F121C] border border-slate-200/80 dark:border-white/[0.08] shadow-sm overflow-hidden">
+        <div className="overflow-x-auto max-h-[640px]">
           <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
-            <thead className="bg-slate-50 dark:bg-slate-800/40 text-[11px] uppercase tracking-wider font-bold text-slate-400 border-b border-slate-100 dark:border-slate-800">
+            <thead className="sticky top-0 bg-slate-50/95 dark:bg-[#161B2A]/95 backdrop-blur-md text-[11px] uppercase tracking-wider font-semibold text-slate-400 border-b border-slate-100 dark:border-white/[0.06] z-10">
               <tr>
-                <th className="px-6 py-4">Professor Details</th>
-                <th className="px-6 py-4">Institutional Email</th>
-                <th className="px-6 py-4">Account State</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+                <th className="px-6 py-3.5">Evaluator Profile</th>
+                <th className="px-6 py-3.5">Institutional Email</th>
+                <th className="px-6 py-3.5">Examiner Status</th>
+                <th className="px-6 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            <tbody className="divide-y divide-slate-100 dark:divide-white/[0.06]">
               {loading ? (
                 Array.from({ length: 5 }).map((_, idx) => (
                   <tr key={`skel-prof-${idx}`} className="animate-pulse">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="size-9 rounded-xl bg-slate-200 dark:bg-slate-800 shrink-0" />
+                        <div className="size-9 rounded-full bg-slate-200 dark:bg-[#161B2A] shrink-0" />
                         <div className="space-y-1.5 flex-1">
-                          <div className="h-4 w-36 rounded bg-slate-200 dark:bg-slate-800" />
-                          <div className="h-3 w-24 rounded bg-slate-200/70 dark:bg-slate-800/70" />
+                          <div className="h-4 w-36 rounded bg-slate-200 dark:bg-[#161B2A]" />
+                          <div className="h-3 w-24 rounded bg-slate-200/70 dark:bg-[#161B2A]/70" />
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="h-4 w-44 rounded bg-slate-200 dark:bg-slate-800" />
+                      <div className="h-4 w-44 rounded bg-slate-200 dark:bg-[#161B2A]" />
                     </td>
                     <td className="px-6 py-4">
-                      <div className="h-5 w-16 rounded-full bg-slate-200 dark:bg-slate-800" />
+                      <div className="h-5 w-20 rounded-full bg-slate-200 dark:bg-[#161B2A]" />
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <div className="size-8 rounded-lg bg-slate-200 dark:bg-slate-800" />
-                        <div className="size-8 rounded-lg bg-slate-200 dark:bg-slate-800" />
-                      </div>
+                      <div className="size-7 rounded-lg bg-slate-200 dark:bg-[#161B2A] ml-auto" />
                     </td>
                   </tr>
                 ))
               ) : filteredProfessors.length > 0 ? (
-                filteredProfessors.map((p) => {
+                filteredProfessors.map((p, idx) => {
                   const isDeleting = deletingId === p.id
                   const isToggling = togglingId === p.id
+                  const initials = `${p.first_name?.[0] || ''}${p.last_name?.[0] || ''}`.toUpperCase() || 'PR'
+                  const pastelStyle = getPastelColor(`${p.first_name} ${p.last_name}`)
 
                   return (
                     <tr
                       key={p.id}
-                      className={`transition-all duration-200 ${
-                        isDeleting
-                          ? 'opacity-50 pointer-events-none bg-slate-100/50 dark:bg-slate-800/50'
-                          : 'hover:bg-slate-50/50 dark:hover:bg-slate-800/30'
+                      className={`transition-colors duration-150 ${
+                        idx % 2 === 1 ? 'bg-slate-50/40 dark:bg-white/[0.01]' : ''
+                      } hover:bg-indigo-500/[0.04] dark:hover:bg-indigo-500/[0.06] ${
+                        isDeleting ? 'opacity-50 pointer-events-none' : ''
                       }`}
                     >
-                      {/* 1. Professor Details */}
-                      <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">
+                      {/* 1. Professor Details with Pastel Initial Avatar */}
+                      <td className="px-6 py-4 font-semibold text-slate-900 dark:text-white">
                         <div className="flex items-center gap-3">
-                          <div className="size-9 rounded-xl bg-cyan-50 dark:bg-cyan-950/60 text-cyan-600 dark:text-cyan-400 flex items-center justify-center font-bold text-xs shrink-0">
-                            <Stethoscope className="size-5" />
+                          <div
+                            className={`size-9 rounded-full flex items-center justify-center font-bold text-xs shrink-0 border ${pastelStyle}`}
+                          >
+                            {initials}
                           </div>
-                          <span className="truncate">Prof. {p.first_name} {p.last_name}</span>
+                          <div>
+                            <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                              Prof. {p.first_name} {p.last_name}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              Medical Examiner & Invigilator
+                            </span>
+                          </div>
                         </div>
                       </td>
 
                       {/* 2. Institutional Email */}
-                      <td className="px-6 py-4 font-mono font-semibold text-slate-600 dark:text-slate-300">
+                      <td className="px-6 py-4 font-mono text-xs text-slate-600 dark:text-slate-300">
                         {p.email}
                       </td>
 
-                      {/* 3. Account State Toggle */}
+                      {/* 3. Account State: Seamless iOS-style Toggle */}
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2.5">
                           <button
@@ -470,21 +497,21 @@ export default function ProfessorsPage() {
                             }`}
                           >
                             <span
-                              className={`pointer-events-none inline-block size-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                              className={`pointer-events-none inline-block size-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
                                 p.is_active ? 'translate-x-4' : 'translate-x-0'
                               }`}
                             />
                           </button>
                           <span
-                            className={`text-xs font-semibold ${
+                            className={`text-[11px] font-semibold ${
                               p.is_active
-                                ? 'text-emerald-700 dark:text-emerald-400'
+                                ? 'text-emerald-600 dark:text-emerald-400'
                                 : 'text-slate-400 dark:text-slate-500'
                             }`}
                           >
                             {isToggling ? (
                               <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
-                                <Loader2 className="size-3 animate-spin" />
+                                <Loader2 className="size-3 animate-spin text-indigo-500" />
                                 Updating...
                               </span>
                             ) : p.is_active ? (
@@ -496,27 +523,27 @@ export default function ProfessorsPage() {
                         </div>
                       </td>
 
-                      {/* 4. Actions: Edit + Delete */}
+                      {/* 4. Actions Strip */}
                       <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="inline-flex items-center justify-end gap-1 opacity-70 hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => openEditModal(p)}
                             disabled={isDeleting}
-                            className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors disabled:opacity-50"
-                            title="Edit Professor Details"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-500/10 transition-colors disabled:opacity-50"
+                            title="Edit Professor & Password"
                           >
-                            <Edit2 className="size-4" />
+                            <Edit2 className="size-3.5" />
                           </button>
                           <button
                             onClick={() => setDeletingProf(p)}
                             disabled={isDeleting}
-                            className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors disabled:opacity-50"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors disabled:opacity-50"
                             title="Remove Account"
                           >
                             {isDeleting ? (
-                              <Loader2 className="size-4 animate-spin text-indigo-600 dark:text-indigo-400" />
+                              <Loader2 className="size-3.5 animate-spin text-indigo-500" />
                             ) : (
-                              <Trash2 className="size-4" />
+                              <Trash2 className="size-3.5" />
                             )}
                           </button>
                         </div>
@@ -536,328 +563,333 @@ export default function ProfessorsPage() {
         </div>
       </div>
 
-      {/* EDIT PROFESSOR MODAL (DUAL-TABLE UPDATE) */}
+      {/* EDIT PROFESSOR SLIDE-IN SHEET DRAWER (FROM RIGHT VIEWPORT EDGE) */}
       {editingProf && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                  <Edit2 className="size-5" />
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md h-full bg-white dark:bg-[#0F121C] border-l border-slate-200/80 dark:border-white/[0.08] shadow-2xl p-6 sm:p-8 space-y-6 overflow-y-auto animate-in slide-in-from-right duration-200 flex flex-col justify-between">
+            <div className="space-y-5">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/[0.06] pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="size-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                    <Edit2 className="size-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">Edit Professor Record</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Account credentials & invigilator access.</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Edit Professor & Invigilator</h3>
-                  <p className="text-xs text-slate-500">Update account credentials and examiner authorizations.</p>
-                </div>
+                <button
+                  onClick={() => setEditingProf(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#161B2A] transition-colors"
+                >
+                  <X className="size-4" />
+                </button>
               </div>
-              <button
-                onClick={() => setEditingProf(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-              >
-                <X className="size-5" />
-              </button>
+
+              {editFormError && (
+                <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400">
+                  {editFormError}
+                </div>
+              )}
+
+              <form id="edit-prof-form" onSubmit={handleEditSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                      First Name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={editFirstName}
+                      onChange={(e) => setEditFirstName(e.target.value)}
+                      placeholder="e.g. Karim"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-[#161B2A] border border-slate-200 dark:border-white/[0.08] rounded-lg text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                      Last Name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={editLastName}
+                      onChange={(e) => setEditLastName(e.target.value)}
+                      placeholder="e.g. Benali"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-[#161B2A] border border-slate-200 dark:border-white/[0.08] rounded-lg text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                    Institutional Email
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                    placeholder="prof.benali@univ-alger.dz"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-[#161B2A] border border-slate-200 dark:border-white/[0.08] rounded-lg text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
+                  />
+                </div>
+
+                {/* Account State Switch in Drawer */}
+                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#161B2A] border border-slate-200/80 dark:border-white/[0.08] flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                      Account Status
+                    </span>
+                    <span className="text-[11px] text-slate-400">
+                      {editIsActive ? 'Active — Authorized for scoring' : 'Suspended — Access disabled'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={editIsActive}
+                    onClick={() => setEditIsActive((prev) => !prev)}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500/30 ${
+                      editIsActive ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block size-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                        editIsActive ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Collapsible Password Reset Section in Drawer */}
+                <div className="rounded-xl border border-slate-200/80 dark:border-white/[0.08] overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsPasswordResetOpen((prev) => !prev)
+                      if (isPasswordResetOpen) setEditPassword('')
+                    }}
+                    className="w-full p-3 bg-slate-50/70 dark:bg-[#161B2A]/50 hover:bg-slate-100/70 dark:hover:bg-[#161B2A] flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300 transition-colors"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <Key className="size-3.5 text-indigo-500" />
+                      Reset Account Password
+                    </span>
+                    <span className="text-[10px] uppercase font-semibold text-indigo-500 dark:text-indigo-400">
+                      {isPasswordResetOpen ? 'Cancel' : 'Set New'}
+                    </span>
+                  </button>
+
+                  {isPasswordResetOpen && (
+                    <div className="p-3.5 border-t border-slate-100 dark:border-white/[0.06] space-y-2 bg-white dark:bg-[#0F121C]">
+                      <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                        New Password
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showEditPassword ? 'text' : 'password'}
+                          value={editPassword}
+                          onChange={(e) => setEditPassword(e.target.value)}
+                          placeholder="Enter new password to reset..."
+                          className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 dark:bg-[#161B2A] border border-slate-200 dark:border-white/[0.08] rounded-lg text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowEditPassword((prev) => !prev)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                          title={showEditPassword ? 'Hide password' : 'Show password'}
+                        >
+                          {showEditPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-slate-400">
+                        Leave blank to retain the current password.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </form>
             </div>
 
-            {editFormError && (
-              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-xs font-semibold text-rose-700 dark:text-rose-300">
-                {editFormError}
-              </div>
-            )}
-
-            <form onSubmit={handleEditSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                    First Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={editFirstName}
-                    onChange={(e) => setEditFirstName(e.target.value)}
-                    placeholder="e.g. Karim"
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                    Last Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={editLastName}
-                    onChange={(e) => setEditLastName(e.target.value)}
-                    placeholder="e.g. Benali"
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                  Institutional Email
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={editEmail}
-                  onChange={(e) => setEditEmail(e.target.value)}
-                  placeholder="prof.benali@univ-alger.dz"
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              {/* Account State Switch in Modal */}
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-bold text-slate-900 dark:text-white block">
-                    Account Status
-                  </span>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                    {editIsActive
-                      ? 'Active — Authorized for exam invigilation & scoring'
-                      : 'Suspended — Access to scoring portals disabled'}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={editIsActive}
-                  onClick={() => setEditIsActive((prev) => !prev)}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500/30 ${
-                    editIsActive ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
-                  }`}
-                >
-                  <span
-                    className={`pointer-events-none inline-block size-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                      editIsActive ? 'translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* Collapsible Password Reset Section */}
-              <div className="rounded-2xl border border-slate-200/80 dark:border-slate-700/80 overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsPasswordResetOpen((prev) => !prev)
-                    if (isPasswordResetOpen) setEditPassword('')
-                  }}
-                  className="w-full p-3.5 bg-slate-50/70 dark:bg-slate-800/30 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300 transition-colors"
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <Key className="size-3.5 text-indigo-500" />
-                    Reset Account Password
-                  </span>
-                  <span className="text-[10px] uppercase font-semibold text-indigo-600 dark:text-indigo-400">
-                    {isPasswordResetOpen ? 'Cancel' : 'Set New Password'}
-                  </span>
-                </button>
-
-                {isPasswordResetOpen && (
-                  <div className="p-4 border-t border-slate-100 dark:border-slate-800 space-y-2 bg-white dark:bg-slate-900">
-                    <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                      New Password
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showEditPassword ? 'text' : 'password'}
-                        value={editPassword}
-                        onChange={(e) => setEditPassword(e.target.value)}
-                        placeholder="Enter new password to reset..."
-                        className="w-full pl-4 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowEditPassword((prev) => !prev)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                        title={showEditPassword ? 'Hide password' : 'Show password'}
-                      >
-                        {showEditPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                      </button>
-                    </div>
-                    <p className="text-[10px] text-slate-400">
-                      Leave blank to keep existing password intact.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Dirty-checked Action Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setEditingProf(null)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={!isEditDirty || submitting}
-                  className={`px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/25 flex items-center gap-2 transition-all ${
-                    !isEditDirty || submitting
-                      ? 'opacity-50 cursor-not-allowed pointer-events-none'
-                      : 'cursor-pointer'
-                  }`}
-                >
-                  {submitting ? <Loader2 className="size-4 animate-spin" /> : null}
-                  <span>Save Changes</span>
-                </button>
-              </div>
-            </form>
+            {/* Drawer Action Footer */}
+            <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-white/[0.06]">
+              <button
+                type="button"
+                onClick={() => setEditingProf(null)}
+                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-white/[0.08] text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#161B2A] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="edit-prof-form"
+                disabled={!isEditDirty || submitting}
+                className={`px-4 py-2 rounded-lg bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-bold shadow-sm shadow-indigo-500/25 flex items-center gap-2 transition-all ${
+                  !isEditDirty || submitting
+                    ? 'opacity-50 cursor-not-allowed pointer-events-none'
+                    : 'cursor-pointer'
+                }`}
+              >
+                {submitting ? <Loader2 className="size-3.5 animate-spin" /> : null}
+                <span>Save Changes</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* REGISTER PROFESSOR MODAL */}
+      {/* REGISTER PROFESSOR SLIDE-IN SHEET DRAWER */}
       {isAddOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                  <UserCheck className="size-5" />
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md h-full bg-white dark:bg-[#0F121C] border-l border-slate-200/80 dark:border-white/[0.08] shadow-2xl p-6 sm:p-8 space-y-6 overflow-y-auto animate-in slide-in-from-right duration-200 flex flex-col justify-between">
+            <div className="space-y-5">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/[0.06] pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="size-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                    <UserCheck className="size-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">Register Professor</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Provision invigilator account for OSCE scoring.</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Register Professor</h3>
-                  <p className="text-xs text-slate-500">Provision invigilator account for OSCE scoring.</p>
-                </div>
+                <button
+                  onClick={() => setIsAddOpen(false)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#161B2A] transition-colors"
+                >
+                  <X className="size-4" />
+                </button>
               </div>
-              <button
-                onClick={() => setIsAddOpen(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-              >
-                <X className="size-5" />
-              </button>
+
+              {formError && (
+                <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400">
+                  {formError}
+                </div>
+              )}
+
+              <form id="add-prof-form" onSubmit={handleAddSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                      First Name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      placeholder="e.g. Karim"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-[#161B2A] border border-slate-200 dark:border-white/[0.08] rounded-lg text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                      Last Name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      placeholder="e.g. Benali"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-[#161B2A] border border-slate-200 dark:border-white/[0.08] rounded-lg text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                    Institutional Email
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="prof.benali@univ-alger.dz"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-[#161B2A] border border-slate-200 dark:border-white/[0.08] rounded-lg text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                    Initial Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showAddPassword ? 'text' : 'password'}
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 dark:bg-[#161B2A] border border-slate-200 dark:border-white/[0.08] rounded-lg text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowAddPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                      title={showAddPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showAddPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              </form>
             </div>
 
-            {formError && (
-              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-xs font-semibold text-rose-700 dark:text-rose-300">
-                {formError}
-              </div>
-            )}
-
-            <form onSubmit={handleAddSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                    First Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="e.g. Karim"
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                    Last Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    placeholder="e.g. Benali"
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                  Institutional Email
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="prof.benali@univ-alger.dz"
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                  Initial Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showAddPassword ? 'text' : 'password'}
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-4 pr-10 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowAddPassword((prev) => !prev)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                    title={showAddPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showAddPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setIsAddOpen(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/25 flex items-center gap-2 disabled:opacity-50"
-                >
-                  {submitting ? <Loader2 className="size-4 animate-spin" /> : null}
-                  <span>Provision Account</span>
-                </button>
-              </div>
-            </form>
+            {/* Register Drawer Footer */}
+            <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-white/[0.06]">
+              <button
+                type="button"
+                onClick={() => setIsAddOpen(false)}
+                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-white/[0.08] text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#161B2A] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="add-prof-form"
+                disabled={submitting}
+                className="px-4 py-2 rounded-lg bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-bold shadow-sm shadow-indigo-500/25 flex items-center gap-2 disabled:opacity-50 transition-all"
+              >
+                {submitting ? <Loader2 className="size-3.5 animate-spin" /> : null}
+                <span>Provision Account</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* DELETE CONFIRMATION MODAL */}
       {deletingProf && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-5">
-            <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
-              <div className="size-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 flex items-center justify-center shrink-0">
-                <AlertTriangle className="size-6" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#0F121C] border border-slate-200/80 dark:border-white/[0.08] shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 text-rose-500">
+              <div className="size-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center shrink-0">
+                <AlertTriangle className="size-5" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Delete Professor Account?</h3>
-                <p className="text-xs text-slate-500">Invigilator removal alert.</p>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">Delete Professor Account?</h3>
+                <p className="text-xs text-slate-400">Invigilator removal confirmation.</p>
               </div>
             </div>
 
             <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              Are you sure you want to remove <strong className="text-slate-900 dark:text-white">Prof. {deletingProf.first_name} {deletingProf.last_name}</strong>?
+              Are you sure you want to remove <strong className="text-slate-900 dark:text-white">Prof. {deletingProf.first_name} {deletingProf.last_name}</strong>? This will revoke scoring access across assigned clinical stations.
             </p>
 
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-white/[0.06]">
               <button
                 onClick={() => setDeletingProf(null)}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-white/[0.08] text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#161B2A] transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteConfirm}
                 disabled={submitting}
-                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-600/25 flex items-center gap-2 disabled:opacity-50"
+                className="px-4 py-2 rounded-lg bg-[#EF4444] hover:bg-red-600 text-white text-xs font-bold shadow-sm shadow-rose-600/25 flex items-center gap-2 disabled:opacity-50 transition-all"
               >
                 <span>Remove Account</span>
               </button>

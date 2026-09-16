@@ -11,7 +11,6 @@ import {
   CheckSquare,
   FileSpreadsheet,
   GraduationCap,
-  Info,
   Loader2,
   Pencil,
   Plus,
@@ -21,8 +20,8 @@ import {
   Trash2,
   Upload,
   UserPlus,
-  Users,
   X,
+  FileText,
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { Select, SelectOption } from '@/components/ui/Select'
@@ -166,6 +165,7 @@ export default function StudentsPage() {
   const [importFileName, setImportFileName] = useState<string>('')
   const [importError, setImportError] = useState<string>('')
   const [submittingImport, setSubmittingImport] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
 
   // Global Escape key listener
   useEffect(() => {
@@ -427,6 +427,7 @@ export default function StudentsPage() {
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
+    setIsDragging(false)
     const file = e.dataTransfer.files?.[0]
     if (!file) return
     processExcelFile(file)
@@ -701,51 +702,51 @@ export default function StudentsPage() {
   ) => {
     if (sortKey !== key) return <ArrowUpDown className="size-3.5 opacity-40 group-hover:opacity-100 transition-opacity inline ml-1" />
     return sortOrder === 'asc' ? (
-      <ArrowUp className="size-3.5 text-indigo-600 dark:text-indigo-400 inline ml-1" />
+      <ArrowUp className="size-3.5 text-indigo-500 inline ml-1" />
     ) : (
-      <ArrowDown className="size-3.5 text-indigo-600 dark:text-indigo-400 inline ml-1" />
+      <ArrowDown className="size-3.5 text-indigo-500 inline ml-1" />
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-16">
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-            Student Cohort Roster
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            Student Candidate Cohort
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Enrolled medical candidates mapped to rotation groups and academic sections.
+            Enrolled medical candidates mapped to rotation groups, clinical sections, and academic years.
           </p>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={() => fetchStudents(true)}
             disabled={refreshing}
-            className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-all"
+            className="p-2.5 rounded-lg bg-white dark:bg-[#0F121C] border border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#161B2A] transition-all"
             title="Refresh cohort records"
           >
             <RefreshCw className={`size-4 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
           <button
             onClick={openImportModal}
-            className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-semibold text-xs hover:bg-emerald-500/20 transition-all shadow-sm"
           >
             <FileSpreadsheet className="size-4 text-emerald-600 dark:text-emerald-400" />
             <span>Import Cohort (XLSX)</span>
           </button>
           <button
             onClick={openAddModal}
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-500/25 transition-all"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-md shadow-indigo-600/20 transition-all"
           >
             <Plus className="size-4" />
-            Enroll Student
+            <span>Enroll Candidate</span>
           </button>
         </div>
       </div>
 
-      {/* Universal Table Toolbar & Filter/Sorting Bar */}
+      {/* Universal Table Toolbar & Filters */}
       <TableToolbar
         searchQuery={search}
         onSearchChange={setSearch}
@@ -789,7 +790,7 @@ export default function StudentsPage() {
           <>
             <button
               onClick={() => setIsBatchDeleteOpen(true)}
-              className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5"
+              className="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5"
             >
               <Trash2 className="size-3.5" />
               <span>Remove Selected</span>
@@ -798,20 +799,20 @@ export default function StudentsPage() {
         }
       />
 
-      {/* Students Data Table with Distinct Last Name & First Name Columns */}
-      <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden">
+      {/* Students Data Table */}
+      <div className="rounded-2xl bg-white dark:bg-[#0F121C] border border-slate-200/80 dark:border-white/[0.08] shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
-            <thead className="bg-slate-50 dark:bg-slate-800/40 text-[11px] uppercase tracking-wider font-bold text-slate-400 border-b border-slate-100 dark:border-slate-800">
+            <thead className="bg-slate-50 dark:bg-[#161B2A] text-[11px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-white/[0.08] sticky top-0 z-10">
               <tr>
-                <th className="px-4 py-4 w-12 text-center">
+                <th className="px-4 py-3.5 w-12 text-center">
                   <button
                     type="button"
                     onClick={() => toggleSelectAll(filteredIds)}
-                    className="p-1 rounded-lg text-slate-400 hover:text-indigo-600 transition-colors"
+                    className="p-1 rounded-md text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                   >
                     {isAllSelected(filteredIds) ? (
-                      <CheckSquare className="size-4 text-indigo-600" />
+                      <CheckSquare className="size-4 text-indigo-600 dark:text-indigo-400" />
                     ) : (
                       <Square className="size-4" />
                     )}
@@ -819,152 +820,156 @@ export default function StudentsPage() {
                 </th>
                 <th
                   onClick={() => toggleSort('import_index')}
-                  className="px-3 py-4 cursor-pointer select-none group hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors w-12 text-center"
-                  title="Sort by uploaded sequence"
+                  className="px-3 py-3.5 cursor-pointer select-none group hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors w-12 text-center"
+                  title="Sort by sequence"
                 >
                   <span>#</span>
                   {renderSortIcon('import_index')}
                 </th>
                 <th
                   onClick={() => toggleSort('matricule')}
-                  className="px-6 py-4 cursor-pointer select-none group hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                  className="px-6 py-3.5 cursor-pointer select-none group hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                 >
                   <span>Matricule</span>
                   {renderSortIcon('matricule')}
                 </th>
                 <th
                   onClick={() => toggleSort('last_name')}
-                  className="px-6 py-4 cursor-pointer select-none group hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                  className="px-6 py-3.5 cursor-pointer select-none group hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                 >
                   <span>Last Name (Nom)</span>
                   {renderSortIcon('last_name')}
                 </th>
                 <th
                   onClick={() => toggleSort('first_name')}
-                  className="px-6 py-4 cursor-pointer select-none group hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                  className="px-6 py-3.5 cursor-pointer select-none group hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                 >
                   <span>First Name (Prénom)</span>
                   {renderSortIcon('first_name')}
                 </th>
                 <th
                   onClick={() => toggleSort('group_name')}
-                  className="px-6 py-4 cursor-pointer select-none group hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                  className="px-6 py-3.5 cursor-pointer select-none group hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                 >
                   <span>Rotation Group</span>
                   {renderSortIcon('group_name')}
                 </th>
                 <th
                   onClick={() => toggleSort('section_name')}
-                  className="px-6 py-4 cursor-pointer select-none group hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                  className="px-6 py-3.5 cursor-pointer select-none group hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                 >
-                  <span>Section & Study Level</span>
+                  <span>Section &amp; Study Level</span>
                   {renderSortIcon('section_name')}
                 </th>
-                <th className="px-6 py-4 text-right">Actions</th>
+                <th className="px-6 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            <tbody className="divide-y divide-slate-100 dark:divide-white/[0.05]">
               {loading ? (
                 Array.from({ length: 6 }).map((_, idx) => (
-                  <tr key={`skeleton-${idx}`} className="animate-pulse border-b border-slate-100 dark:border-slate-800">
-                    <td className="px-4 py-4 w-12 text-center">
-                      <div className="size-4 bg-slate-200 dark:bg-slate-800 rounded mx-auto" />
+                  <tr key={`skeleton-${idx}`} className="animate-pulse">
+                    <td className="px-4 py-4 text-center">
+                      <div className="size-4 bg-slate-200 dark:bg-[#161B2A] rounded mx-auto" />
                     </td>
-                    <td className="px-3 py-4 w-12 text-center">
-                      <div className="h-4 w-6 bg-slate-200 dark:bg-slate-800 rounded mx-auto" />
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="h-4 w-28 bg-slate-200 dark:bg-slate-800 rounded" />
+                    <td className="px-3 py-4 text-center">
+                      <div className="h-4 w-6 bg-slate-200 dark:bg-[#161B2A] rounded mx-auto" />
                     </td>
                     <td className="px-6 py-4">
-                      <div className="h-4 w-36 bg-slate-200 dark:bg-slate-800 rounded" />
+                      <div className="h-4 w-28 bg-slate-200 dark:bg-[#161B2A] rounded" />
                     </td>
                     <td className="px-6 py-4">
-                      <div className="h-4 w-32 bg-slate-200 dark:bg-slate-800 rounded" />
+                      <div className="h-4 w-36 bg-slate-200 dark:bg-[#161B2A] rounded" />
                     </td>
                     <td className="px-6 py-4">
-                      <div className="h-6 w-20 bg-slate-200 dark:bg-slate-800 rounded-full" />
+                      <div className="h-4 w-32 bg-slate-200 dark:bg-[#161B2A] rounded" />
                     </td>
                     <td className="px-6 py-4">
-                      <div className="h-6 w-32 bg-slate-200 dark:bg-slate-800 rounded-full" />
+                      <div className="h-6 w-20 bg-slate-200 dark:bg-[#161B2A] rounded-full" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-6 w-32 bg-slate-200 dark:bg-[#161B2A] rounded-full" />
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="h-7 w-16 bg-slate-200 dark:bg-slate-800 rounded-lg ml-auto" />
+                      <div className="h-7 w-16 bg-slate-200 dark:bg-[#161B2A] rounded ml-auto" />
                     </td>
                   </tr>
                 ))
               ) : filteredAndSortedStudents.length > 0 ? (
-                filteredAndSortedStudents.map((st) => {
+                filteredAndSortedStudents.map((st, idx) => {
                   const selected = isSelected(st.id)
                   const isDeleting = deletingId === st.id
                   return (
                     <tr
                       key={st.id}
-                      className={`transition-all duration-200 ${
+                      className={`transition-all duration-150 ${
                         isDeleting
-                          ? 'opacity-50 pointer-events-none bg-slate-100/50 dark:bg-slate-800/50'
+                          ? 'opacity-50 pointer-events-none bg-slate-100/50 dark:bg-[#161B2A]/50'
                           : selected
-                          ? 'bg-indigo-50/60 dark:bg-indigo-950/40'
-                          : 'hover:bg-slate-50/50 dark:hover:bg-slate-800/30'
+                          ? 'bg-indigo-50/70 dark:bg-indigo-950/40'
+                          : idx % 2 === 1
+                          ? 'bg-slate-50/40 dark:bg-[#090A0F]/25 hover:bg-slate-50 dark:hover:bg-[#161B2A]/60'
+                          : 'hover:bg-slate-50 dark:hover:bg-[#161B2A]/60'
                       }`}
                     >
-                      <td className="px-4 py-4 w-12 text-center">
+                      <td className="px-4 py-3.5 text-center">
                         <button
                           type="button"
                           onClick={() => toggleSelect(st.id)}
                           disabled={isDeleting}
-                          className="p-1 rounded-lg text-slate-400 hover:text-indigo-600 transition-colors disabled:opacity-50"
+                          className="p-1 rounded-md text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors disabled:opacity-50"
                         >
                           {selected ? (
-                            <CheckSquare className="size-4 text-indigo-600" />
+                            <CheckSquare className="size-4 text-indigo-600 dark:text-indigo-400" />
                           ) : (
                             <Square className="size-4" />
                           )}
                         </button>
                       </td>
-                      <td className="px-3 py-4 text-center font-mono text-[11px] font-medium text-slate-400 dark:text-slate-500">
+                      <td className="px-3 py-3.5 text-center font-mono tabular-nums text-[11px] font-medium text-slate-400 dark:text-slate-500">
                         {typeof st.import_index === 'number' ? st.import_index + 1 : '-'}
                       </td>
-                      <td className="px-6 py-4 font-mono font-bold text-indigo-600 dark:text-indigo-400">
-                        {st.matricule}
+                      <td className="px-6 py-3.5">
+                        <span className="font-mono tabular-nums font-bold text-indigo-600 dark:text-indigo-400 tracking-tight">
+                          {st.matricule}
+                        </span>
                       </td>
-                      <td className="px-6 py-4 font-extrabold text-slate-900 dark:text-white uppercase tracking-wide">
+                      <td className="px-6 py-3.5 font-bold text-slate-900 dark:text-white uppercase tracking-wide">
                         {st.last_name}
                       </td>
-                      <td className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300">
+                      <td className="px-6 py-3.5 font-medium text-slate-700 dark:text-slate-300">
                         {st.first_name}
                       </td>
-                      <td className="px-6 py-4 font-semibold text-slate-800 dark:text-slate-200">
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-[11px]">
+                      <td className="px-6 py-3.5">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-[#161B2A] text-slate-700 dark:text-slate-300 font-medium text-[11px] border border-slate-200/60 dark:border-white/[0.08]">
                           {st.group_name}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold text-[11px] border border-indigo-200/60 dark:border-indigo-900/50">
+                      <td className="px-6 py-3.5">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 font-medium text-[11px] border border-indigo-200/60 dark:border-indigo-900/50">
                           <GraduationCap className="size-3.5" />
                           {st.section_name} ({st.level_name})
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-6 py-3.5 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => setEditingStudent(st)}
                             disabled={isDeleting}
-                            className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors disabled:opacity-50"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors disabled:opacity-50"
                             title="Edit Student Record"
                           >
-                            <Pencil className="size-4" />
+                            <Pencil className="size-3.5" />
                           </button>
                           <button
                             onClick={() => setDeletingStudent(st)}
                             disabled={isDeleting}
-                            className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors disabled:opacity-50"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors disabled:opacity-50"
                             title="Remove Student"
                           >
                             {isDeleting ? (
-                              <Loader2 className="size-4 animate-spin text-indigo-600 dark:text-indigo-400" />
+                              <Loader2 className="size-3.5 animate-spin text-indigo-600 dark:text-indigo-400" />
                             ) : (
-                              <Trash2 className="size-4" />
+                              <Trash2 className="size-3.5" />
                             )}
                           </button>
                         </div>
@@ -975,7 +980,7 @@ export default function StudentsPage() {
               ) : (
                 <tr>
                   <td colSpan={8} className="px-6 py-12 text-center text-slate-400">
-                    No enrolled students matching the selected filters.
+                    No enrolled candidates matching the selected filters.
                   </td>
                 </tr>
               )}
@@ -983,6 +988,31 @@ export default function StudentsPage() {
           </table>
         </div>
       </div>
+
+      {/* FLOATING ACTION BAR FOR CANDIDATE BATCH ACTIONS */}
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-5 py-3 rounded-full bg-slate-900/95 dark:bg-[#161B2A]/95 text-white backdrop-blur-md border border-slate-700/60 dark:border-white/[0.12] shadow-2xl shadow-black/40 animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <span className="flex items-center gap-2 text-xs font-semibold">
+            <span className="size-2 rounded-full bg-indigo-500 animate-pulse" />
+            <span className="font-mono font-bold text-indigo-300 tabular-nums">{selectedIds.length}</span>
+            <span>candidate(s) selected</span>
+          </span>
+          <div className="h-4 w-px bg-white/20" />
+          <button
+            onClick={clearSelection}
+            className="text-xs text-slate-300 hover:text-white transition-colors"
+          >
+            Deselect All
+          </button>
+          <button
+            onClick={() => setIsBatchDeleteOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition-all"
+          >
+            <Trash2 className="size-3.5" />
+            <span>Delete Selected</span>
+          </button>
+        </div>
+      )}
 
       {/* EDIT STUDENT MODAL */}
       {editingStudent && (
@@ -996,46 +1026,48 @@ export default function StudentsPage() {
         />
       )}
 
-      {/* XLSX COHORT IMPORT STAGED PREVIEW MODAL */}
+      {/* INTEGRATED BULK XLSX IMPORTER PREVIEW DRAWER */}
       {isImportOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-4xl max-h-[90vh] flex flex-col rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl overflow-hidden">
-            {/* Modal Header */}
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-3xl h-full flex flex-col bg-white dark:bg-[#0F121C] border-l border-slate-200 dark:border-white/[0.08] shadow-2xl animate-in slide-in-from-right duration-200 overflow-hidden">
+            {/* Drawer Header */}
+            <div className="p-6 border-b border-slate-200 dark:border-white/[0.08] flex items-center justify-between shrink-0 bg-slate-50/50 dark:bg-[#161B2A]/40">
               <div className="flex items-center gap-3">
-                <div className="size-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                  <FileSpreadsheet className="size-6" />
+                <div className="size-10 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                  <FileSpreadsheet className="size-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Import Student Cohort (XLSX)</h3>
-                  <p className="text-xs text-slate-500">
-                    Upload candidate spreadsheet with automatic normalization & structure provisioning.
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Bulk XLSX Cohort Importer
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Upload spreadsheet to auto-provision sections, rotation squads, and enroll candidates.
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setIsImportOpen(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#161B2A] transition-colors"
               >
                 <X className="size-5" />
               </button>
             </div>
 
-            {/* Modal Content */}
+            {/* Drawer Content Area */}
             <div className="p-6 overflow-y-auto space-y-6 flex-1">
               {importError && (
-                <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-xs font-semibold text-rose-700 dark:text-rose-300 flex items-start gap-3">
-                  <AlertCircle className="size-5 shrink-0 text-rose-600 dark:text-rose-400 mt-0.5" />
+                <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-xs font-semibold text-rose-700 dark:text-rose-300 flex items-start gap-3">
+                  <AlertCircle className="size-4 shrink-0 text-rose-600 dark:text-rose-400 mt-0.5" />
                   <div>
                     <span className="font-bold">Import Error:</span> {importError}
                   </div>
                 </div>
               )}
 
-              {/* Target Level & Year Selection */}
+              {/* Target Academic Session & Study Level */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Select
-                  label="Target Academic Year"
+                  label="Target Academic Session"
                   options={academicYearSelectOptions}
                   value={selectedYearId}
                   onChange={setSelectedYearId}
@@ -1048,12 +1080,20 @@ export default function StudentsPage() {
                 />
               </div>
 
-              {/* File Dropzone */}
+              {/* Animated Dashed Border Dropzone with SVG File-Type Badge */}
               <div
-                onDragOver={(e) => e.preventDefault()}
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  setIsDragging(true)
+                }}
+                onDragLeave={() => setIsDragging(false)}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className="p-6 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500 bg-slate-50/50 dark:bg-slate-800/30 cursor-pointer transition-all text-center space-y-3"
+                className={`relative p-8 rounded-2xl border-2 border-dashed transition-all duration-200 cursor-pointer text-center group ${
+                  isDragging
+                    ? 'border-indigo-500 bg-indigo-50/10 scale-[0.99]'
+                    : 'border-slate-300 dark:border-white/15 hover:border-indigo-500 dark:hover:border-indigo-400 bg-slate-50/60 dark:bg-[#161B2A]/40'
+                }`}
               >
                 <input
                   type="file"
@@ -1062,81 +1102,110 @@ export default function StudentsPage() {
                   accept=".xlsx, .xls"
                   className="hidden"
                 />
-                <div className="size-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 mx-auto flex items-center justify-center">
-                  <Upload className="size-6" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                    {importFileName ? importFileName : 'Click to upload or drag & drop spreadsheet'}
-                  </p>
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    Supports .XLSX, .XLS (5 required columns: matricule, first name, last name, section, group)
-                  </p>
+
+                {/* File-type SVG badge */}
+                <div className="flex flex-col items-center justify-center space-y-3">
+                  <div className="relative">
+                    <div className="size-16 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
+                      {/* Detailed SVG Spreadsheet Badge */}
+                      <svg
+                        className="size-8"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.75"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <line x1="8" y1="13" x2="16" y2="13" />
+                        <line x1="8" y1="17" x2="16" y2="17" />
+                        <line x1="10" y1="9" x2="10" y2="9.01" />
+                      </svg>
+                    </div>
+                    <span className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-600 text-white shadow-sm">
+                      XLSX
+                    </span>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      {importFileName ? (
+                        <span className="text-indigo-600 dark:text-indigo-400 font-mono">{importFileName}</span>
+                      ) : (
+                        'Click to upload or drag & drop spreadsheet'
+                      )}
+                    </p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                      Required columns: <span className="font-mono text-slate-700 dark:text-slate-300">matricule, first name, last name, section, group</span>
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              {/* Parsed Preview Section */}
+              {/* Parsed Staged Preview Section */}
               {parsedRows.length > 0 && (
-                <div className="space-y-4">
-                  {/* Summary Bar */}
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                    <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                        Parsed Rows
+                <div className="space-y-4 animate-in fade-in">
+                  {/* Telemetry Stat Strip */}
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#161B2A] border border-slate-200/80 dark:border-white/[0.08]">
+                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+                        Total Rows
                       </span>
-                      <span className="text-xl font-extrabold text-slate-900 dark:text-white">
+                      <span className="text-lg font-mono font-bold text-slate-900 dark:text-white tabular-nums">
                         {parsedRows.length}
                       </span>
                     </div>
 
-                    <div className="p-3.5 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-900/50">
-                      <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block">
+                    <div className="p-3 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/25">
+                      <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
                         Valid Candidates
                       </span>
-                      <span className="text-xl font-extrabold text-indigo-700 dark:text-indigo-300">
+                      <span className="text-lg font-mono font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
                         {validRowsCount}
                       </span>
                     </div>
 
-                    <div className="p-3.5 rounded-2xl bg-amber-50/60 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-900/50">
-                      <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider block">
-                        Duplicates in File
+                    <div className="p-3 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/25">
+                      <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider block">
+                        Duplicates
                       </span>
-                      <span className="text-xl font-extrabold text-amber-700 dark:text-amber-300">
+                      <span className="text-lg font-mono font-bold text-amber-600 dark:text-amber-400 tabular-nums">
                         {duplicateRowsCount}
                       </span>
                     </div>
 
-                    <div className="p-3.5 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-900/50">
-                      <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block">
-                        Detected Sections
+                    <div className="p-3 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/25">
+                      <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block">
+                        Sections
                       </span>
-                      <span className="text-xl font-extrabold text-indigo-700 dark:text-indigo-300">
+                      <span className="text-lg font-mono font-bold text-indigo-600 dark:text-indigo-400 tabular-nums">
                         {detectedSections.length}
                       </span>
                     </div>
 
-                    <div className="p-3.5 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-900/50">
-                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
-                        Detected Groups
+                    <div className="p-3 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/25">
+                      <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block">
+                        Groups
                       </span>
-                      <span className="text-xl font-extrabold text-emerald-700 dark:text-emerald-300">
+                      <span className="text-lg font-mono font-bold text-indigo-600 dark:text-indigo-400 tabular-nums">
                         {detectedGroups.length}
                       </span>
                     </div>
                   </div>
 
-                  {/* Auto-Provisioning Pills */}
-                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800 space-y-2">
-                    <div className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200">
-                      <Sparkles className="size-4 text-amber-500" />
+                  {/* Auto-Provisioning Plan Tags */}
+                  <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#161B2A] border border-slate-200/80 dark:border-white/[0.08] space-y-2">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      <Sparkles className="size-3.5 text-amber-500" />
                       <span>Auto-Provisioning Structure Plan</span>
                     </div>
-                    <div className="flex flex-wrap gap-2 pt-1">
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
                       {detectedSections.map((sec) => (
                         <span
                           key={sec}
-                          className="px-3 py-1 rounded-full text-[11px] font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-900/50"
+                          className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-900/50"
                         >
                           Section: {sec}
                         </span>
@@ -1146,67 +1215,67 @@ export default function StudentsPage() {
                         return (
                           <span
                             key={grpKey}
-                            className="px-3 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-900/50"
+                            className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-900/50"
                           >
-                            Group: {secName} &gt; {gName}
+                            Squad: {secName} &gt; {gName}
                           </span>
                         )
                       })}
                     </div>
                   </div>
 
-                  {/* Parsed Data Preview Table */}
-                  <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden">
-                    <div className="max-h-60 overflow-y-auto">
+                  {/* Staged Data Preview Table with Validation Checkmarks */}
+                  <div className="rounded-xl border border-slate-200 dark:border-white/[0.08] overflow-hidden">
+                    <div className="max-h-64 overflow-y-auto">
                       <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
-                        <thead className="bg-slate-50 dark:bg-slate-800/60 text-[10px] uppercase font-bold text-slate-400 sticky top-0 border-b border-slate-100 dark:border-slate-800">
+                        <thead className="bg-slate-100/80 dark:bg-[#161B2A] text-[10px] uppercase font-semibold text-slate-400 sticky top-0 border-b border-slate-200 dark:border-white/[0.08] z-10">
                           <tr>
-                            <th className="px-4 py-2.5">Matricule</th>
-                            <th className="px-4 py-2.5">Normalized Name</th>
-                            <th className="px-4 py-2.5">Section</th>
-                            <th className="px-4 py-2.5">Group</th>
-                            <th className="px-4 py-2.5">Validation Status</th>
+                            <th className="px-3.5 py-2.5">Matricule</th>
+                            <th className="px-3.5 py-2.5">Candidate Name</th>
+                            <th className="px-3.5 py-2.5">Section</th>
+                            <th className="px-3.5 py-2.5">Group</th>
+                            <th className="px-3.5 py-2.5">Validation</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                          {parsedRows.slice(0, 40).map((row, idx) => (
+                        <tbody className="divide-y divide-slate-100 dark:divide-white/[0.05]">
+                          {parsedRows.slice(0, 50).map((row, idx) => (
                             <tr
                               key={idx}
                               className={
                                 row.isDuplicateInFile
-                                  ? 'bg-amber-50/50 dark:bg-amber-950/30'
+                                  ? 'bg-amber-500/10'
                                   : !row.isValid
-                                  ? 'bg-rose-50/50 dark:bg-rose-950/30'
-                                  : 'hover:bg-slate-50/50 dark:hover:bg-slate-800/30'
+                                  ? 'bg-rose-500/10'
+                                  : 'hover:bg-slate-50 dark:hover:bg-[#161B2A]/50'
                               }
                             >
-                              <td className="px-4 py-2.5 font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                              <td className="px-3.5 py-2 font-mono tabular-nums font-semibold text-indigo-600 dark:text-indigo-400">
                                 {row.matricule || '—'}
                               </td>
-                              <td className="px-4 py-2.5 font-bold text-slate-900 dark:text-white">
-                                <strong className="font-extrabold uppercase">{row.last_name}</strong> {row.first_name}
+                              <td className="px-3.5 py-2 font-medium text-slate-900 dark:text-white">
+                                <strong className="font-bold uppercase">{row.last_name}</strong> {row.first_name}
                               </td>
-                              <td className="px-4 py-2.5 font-semibold text-slate-700 dark:text-slate-300">
+                              <td className="px-3.5 py-2 text-slate-600 dark:text-slate-300">
                                 {row.section}
                               </td>
-                              <td className="px-4 py-2.5 font-semibold text-slate-700 dark:text-slate-300">
+                              <td className="px-3.5 py-2 text-slate-600 dark:text-slate-300">
                                 {row.grp}
                               </td>
-                              <td className="px-4 py-2.5">
+                              <td className="px-3.5 py-2">
                                 {row.isValid ? (
-                                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
                                     <CheckCircle2 className="size-3.5" />
-                                    Valid
+                                    <span>Valid</span>
                                   </span>
                                 ) : row.isDuplicateInFile ? (
-                                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 dark:text-amber-300 px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950">
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full bg-amber-500/10">
                                     <AlertTriangle className="size-3.5" />
-                                    Duplicate in File
+                                    <span>Duplicate</span>
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 dark:text-rose-400">
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400">
                                     <AlertCircle className="size-3.5" />
-                                    {row.errorMsg}
+                                    <span>{row.errorMsg}</span>
                                   </span>
                                 )}
                               </td>
@@ -1220,12 +1289,12 @@ export default function StudentsPage() {
               )}
             </div>
 
-            {/* Modal Footer Actions */}
-            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3 shrink-0">
+            {/* Drawer Footer Actions */}
+            <div className="p-5 border-t border-slate-200 dark:border-white/[0.08] flex items-center justify-end gap-3 shrink-0 bg-slate-50/50 dark:bg-[#161B2A]/40">
               <button
                 type="button"
                 onClick={() => setIsImportOpen(false)}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-white/[0.08] text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#161B2A] transition-colors"
               >
                 Cancel
               </button>
@@ -1233,48 +1302,10 @@ export default function StudentsPage() {
                 type="button"
                 onClick={handleConfirmImport}
                 disabled={submittingImport || validRowsCount === 0}
-                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/25 flex items-center gap-2 disabled:opacity-50"
+                className="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 flex items-center gap-2 disabled:opacity-50 transition-all"
               >
                 {submittingImport ? <Loader2 className="size-4 animate-spin" /> : null}
-                <span>Confirm & Import {validRowsCount} Candidates</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* BATCH DELETE CONFIRMATION MODAL */}
-      {isBatchDeleteOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-5">
-            <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
-              <div className="size-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 flex items-center justify-center shrink-0">
-                <AlertTriangle className="size-6" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Batch Remove Students?</h3>
-                <p className="text-xs text-slate-500">Candidate batch removal alert.</p>
-              </div>
-            </div>
-
-            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              Are you sure you want to remove <strong className="text-slate-900 dark:text-white">{selectedIds.length} candidate(s)</strong> from the active student cohort roster?
-            </p>
-
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-              <button
-                onClick={() => setIsBatchDeleteOpen(false)}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleBatchDelete}
-                disabled={submitting}
-                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-600/25 flex items-center gap-2 disabled:opacity-50"
-              >
-                {submitting ? <Loader2 className="size-4 animate-spin" /> : null}
-                <span>Remove {selectedIds.length} Candidate(s)</span>
+                <span>Confirm &amp; Import {validRowsCount} Candidate(s)</span>
               </button>
             </div>
           </div>
@@ -1283,16 +1314,20 @@ export default function StudentsPage() {
 
       {/* ENROLL STUDENT MODAL */}
       {isAddOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-[#0F121C] border border-slate-200/80 dark:border-white/[0.08] shadow-2xl p-6 sm:p-7 space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/[0.08] pb-4">
               <div className="flex items-center gap-3">
-                <div className="size-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                <div className="size-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
                   <UserPlus className="size-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Enroll Student Candidate</h3>
-                  <p className="text-xs text-slate-500">Register candidate in rotation squad.</p>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Enroll Student Candidate
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Register a new candidate into an assigned rotation squad.
+                  </p>
                 </div>
               </div>
               <button
@@ -1304,14 +1339,14 @@ export default function StudentsPage() {
             </div>
 
             {formError && (
-              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-xs font-semibold text-rose-700 dark:text-rose-300">
+              <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-xs font-semibold text-rose-700 dark:text-rose-300">
                 {formError}
               </div>
             )}
 
             <form onSubmit={handleAddSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
                   Matricule Number
                 </label>
                 <input
@@ -1320,13 +1355,13 @@ export default function StudentsPage() {
                   value={matricule}
                   onChange={(e) => setMatricule(e.target.value)}
                   placeholder="e.g. 202531098452"
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-[#161B2A] border border-slate-200 dark:border-white/[0.08] rounded-lg text-xs text-slate-900 dark:text-white font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
                     Last Name (Nom)
                   </label>
                   <input
@@ -1335,11 +1370,11 @@ export default function StudentsPage() {
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     placeholder="e.g. BOUZEID"
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white uppercase font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-[#161B2A] border border-slate-200 dark:border-white/[0.08] rounded-lg text-xs text-slate-900 dark:text-white uppercase font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
                     First Name (Prénom)
                   </label>
                   <input
@@ -1348,7 +1383,7 @@ export default function StudentsPage() {
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     placeholder="e.g. Mohamed"
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-[#161B2A] border border-slate-200 dark:border-white/[0.08] rounded-lg text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
               </div>
@@ -1362,18 +1397,18 @@ export default function StudentsPage() {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-white/[0.08]">
                 <button
                   type="button"
                   onClick={() => setIsAddOpen(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  className="px-4 py-2 rounded-lg border border-slate-200 dark:border-white/[0.08] text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#161B2A]"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/25 flex items-center gap-2 disabled:opacity-50"
+                  className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/20 flex items-center gap-2 disabled:opacity-50"
                 >
                   {submitting ? <Loader2 className="size-4 animate-spin" /> : null}
                   <span>Enroll Candidate</span>
@@ -1384,35 +1419,43 @@ export default function StudentsPage() {
         </div>
       )}
 
-      {/* DELETE CONFIRMATION MODAL */}
+      {/* SINGLE DELETE CONFIRMATION MODAL */}
       {deletingStudent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#0F121C] border border-slate-200/80 dark:border-white/[0.08] shadow-2xl p-6 space-y-5">
             <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
-              <div className="size-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 flex items-center justify-center shrink-0">
-                <AlertTriangle className="size-6" />
+              <div className="size-11 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center shrink-0">
+                <AlertTriangle className="size-5 text-rose-600 dark:text-rose-400" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Delete Student Record?</h3>
-                <p className="text-xs text-slate-500">Candidate removal alert.</p>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Delete Student Record?
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Candidate removal alert.
+                </p>
               </div>
             </div>
 
             <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              Are you sure you want to remove candidate <strong className="text-slate-900 dark:text-white">{deletingStudent.last_name} {deletingStudent.first_name} ({deletingStudent.matricule})</strong>?
+              Are you sure you want to remove candidate{' '}
+              <strong className="text-slate-900 dark:text-white">
+                {deletingStudent.last_name} {deletingStudent.first_name} ({deletingStudent.matricule})
+              </strong>
+              ?
             </p>
 
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-white/[0.08]">
               <button
                 onClick={() => setDeletingStudent(null)}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-white/[0.08] text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#161B2A]"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteConfirm}
                 disabled={submitting}
-                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-600/25 flex items-center gap-2 disabled:opacity-50"
+                className="px-5 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-600/20 flex items-center gap-2 disabled:opacity-50"
               >
                 <span>Remove Student</span>
               </button>
@@ -1423,33 +1466,39 @@ export default function StudentsPage() {
 
       {/* BATCH DELETE CONFIRMATION MODAL */}
       {isBatchDeleteOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#0F121C] border border-slate-200/80 dark:border-white/[0.08] shadow-2xl p-6 space-y-5">
             <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
-              <div className="size-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 flex items-center justify-center shrink-0">
-                <AlertTriangle className="size-6" />
+              <div className="size-11 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center shrink-0">
+                <AlertTriangle className="size-5 text-rose-600 dark:text-rose-400" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Delete Selected Candidates?</h3>
-                <p className="text-xs text-slate-500">Batch removal confirmation.</p>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Delete Selected Candidates?
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Batch candidate removal confirmation.
+                </p>
               </div>
             </div>
 
             <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              Are you sure you want to remove <strong className="text-slate-900 dark:text-white">{selectedIds.length}</strong> selected candidate(s)? This action cannot be undone.
+              Are you sure you want to remove{' '}
+              <strong className="text-slate-900 dark:text-white font-mono">{selectedIds.length}</strong>{' '}
+              selected candidate(s)? This action cannot be undone.
             </p>
 
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-white/[0.08]">
               <button
                 onClick={() => setIsBatchDeleteOpen(false)}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-white/[0.08] text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#161B2A]"
               >
                 Cancel
               </button>
               <button
                 onClick={handleBatchDelete}
                 disabled={submitting}
-                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-600/25 flex items-center gap-2 disabled:opacity-50"
+                className="px-5 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-600/20 flex items-center gap-2 disabled:opacity-50"
               >
                 {submitting ? <Loader2 className="size-4 animate-spin" /> : null}
                 <span>Remove ({selectedIds.length}) Students</span>

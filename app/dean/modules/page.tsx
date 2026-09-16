@@ -359,30 +359,44 @@ export default function ClinicalModulesPage() {
     }
   }
 
+  const [collapsedLevels, setCollapsedLevels] = useState<Record<string, boolean>>({})
+
+  const toggleLevelCollapse = (levelName: string) => {
+    setCollapsedLevels((prev) => ({
+      ...prev,
+      [levelName]: !prev[levelName],
+    }))
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-150">
       {/* Top Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold tracking-wide uppercase bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/20">
+              Curriculum Architecture
+            </span>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
             Clinical Modules Directory
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Clinical medical curriculum modules & lead examiner assignments for <span className="font-semibold text-indigo-600 dark:text-indigo-400">{selectedYear?.name || 'current session'}</span>.
+            Clinical medical curriculum modules & lead examiner assignments for <span className="font-semibold text-indigo-500 dark:text-indigo-400 font-mono">{selectedYear?.name || 'current session'}</span>.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={() => fetchModules(selectedYearId, true)}
             disabled={refreshing || isYearLoading}
-            className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-all"
+            className="p-2.5 rounded-lg bg-white dark:bg-[#0F121C] border border-slate-200/80 dark:border-white/[0.08] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#161B2A] transition-all"
             title="Refresh database records"
           >
-            <RefreshCw className={`size-4 ${refreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`size-4 ${refreshing ? 'animate-spin text-indigo-500' : ''}`} />
           </button>
           <button
             onClick={openAddModal}
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-500/25 transition-all shrink-0"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#4F46E5] hover:bg-[#4338CA] text-white font-semibold text-xs shadow-sm shadow-indigo-500/25 transition-all shrink-0"
           >
             <Plus className="size-4" />
             Add Module
@@ -406,164 +420,171 @@ export default function ClinicalModulesPage() {
         }
       />
 
-      {/* Modules Data View Grouped by Study Level */}
+      {/* Modules Data View: Collapsible Level Accordion Groups */}
       {loading || isYearLoading ? (
-        <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden animate-pulse">
-          <div className="p-5 bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+        <div className="rounded-xl bg-white dark:bg-[#0F121C] border border-slate-200/80 dark:border-white/[0.08] shadow-sm p-6 space-y-4 animate-pulse">
+          <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-white/[0.06]">
             <div className="flex items-center gap-3">
-              <div className="size-9 rounded-xl bg-slate-200 dark:bg-slate-800" />
+              <div className="size-9 rounded-lg bg-slate-200 dark:bg-[#161B2A]" />
               <div className="space-y-1.5">
-                <div className="h-4 w-40 rounded-lg bg-slate-200 dark:bg-slate-800" />
-                <div className="h-3 w-28 rounded bg-slate-200/70 dark:bg-slate-800/70" />
+                <div className="h-4 w-40 rounded bg-slate-200 dark:bg-[#161B2A]" />
+                <div className="h-3 w-28 rounded bg-slate-200/70 dark:bg-[#161B2A]/70" />
               </div>
             </div>
-            <div className="h-6 w-24 rounded-full bg-slate-200 dark:bg-slate-800" />
+            <div className="h-6 w-24 rounded-full bg-slate-200 dark:bg-[#161B2A]" />
           </div>
-          <div className="p-6 space-y-4">
-            {Array.from({ length: 5 }).map((_, idx) => (
-              <div key={`skel-mod-${idx}`} className="flex items-center justify-between gap-4 py-2 border-b border-slate-100 dark:border-slate-800/50 last:border-0">
-                <div className="flex items-center gap-3 flex-1">
-                  <div className="size-8 rounded-lg bg-slate-200 dark:bg-slate-800 shrink-0" />
-                  <div className="h-4 w-48 rounded bg-slate-200 dark:bg-slate-800" />
-                </div>
-                <div className="h-8 w-44 rounded-xl bg-slate-100 dark:bg-slate-800/60 hidden md:block" />
-                <div className="h-4 w-36 rounded bg-slate-200/70 dark:bg-slate-800/70 hidden lg:block" />
-                <div className="h-4 w-20 rounded bg-slate-200 dark:bg-slate-800" />
-                <div className="flex gap-2">
-                  <div className="size-7 rounded-lg bg-slate-200 dark:bg-slate-800" />
-                  <div className="size-7 rounded-lg bg-slate-200 dark:bg-slate-800" />
-                </div>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pt-2">
+            {Array.from({ length: 3 }).map((_, idx) => (
+              <div key={`skel-card-${idx}`} className="h-44 rounded-xl bg-slate-100 dark:bg-[#161B2A]/60" />
             ))}
           </div>
         </div>
       ) : groupedModulesByLevel.length > 0 ? (
-        <div className="space-y-6">
-          {groupedModulesByLevel.map((group) => (
-            <div
-              key={group.levelName}
-              className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm overflow-hidden"
-            >
-              {/* Group Header */}
-              <div className="p-5 bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="size-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
-                    <GraduationCap className="size-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                      {group.levelName}
-                    </h3>
-                    <p className="text-[11px] text-slate-500">
-                      {group.modules.length} Clinical Module{group.modules.length > 1 ? 's' : ''} Enrolled
-                    </p>
-                  </div>
-                </div>
-                <span className="px-3 py-1 rounded-full bg-indigo-100/70 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 font-bold text-xs">
-                  Active Cohort
-                </span>
-              </div>
+        <div className="space-y-5">
+          {groupedModulesByLevel.map((group) => {
+            const isCollapsed = !!collapsedLevels[group.levelName]
 
-              {/* Modules Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
-                  <thead className="bg-slate-50/50 dark:bg-slate-800/30 text-[10px] uppercase tracking-wider font-bold text-slate-400 border-b border-slate-100 dark:border-slate-800">
-                    <tr>
-                      <th className="px-6 py-3.5">Module Name</th>
-                      <th className="px-6 py-3.5">Assigned Lead Professor</th>
-                      <th className="px-6 py-3.5">Contact Email</th>
-                      <th className="px-6 py-3.5">OSCE Stations</th>
-                      <th className="px-6 py-3.5 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            return (
+              <div
+                key={group.levelName}
+                className="rounded-xl bg-white dark:bg-[#0F121C] border border-slate-200/80 dark:border-white/[0.08] shadow-sm overflow-hidden transition-all duration-200"
+              >
+                {/* Accordion Group Header */}
+                <button
+                  type="button"
+                  onClick={() => toggleLevelCollapse(group.levelName)}
+                  className="w-full p-4 bg-slate-50/70 dark:bg-[#161B2A]/40 border-b border-slate-100 dark:border-white/[0.06] flex items-center justify-between hover:bg-slate-100/60 dark:hover:bg-[#161B2A]/70 transition-colors text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="size-9 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
+                      <GraduationCap className="size-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <span>{group.levelName}</span>
+                        <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-full bg-slate-200/60 dark:bg-white/[0.06] text-slate-600 dark:text-slate-400">
+                          {group.modules.length} {group.modules.length === 1 ? 'module' : 'modules'}
+                        </span>
+                      </h3>
+                      <p className="text-[11px] text-slate-400">
+                        Clinical curriculum segment & assigned station hubs
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold text-[11px] border border-emerald-500/20">
+                      <span className="size-1.5 rounded-full bg-emerald-500" />
+                      Active Cohort
+                    </span>
+                    <span className="text-xs text-slate-400 font-medium">
+                      {isCollapsed ? 'Expand' : 'Collapse'}
+                    </span>
+                  </div>
+                </button>
+
+                {/* High-Density Module Cards Grid */}
+                {!isCollapsed && (
+                  <div className="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {group.modules.map((m) => {
                       const isUpdatingThis = updatingProfId === m.id
+                      const prof = m.responsible_professor
+
                       return (
-                        <tr
+                        <div
                           key={m.id}
-                          className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors"
+                          className="rounded-xl bg-slate-50/50 dark:bg-[#161B2A]/50 border border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/[0.15] p-4 flex flex-col justify-between space-y-3.5 transition-all shadow-2xs hover:shadow-xs"
                         >
-                          <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">
-                            <div className="flex items-center gap-3">
-                              <div className="size-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                          {/* Structured Header Ribbon */}
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white dark:bg-[#0F121C] text-slate-500 dark:text-slate-400 border border-slate-200/60 dark:border-white/[0.06]">
+                                {m.level_name}
+                              </span>
+                              <span className="inline-flex items-center gap-1 font-mono text-[11px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/20">
+                                {m.station_count} {m.station_count === 1 ? 'Station' : 'Stations'}
+                              </span>
+                            </div>
+
+                            <div className="flex items-start gap-2.5">
+                              <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5">
                                 <BookOpen className="size-4" />
                               </div>
-                              <span>{m.module_name}</span>
-                            </div>
-                          </td>
-
-                          {/* Quick Professor Reassignment Select Cell */}
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-2.5 max-w-xs min-w-[220px]">
-                              {isUpdatingThis ? (
-                                <Loader2 className="size-4 animate-spin text-indigo-600 shrink-0" />
-                              ) : (
-                                <Stethoscope className="size-4 text-slate-400 shrink-0" />
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <Select
-                                  options={[
-                                    { value: '', label: '— Unassigned Lead —' },
-                                    ...professors.map((p) => ({
-                                      value: p.id,
-                                      label: p.full_name || `Prof. ${p.first_name} ${p.last_name}`,
-                                      subLabel: p.email || undefined,
-                                    })),
-                                  ]}
-                                  value={m.responsible_prof_id || ''}
-                                  onChange={(val) => handleQuickReassignProf(m.id, val)}
-                                  disabled={isUpdatingThis}
-                                  placeholder="Unassigned Lead"
-                                  searchable={professors.length > 5}
-                                />
+                              <div className="min-w-0 flex-1">
+                                <h4 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white truncate">
+                                  {m.module_name}
+                                </h4>
+                                <p className="text-[10px] text-slate-400 font-mono">
+                                  ID: {m.id.substring(0, 8)}
+                                </p>
                               </div>
                             </div>
-                          </td>
+                          </div>
 
-                          <td className="px-6 py-4">
-                            {m.responsible_professor?.email ? (
-                              <span className="font-mono text-slate-600 dark:text-slate-300">
-                                {m.responsible_professor.email}
-                              </span>
-                            ) : (
-                              <span className="text-slate-400 italic text-[11px]">Unassigned</span>
-                            )}
-                          </td>
+                          {/* In-Card Lead Professor Avatar Chip with Inline Select Popover */}
+                          <div className="space-y-1.5 pt-2 border-t border-slate-200/60 dark:border-white/[0.06]">
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="text-slate-400 font-medium">Lead Examiner:</span>
+                              {prof?.email && (
+                                <span className="text-slate-400 font-mono text-[10px] truncate max-w-[140px]">
+                                  {prof.email}
+                                </span>
+                              )}
+                            </div>
 
-                          <td className="px-6 py-4 font-mono font-bold text-indigo-600 dark:text-indigo-400">
-                            {m.station_count} Station{m.station_count !== 1 ? 's' : ''}
-                          </td>
+                            <div className="relative">
+                              <Select
+                                options={[
+                                  { value: '', label: '— Unassigned Lead —' },
+                                  ...professors.map((p) => ({
+                                    value: p.id,
+                                    label: p.full_name || `Prof. ${p.first_name} ${p.last_name}`,
+                                    subLabel: p.email || undefined,
+                                  })),
+                                ]}
+                                value={m.responsible_prof_id || ''}
+                                onChange={(val) => handleQuickReassignProf(m.id, val)}
+                                disabled={isUpdatingThis}
+                                placeholder="Unassigned Lead Examiner"
+                                searchable={professors.length > 5}
+                                size="sm"
+                              />
+                            </div>
+                          </div>
 
-                          <td className="px-6 py-4 text-right">
-                            <div className="flex items-center justify-end gap-1">
+                          {/* Card Footer Actions */}
+                          <div className="pt-2 border-t border-slate-200/60 dark:border-white/[0.06] flex items-center justify-between">
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              {m.created_at ? new Date(m.created_at).toLocaleDateString() : ''}
+                            </span>
+                            <div className="flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity">
                               <button
                                 onClick={() => openEditModal(m)}
-                                className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-500/10 transition-colors"
                                 title="Edit Module"
                               >
-                                <Edit2 className="size-4" />
+                                <Edit2 className="size-3.5" />
                               </button>
                               <button
                                 onClick={() => setDeletingModule(m)}
-                                className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
                                 title="Delete Module"
                               >
-                                <Trash2 className="size-4" />
+                                <Trash2 className="size-3.5" />
                               </button>
                             </div>
-                          </td>
-                        </tr>
+                          </div>
+                        </div>
                       )
                     })}
-                  </tbody>
-                </table>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       ) : (
-        <div className="p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-center text-slate-400">
+        <div className="p-12 rounded-xl bg-white dark:bg-[#0F121C] border border-slate-200/80 dark:border-white/[0.08] text-center text-slate-400">
           <BookOpen className="size-8 mx-auto mb-3 text-slate-300 dark:text-slate-600" />
           <p className="font-semibold text-slate-700 dark:text-slate-300 mb-1">
             No clinical modules found
@@ -576,35 +597,35 @@ export default function ClinicalModulesPage() {
 
       {/* ADD MODULE MODAL */}
       {isAddOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#0F121C] border border-slate-200/80 dark:border-white/[0.08] shadow-2xl p-6 space-y-5 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/[0.06] pb-4">
               <div className="flex items-center gap-3">
-                <div className="size-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                <div className="size-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 dark:text-indigo-400 flex items-center justify-center shrink-0">
                   <BookOpen className="size-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Add Clinical Module</h3>
-                  <p className="text-xs text-slate-500">Register new clinical module for {selectedYear?.name || 'session'}.</p>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Add Clinical Module</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Register new clinical module for {selectedYear?.name || 'session'}.</p>
                 </div>
               </div>
               <button
                 onClick={() => setIsAddOpen(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#161B2A] transition-colors"
               >
-                <X className="size-5" />
+                <X className="size-4" />
               </button>
             </div>
 
             {formError && (
-              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-xs font-semibold text-rose-700 dark:text-rose-300">
+              <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400">
                 {formError}
               </div>
             )}
 
             <form onSubmit={handleAddSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
                   Module Name
                 </label>
                 <input
@@ -613,12 +634,12 @@ export default function ClinicalModulesPage() {
                   value={moduleName}
                   onChange={(e) => setModuleName(e.target.value)}
                   placeholder="e.g. Cardiologie"
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-[#161B2A] border border-slate-200 dark:border-white/[0.08] rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
                 />
               </div>
 
               {studyLevels.length === 0 ? (
-                <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-900 text-xs text-amber-700 dark:text-amber-300">
+                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-600 dark:text-amber-400">
                   No study levels found for {selectedYear?.name || 'this session'}. Please add study levels in Academic Structure before registering modules.
                 </div>
               ) : (
@@ -641,20 +662,20 @@ export default function ClinicalModulesPage() {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-white/[0.06]">
                 <button
                   type="button"
                   onClick={() => setIsAddOpen(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  className="px-4 py-2 rounded-lg border border-slate-200 dark:border-white/[0.08] text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#161B2A] transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/25 flex items-center gap-2 disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-bold shadow-sm shadow-indigo-500/25 flex items-center gap-2 disabled:opacity-50 transition-all"
                 >
-                  {submitting ? <Loader2 className="size-4 animate-spin" /> : null}
+                  {submitting ? <Loader2 className="size-3.5 animate-spin" /> : null}
                   <span>Save Module</span>
                 </button>
               </div>
@@ -665,35 +686,35 @@ export default function ClinicalModulesPage() {
 
       {/* EDIT MODULE MODAL */}
       {editingModule && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#0F121C] border border-slate-200/80 dark:border-white/[0.08] shadow-2xl p-6 space-y-5 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/[0.06] pb-4">
               <div className="flex items-center gap-3">
-                <div className="size-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                <div className="size-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 dark:text-indigo-400 flex items-center justify-center shrink-0">
                   <Edit2 className="size-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Edit Clinical Module</h3>
-                  <p className="text-xs text-slate-500">Update module name, level, and assigned professor.</p>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Edit Clinical Module</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Update module name, level, and assigned professor.</p>
                 </div>
               </div>
               <button
                 onClick={() => setEditingModule(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#161B2A] transition-colors"
               >
-                <X className="size-5" />
+                <X className="size-4" />
               </button>
             </div>
 
             {formError && (
-              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-xs font-semibold text-rose-700 dark:text-rose-300">
+              <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400">
                 {formError}
               </div>
             )}
 
             <form onSubmit={handleEditSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
                   Module Name
                 </label>
                 <input
@@ -701,7 +722,7 @@ export default function ClinicalModulesPage() {
                   required
                   value={moduleName}
                   onChange={(e) => setModuleName(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-[#161B2A] border border-slate-200 dark:border-white/[0.08] rounded-lg text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
                 />
               </div>
 
@@ -723,20 +744,20 @@ export default function ClinicalModulesPage() {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-white/[0.06]">
                 <button
                   type="button"
                   onClick={() => setEditingModule(null)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  className="px-4 py-2 rounded-lg border border-slate-200 dark:border-white/[0.08] text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#161B2A] transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/25 flex items-center gap-2 disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg bg-[#4F46E5] hover:bg-[#4338CA] text-white text-xs font-bold shadow-sm shadow-indigo-500/25 flex items-center gap-2 disabled:opacity-50 transition-all"
                 >
-                  {submitting ? <Loader2 className="size-4 animate-spin" /> : null}
+                  {submitting ? <Loader2 className="size-3.5 animate-spin" /> : null}
                   <span>Save Changes</span>
                 </button>
               </div>
@@ -747,15 +768,15 @@ export default function ClinicalModulesPage() {
 
       {/* DELETE CONFIRMATION MODAL */}
       {deletingModule && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-6 sm:p-8 space-y-5">
-            <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
-              <div className="size-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 flex items-center justify-center shrink-0">
-                <AlertTriangle className="size-6" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#0F121C] border border-slate-200/80 dark:border-white/[0.08] shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 text-rose-500">
+              <div className="size-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center shrink-0">
+                <AlertTriangle className="size-5" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Delete Module?</h3>
-                <p className="text-xs text-slate-500">Curriculum removal alert.</p>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">Delete Module?</h3>
+                <p className="text-xs text-slate-400">Curriculum removal alert.</p>
               </div>
             </div>
 
@@ -763,19 +784,19 @@ export default function ClinicalModulesPage() {
               Are you sure you want to delete <strong className="text-slate-900 dark:text-white">{deletingModule.module_name}</strong>?
             </p>
 
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-white/[0.06]">
               <button
                 onClick={() => setDeletingModule(null)}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-white/[0.08] text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#161B2A] transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteConfirm}
                 disabled={submitting}
-                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-600/25 flex items-center gap-2 disabled:opacity-50"
+                className="px-4 py-2 rounded-lg bg-[#EF4444] hover:bg-red-600 text-white text-xs font-bold shadow-sm shadow-rose-600/25 flex items-center gap-2 disabled:opacity-50 transition-all"
               >
-                {submitting ? <Loader2 className="size-4 animate-spin" /> : null}
+                {submitting ? <Loader2 className="size-3.5 animate-spin" /> : null}
                 <span>Remove Module</span>
               </button>
             </div>

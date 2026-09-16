@@ -95,8 +95,8 @@ export function DeanTopbar({
   }
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 px-6 flex items-center justify-between transition-colors">
-      <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-30 h-16 bg-white/80 dark:bg-[#0F121C]/80 backdrop-blur-md border-b border-slate-200/80 dark:border-white/[0.08] px-5 sm:px-8 flex items-center justify-between transition-colors">
+      <div className="flex items-center gap-3 min-w-0">
         <button
           onClick={() => setSidebarOpen(true)}
           aria-label="Open sidebar"
@@ -106,60 +106,63 @@ export function DeanTopbar({
         </button>
 
         {/* Breadcrumb Navigation */}
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-slate-400 dark:text-slate-500 font-medium">Faculty Administration</span>
-          <ChevronRight className="size-4 text-slate-300 dark:text-slate-600" />
-          <h1 className="font-bold text-slate-900 dark:text-white text-base tracking-tight">
+        <div className="flex items-center gap-2 text-xs sm:text-sm min-w-0">
+          <span className="text-slate-400 dark:text-slate-500 font-medium hidden sm:inline">Faculty Administration</span>
+          <ChevronRight className="size-3.5 text-slate-300 dark:text-slate-600 hidden sm:inline" />
+          <h1 className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base tracking-tight truncate">
             {getBreadcrumbTitle()}
           </h1>
         </div>
 
-        {/* Prominent Clinical Faculty Badge */}
+        {/* Prominent Clinical Faculty Badge (32px height container) */}
         {facultyName && (
           <div
             title={facultyName}
-            className="hidden lg:flex items-center gap-2 bg-indigo-50/80 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-200 border border-indigo-200/80 dark:border-indigo-800/80 px-3 py-1.5 rounded-xl font-semibold text-xs max-w-[240px] xl:max-w-[320px] truncate shadow-xs"
+            className="hidden lg:flex items-center gap-2 h-8 bg-indigo-50/60 dark:bg-indigo-950/40 text-indigo-900 dark:text-indigo-200 border border-indigo-200/70 dark:border-indigo-900/40 px-3 rounded-lg font-semibold text-xs max-w-[240px] xl:max-w-[320px] truncate shadow-2xs"
           >
-            <Building2 className="size-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
-            <span className="truncate">{facultyName}</span>
+            <Building2 className="size-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+            <span className="truncate text-[11px]">{facultyName}</span>
           </div>
         )}
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5 shrink-0">
         {/* Custom Accessible Academic Year Selector */}
         <NavbarYearSelector />
 
-        <ThemeToggle />
+        {/* Theme Toggle in 32px height container */}
+        <div className="h-8 flex items-center">
+          <ThemeToggle />
+        </div>
 
         {/* User Profile Menu with Outside Click Hook */}
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setDropdownOpen(!dropdownOpen)}
             disabled={loggingOut}
-            className="flex items-center gap-3 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-all focus:outline-none disabled:pointer-events-none"
+            className="h-8 flex items-center gap-2 px-1.5 rounded-lg hover:bg-slate-100/70 dark:hover:bg-white/[0.04] border border-transparent hover:border-slate-200/80 dark:hover:border-white/[0.08] transition-all focus:outline-none disabled:pointer-events-none cursor-pointer select-none"
           >
-            <div className="flex size-9 items-center justify-center rounded-full bg-indigo-600 text-white font-bold text-sm shadow-md shadow-indigo-500/25">
+            <div className="flex size-6 sm:size-7 items-center justify-center rounded-full bg-indigo-600 text-white font-bold text-xs shadow-xs">
               FD
             </div>
             <div className="hidden sm:flex flex-col text-left">
-              <span className="text-xs font-bold text-slate-900 dark:text-white">Faculty Dean</span>
-              <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">Dean Admin</span>
+              <span className="text-xs font-semibold text-slate-900 dark:text-white leading-tight">Faculty Dean</span>
+              <span className="text-[9px] font-medium text-indigo-600 dark:text-indigo-400 leading-tight">Dean Admin</span>
             </div>
           </button>
 
           {/* Profile Dropdown */}
           {dropdownOpen && (
-            <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95">
-              <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
-                <div className="flex size-10 items-center justify-center rounded-full bg-indigo-600 text-white font-bold text-sm shadow-md shadow-indigo-500/25">
+            <div className="absolute right-0 mt-2 w-64 rounded-xl bg-white dark:bg-[#0F121C] border border-slate-200/80 dark:border-white/[0.08] shadow-xl p-2.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+              <div className="p-3 border-b border-slate-100 dark:border-white/[0.06] flex items-center gap-3">
+                <div className="flex size-9 items-center justify-center rounded-full bg-indigo-600 text-white font-bold text-sm shadow-md shadow-indigo-500/25">
                   FD
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <p className="text-sm font-bold text-slate-900 dark:text-white truncate">Faculty Dean</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{facultyName || 'Medical Faculty'}</p>
-                  <span className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold w-fit border border-indigo-200/60 dark:border-indigo-800/60">
-                    <span className="size-1.5 rounded-full bg-indigo-600" />
+                  <p className="text-xs font-bold text-slate-900 dark:text-white truncate">Faculty Dean</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{facultyName || 'Medical Faculty'}</p>
+                  <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[9px] font-bold w-fit border border-indigo-500/20">
+                    <span className="size-1.5 rounded-full bg-indigo-500" />
                     Faculty Dean
                   </span>
                 </div>

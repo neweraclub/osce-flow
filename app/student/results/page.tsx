@@ -18,7 +18,6 @@ import {
   ShieldAlert,
   ShieldCheck,
   Sparkles,
-  Stethoscope,
   User,
 } from 'lucide-react'
 import { verifyStudentCredentialsAction } from '@/app/actions/studentResults'
@@ -89,39 +88,10 @@ export default function StudentResultsVerificationPage() {
         className="pointer-events-none absolute bottom-[-20%] left-[-10%] size-[600px] rounded-full bg-sky-500/10 dark:bg-sky-500/5 blur-3xl"
       />
 
-      {/* 2. TOP INSTITUTIONAL NAVIGATION STRIP */}
-      <header className="relative z-10 w-full px-6 py-4 border-b border-slate-200/80 dark:border-cyan-500/15 bg-white/80 dark:bg-[#0A1322]/80 backdrop-blur-xl">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="size-10 rounded-2xl bg-gradient-to-tr from-cyan-600 to-sky-500 flex items-center justify-center text-white shadow-md shadow-cyan-500/20 group-hover:scale-105 transition-transform shrink-0">
-              <Stethoscope className="size-5" />
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-sm tracking-tight text-slate-900 dark:text-white">
-                  NEW ERA <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-sky-400">ECOS</span>
-                </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-cyan-950/60 text-cyan-300 border border-cyan-500/30 uppercase tracking-wider font-mono">
-                  Student Registry
-                </span>
-              </div>
-              <span className="text-[10px] text-slate-500 dark:text-cyan-400/80 font-medium">
-                Official OSCE Academic Examination Portal
-              </span>
-            </div>
-          </Link>
-
-          <div className="flex items-center gap-3">
-            <ThemeToggle />
-            <Link
-              href="/login"
-              className="text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-cyan-600 dark:hover:text-cyan-300 px-3.5 py-1.5 rounded-xl border border-slate-200/80 dark:border-cyan-500/20 hover:bg-slate-100 dark:hover:bg-[#0F1E34] transition-all"
-            >
-              Faculty / Examiner Login
-            </Link>
-          </div>
-        </div>
-      </header>
+      {/* Floating Theme Toggle */}
+      <div className="absolute top-5 right-5 z-20">
+        <ThemeToggle />
+      </div>
 
       {/* 3. HERO & TRUST ARCHITECTURE + CREDENTIAL CARD */}
       <main className="relative z-10 flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8 my-6">

@@ -35,7 +35,6 @@ import {
   Sliders,
   Sparkles,
   Stethoscope,
-  User,
   X,
   XCircle,
 } from 'lucide-react'
@@ -281,7 +280,9 @@ function StudentResultsDashboardContent() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
             <div className="flex items-start gap-4">
               <div className="size-14 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white shadow-lg shadow-amber-500/20 shrink-0 border-2 border-amber-400/40">
-                <User className="size-7 text-white stroke-[2.2]" />
+                <span className="font-bold font-mono text-xl leading-none text-white select-none">
+                  {(student.first_name?.trim() || student.full_name?.trim() || student.last_name?.trim() || 'S').charAt(0).toUpperCase()}
+                </span>
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">

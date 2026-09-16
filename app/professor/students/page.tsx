@@ -50,7 +50,6 @@ import {
   Stethoscope,
   TrendingDown,
   TrendingUp,
-  User,
   Users,
   X,
   XCircle,
@@ -121,6 +120,15 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string; icon: React.Componen
   { value: 'failed', label: 'Retake (< 10/20)', icon: AlertCircle },
   { value: 'completed', label: 'Completed (All Evaluated)', icon: CheckSquare },
 ]
+
+function getStudentInitial(
+  firstName?: string | null,
+  fullName?: string | null,
+  lastName?: string | null
+): string {
+  const candidate = firstName?.trim() || fullName?.trim() || lastName?.trim() || 'S'
+  return candidate.charAt(0).toUpperCase() || 'S'
+}
 
 function ProfessorStudentsContent() {
   const router = useRouter()
@@ -986,7 +994,9 @@ function ProfessorStudentsContent() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
             <div className="flex items-start gap-4">
               <div className="size-14 rounded-full bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 shrink-0 border-2 border-emerald-400/40">
-                <User className="size-7 text-white stroke-[2.2]" />
+                <span className="font-bold font-mono text-xl leading-none text-white select-none">
+                  {getStudentInitial(student.first_name, student.full_name, student.last_name)}
+                </span>
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -2126,7 +2136,9 @@ function ProfessorStudentsContent() {
 
                       {/* Candidate Avatar Circular Badge */}
                       <div className="size-9 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 dark:from-emerald-600 dark:to-teal-700 flex items-center justify-center text-white shadow-xs shrink-0 border border-emerald-400/30">
-                        <User className="size-4.5 text-white stroke-[2.2]" />
+                        <span className="font-bold font-mono text-sm leading-none text-white select-none">
+                          {getStudentInitial(st.first_name, st.full_name, st.last_name)}
+                        </span>
                       </div>
 
                       <div className="min-w-0">
@@ -2304,7 +2316,9 @@ function ProfessorStudentsContent() {
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
                           <div className="size-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 dark:from-emerald-600 dark:to-teal-700 flex items-center justify-center text-white shadow-2xs shrink-0 border border-emerald-400/30">
-                            <User className="size-4 text-white stroke-[2.2]" />
+                            <span className="font-bold font-mono text-xs leading-none text-white select-none">
+                              {getStudentInitial(st.first_name, st.full_name, st.last_name)}
+                            </span>
                           </div>
                           <div>
                             <p className="font-bold text-slate-900 dark:text-white">

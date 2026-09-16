@@ -90,7 +90,7 @@ export function PrintMarksheet({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/80">
           <div className="flex items-center gap-3">
             <div className="size-10 rounded-xl bg-slate-900 text-white font-black text-base flex items-center justify-center shrink-0">
-              {student.first_name?.[0] || 'C'}
+              {(student.first_name?.trim() || student.full_name?.trim() || student.last_name?.trim() || 'S').charAt(0).toUpperCase()}
             </div>
             <div>
               <h1 className="text-base font-black text-slate-900 uppercase tracking-tight">

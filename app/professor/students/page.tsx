@@ -69,6 +69,7 @@ import {
   BulkExportReportOptions,
 } from '@/lib/exportUtils'
 import { PrintMarksheet } from '@/components/transcript/PrintMarksheet'
+import { calculateCohortStatistics } from '@/lib/gradeUtils'
 
 interface StudentDirectoryRecord {
   id: string
@@ -519,6 +520,55 @@ function ProfessorStudentsContent() {
 
     return result
   }, [students, selectedSection, selectedGroup, statusFilter, searchQuery, sortOrder])
+
+  // Computed dynamic metrics based on currently displayed/filtered candidates
+  const activeStats = useMemo(() => {
+    const isFiltered =
+      selectedSection !== 'all' ||
+      selectedGroup !== 'all' ||
+      statusFilter !== 'all' ||
+      Boolean(searchQuery.trim())
+
+    // If no client filters applied, fallback to summary if available, else compute on displayedStudents
+    if (!isFiltered && summary.total_students > 0) {
+      return {
+        totalCandidates: summary.total_students,
+        evaluatedCandidates: summary.evaluated_students,
+        pendingCandidates: Math.max(0, summary.total_students - summary.evaluated_students),
+        passedCandidates: Math.round((summary.pass_rate / 100) * summary.evaluated_students),
+        failedCandidates: Math.max(0, summary.evaluated_students - Math.round((summary.pass_rate / 100) * summary.evaluated_students)),
+        passRate: summary.pass_rate,
+        averageScore: summary.average_score,
+        highestScore: null,
+        lowestScore: null,
+        isFiltered: false,
+      }
+    }
+
+    const stats = calculateCohortStatistics(
+      displayedStudents.map((s) => s.final_score),
+      displayedStudents.length
+    )
+
+    return {
+      ...stats,
+      isFiltered,
+    }
+  }, [displayedStudents, selectedSection, selectedGroup, statusFilter, searchQuery, summary])
+
+  const filterContextLabel = useMemo(() => {
+    const parts: string[] = []
+    if (selectedSection !== 'all') parts.push(selectedSection)
+    if (selectedGroup !== 'all') parts.push(selectedGroup)
+    if (statusFilter !== 'all') {
+      const opt = STATUS_OPTIONS.find((o) => o.value === statusFilter)
+      if (opt) parts.push(opt.label.split('(')[0].trim())
+    }
+    if (searchQuery.trim()) parts.push(`"${searchQuery.trim()}"`)
+
+    if (parts.length === 0) return 'Across your assigned modules'
+    return `Filtered by ${parts.join(' · ')}`
+  }, [selectedSection, selectedGroup, statusFilter, searchQuery])
 
   // Multi-Candidate Selection Helpers
   const toggleSelectCandidate = (id: string, e?: React.MouseEvent) => {
@@ -1404,8 +1454,13 @@ function ProfessorStudentsContent() {
               <GraduationCap className="size-5" />
             </div>
             <div>
-              <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-                Student Performance & Transcripts
+              <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5 flex-wrap">
+                <span>Student Performance & Transcripts</span>
+                {activeStats.isFiltered && (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    Filtered Live
+                  </span>
+                )}
               </h1>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Review candidate evaluations, inspect granular answers and scoring rubrics, and export enterprise PDF/Excel transcripts.
@@ -1431,7 +1486,12 @@ function ProfessorStudentsContent() {
       {/* 2. KPI Summary Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Candidates */}
-        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
+        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3 relative overflow-hidden transition-all">
+          {activeStats.isFiltered && (
+            <div className="absolute top-0 right-0 px-2.5 py-0.5 rounded-bl-xl text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-l border-b border-emerald-200/60 dark:border-emerald-800/60">
+              Filtered
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
               Enrolled Candidates
@@ -1444,18 +1504,23 @@ function ProfessorStudentsContent() {
             {loadingDirectory ? (
               <div className="h-8 w-20 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
             ) : (
-              <div className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white">
-                {summary.total_students}
+              <div className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tabular-nums">
+                {activeStats.totalCandidates}
               </div>
             )}
-            <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
-              Across your assigned modules
+            <p className="text-[11px] font-semibold text-slate-400 mt-0.5 truncate" title={filterContextLabel}>
+              {filterContextLabel}
             </p>
           </div>
         </div>
 
         {/* Evaluated Candidates */}
-        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
+        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3 relative overflow-hidden transition-all">
+          {activeStats.isFiltered && (
+            <div className="absolute top-0 right-0 px-2.5 py-0.5 rounded-bl-xl text-[10px] font-bold bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border-l border-b border-blue-200/60 dark:border-blue-800/60">
+              Filtered
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
               Evaluated Candidates
@@ -1468,18 +1533,25 @@ function ProfessorStudentsContent() {
             {loadingDirectory ? (
               <div className="h-8 w-20 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
             ) : (
-              <div className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white">
-                {summary.evaluated_students}
+              <div className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tabular-nums">
+                {activeStats.evaluatedCandidates}
               </div>
             )}
             <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
-              With recorded station marksheets
+              {activeStats.isFiltered
+                ? `${activeStats.evaluatedCandidates} of ${activeStats.totalCandidates} candidates evaluated`
+                : 'With recorded station marksheets'}
             </p>
           </div>
         </div>
 
         {/* Average Score */}
-        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
+        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3 relative overflow-hidden transition-all">
+          {activeStats.isFiltered && (
+            <div className="absolute top-0 right-0 px-2.5 py-0.5 rounded-bl-xl text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-l border-b border-emerald-200/60 dark:border-emerald-800/60">
+              Filtered
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
               Average Score
@@ -1493,18 +1565,31 @@ function ProfessorStudentsContent() {
               <div className="h-8 w-20 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
             ) : (
               <div className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tabular-nums">
-                {summary.average_score.toFixed(2)}{' '}
-                <span className="text-sm font-bold text-slate-400">/ 20</span>
+                {activeStats.evaluatedCandidates > 0 ? (
+                  <>
+                    {activeStats.averageScore.toFixed(2)}{' '}
+                    <span className="text-sm font-bold text-slate-400">/ 20</span>
+                  </>
+                ) : (
+                  <span className="text-slate-400 font-bold">—</span>
+                )}
               </div>
             )}
             <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
-              Mean score across evaluated stations
+              {activeStats.evaluatedCandidates > 0
+                ? 'Mean score across evaluated stations'
+                : 'No evaluated stations in selection'}
             </p>
           </div>
         </div>
 
         {/* Passing Rate */}
-        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
+        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3 relative overflow-hidden transition-all">
+          {activeStats.isFiltered && (
+            <div className="absolute top-0 right-0 px-2.5 py-0.5 rounded-bl-xl text-[10px] font-bold bg-purple-50 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 border-l border-b border-purple-200/60 dark:border-purple-800/60">
+              Filtered
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
               Passing Rate
@@ -1518,11 +1603,17 @@ function ProfessorStudentsContent() {
               <div className="h-8 w-20 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
             ) : (
               <div className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tabular-nums">
-                {summary.pass_rate}%
+                {activeStats.evaluatedCandidates > 0 ? (
+                  `${activeStats.passRate}%`
+                ) : (
+                  <span className="text-slate-400 font-bold">—</span>
+                )}
               </div>
             )}
             <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
-              Candidates achieving &gt;= 10.00 / 20
+              {activeStats.evaluatedCandidates > 0
+                ? `${activeStats.passedCandidates} of ${activeStats.evaluatedCandidates} candidates (≥ 10.00 / 20)`
+                : 'No evaluated stations in selection'}
             </p>
           </div>
         </div>
@@ -1852,7 +1943,9 @@ function ProfessorStudentsContent() {
 
                 {availableGroups.map((grp) => {
                   const isSelected = selectedGroup === grp
-                  const count = displayedStudents.filter((s) => s.group_name === grp).length
+                  const count = students.filter(
+                    (s) => (selectedSection === 'all' || s.section_name === selectedSection) && s.group_name === grp
+                  ).length
                   return (
                     <button
                       key={grp}

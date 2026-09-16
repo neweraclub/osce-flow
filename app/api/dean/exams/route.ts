@@ -99,6 +99,9 @@ export async function GET(req: NextRequest) {
     const moduleIds = modulesList.map((m) => m.id)
     const moduleMap = new Map(modulesList.map((m) => [m.id, m]))
 
+    const moduleIdParam = searchParams.get('module_id')
+    const sessionTypeParam = searchParams.get('session_type')?.trim().toLowerCase()
+
     // 5. Fetch sections & groups for this year's study levels
     let sectionsList: any[] = []
     let groupsList: any[] = []
@@ -137,27 +140,42 @@ export async function GET(req: NextRequest) {
     }
 
     const groupMap = new Map(groupsList.map((g) => [g.id, g]))
-    const groupIds = groupsList.map((g) => g.id)
 
-    // 6. Fetch exams belonging to these modules or groups
+    // 6. Fetch exams belonging to these modules (verified via foreign key exams.module_id -> modules.id)
     let examsList: any[] = []
-    if (moduleIds.length > 0 || groupIds.length > 0) {
+    if (moduleIdParam) {
+      const isAllowed = await verifyModuleBelongsToFaculty(moduleIdParam, dean.facultyId)
+      if (isAllowed) {
+        let examsQuery = supabaseAdmin
+          .from('exams')
+          .select('*')
+          .eq('module_id', moduleIdParam)
+          .order('exam_date', { ascending: false })
+
+        const { data: rawExams, error: examsErr } = await examsQuery
+        if (examsErr) throw examsErr
+        examsList = rawExams || []
+      }
+    } else if (moduleIds.length > 0) {
       let examsQuery = supabaseAdmin
         .from('exams')
         .select('*')
+        .in('module_id', moduleIds)
         .order('exam_date', { ascending: false })
-
-      if (moduleIds.length > 0 && groupIds.length > 0) {
-        examsQuery = examsQuery.in('module_id', moduleIds).in('group_id', groupIds)
-      } else if (moduleIds.length > 0) {
-        examsQuery = examsQuery.in('module_id', moduleIds)
-      } else if (groupIds.length > 0) {
-        examsQuery = examsQuery.in('group_id', groupIds)
-      }
 
       const { data: rawExams, error: examsErr } = await examsQuery
       if (examsErr) throw examsErr
       examsList = rawExams || []
+    }
+
+    // Filter by session_type flexibly (case-insensitive) if requested
+    if (sessionTypeParam && examsList.length > 0) {
+      const targetNormalized = sessionTypeParam === 'retake' || sessionTypeParam === 'makeup' ? 'retake' : 'regular'
+      examsList = examsList.filter((e) => {
+        const rawType = (e.session_type || 'regular').trim().toLowerCase()
+        const norm = rawType === 'retake' || rawType === 'makeup' ? 'retake' : 'regular'
+        return norm === targetNormalized
+      })
     }
 
     const examIds = examsList.map((e) => e.id)
@@ -194,6 +212,9 @@ export async function GET(req: NextRequest) {
       const mod = moduleMap.get(e.module_id)
       const grp = groupMap.get(e.group_id)
       const stations = stationsByExam.get(e.id) || []
+      const rawSessionType = (e.session_type || 'regular').trim().toLowerCase()
+      const normalizedType: 'regular' | 'retake' =
+        rawSessionType === 'retake' || rawSessionType === 'makeup' ? 'retake' : 'regular'
 
       return {
         id: e.id,
@@ -203,7 +224,8 @@ export async function GET(req: NextRequest) {
         group_id: e.group_id,
         group_name: grp ? grp.group_name : 'Unassigned Group',
         section_name: grp ? grp.section_name : 'Unassigned Section',
-        session_type: e.session_type || 'regular',
+        session_type: normalizedType,
+        raw_session_type: e.session_type,
         exam_date: e.exam_date,
         created_at: e.created_at,
         station_count: stations.length,
@@ -242,7 +264,9 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const sessionTypeEnum = session_type === 'retake' ? 'retake' : 'regular'
+    const rawInputType = (session_type || 'regular').trim().toLowerCase()
+    const sessionTypeEnum: 'regular' | 'retake' =
+      rawInputType === 'retake' || rawInputType === 'makeup' ? 'retake' : 'regular'
     const examDateVal = exam_date || new Date().toISOString().split('T')[0]
 
     // Verify module belongs strictly to this Dean's faculty
@@ -251,13 +275,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Forbidden: Selected module does not belong to your faculty.' }, { status: 403 })
     }
 
-    // Enforce 1 regular + 1 retake exam limit per module (uq_module_session)
-    const { data: existingSession } = await supabaseAdmin
+    // Enforce 1 regular + 1 retake exam limit per module (case-insensitively checked across exams)
+    const { data: existingSessions } = await supabaseAdmin
       .from('exams')
       .select('id, session_type')
       .eq('module_id', module_id)
-      .eq('session_type', sessionTypeEnum)
-      .maybeSingle()
+
+    const existingSession = (existingSessions || []).find((s) => {
+      const t = (s.session_type || 'regular').trim().toLowerCase()
+      const norm = t === 'retake' || t === 'makeup' ? 'retake' : 'regular'
+      return norm === sessionTypeEnum
+    })
 
     if (existingSession) {
       const typeLabel = sessionTypeEnum === 'retake' ? 'Retake' : 'Regular'
@@ -333,7 +361,10 @@ export async function PUT(req: NextRequest) {
       updatePayload.module_id = module_id
     }
     if (group_id) updatePayload.group_id = group_id
-    if (session_type) updatePayload.session_type = session_type === 'retake' ? 'retake' : 'regular'
+    if (session_type) {
+      const rawInput = String(session_type).trim().toLowerCase()
+      updatePayload.session_type = rawInput === 'retake' || rawInput === 'makeup' ? 'retake' : 'regular'
+    }
     if (exam_date) updatePayload.exam_date = exam_date
 
     const { data: updatedExam, error } = await supabaseAdmin

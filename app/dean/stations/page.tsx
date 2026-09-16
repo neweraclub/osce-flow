@@ -77,9 +77,17 @@ export interface ExamSessionItem {
   module_id: string
   module_name?: string
   level_name?: string
-  session_type: 'regular' | 'retake'
+  session_type: 'regular' | 'retake' | string
   exam_date: string
   display_label?: string
+}
+
+export const isRegularSession = (type?: string | null) =>
+  String(type || '').trim().toLowerCase() === 'regular'
+
+export const isRetakeSession = (type?: string | null) => {
+  const t = String(type || '').trim().toLowerCase()
+  return t === 'retake' || t === 'makeup'
 }
 
 export interface StationItem {
@@ -294,16 +302,16 @@ function DeanStationsContent() {
     return exams.filter((e) => e.module_id === selectedModuleId)
   }, [exams, selectedModuleId])
 
-  const hasRegularSession = activeModuleExams.some((e) => e.session_type === 'regular')
-  const hasRetakeSession = activeModuleExams.some((e) => e.session_type === 'retake')
+  const hasRegularSession = activeModuleExams.some((e) => isRegularSession(e.session_type))
+  const hasRetakeSession = activeModuleExams.some((e) => isRetakeSession(e.session_type))
   const isMaxSessionsReached = hasRegularSession && hasRetakeSession
 
   const regularExam = useMemo(
-    () => activeModuleExams.find((e) => e.session_type === 'regular') || null,
+    () => activeModuleExams.find((e) => isRegularSession(e.session_type)) || null,
     [activeModuleExams]
   )
   const retakeExam = useMemo(
-    () => activeModuleExams.find((e) => e.session_type === 'retake') || null,
+    () => activeModuleExams.find((e) => isRetakeSession(e.session_type)) || null,
     [activeModuleExams]
   )
 
@@ -341,7 +349,7 @@ function DeanStationsContent() {
     }
 
     if (!activeExamId || !activeModuleExams.some((e) => e.id === activeExamId)) {
-      const reg = activeModuleExams.find((e) => e.session_type === 'regular')
+      const reg = activeModuleExams.find((e) => isRegularSession(e.session_type))
       setActiveExamId(reg ? reg.id : activeModuleExams[0].id)
     }
   }, [activeModuleExams, activeExamId])
@@ -709,7 +717,7 @@ function DeanStationsContent() {
               <ChevronRight className="size-3.5 text-slate-300 dark:text-slate-600" />
               <span className="text-emerald-600 dark:text-emerald-400 font-extrabold flex items-center gap-1.5 capitalize">
                 <ClipboardCheck className="size-3.5" />
-                <span>3. {activeExam.session_type} Session Stations</span>
+                <span>3. {isRetakeSession(activeExam.session_type) ? 'Retake' : 'Regular'} Session Stations</span>
               </span>
             </>
           )}
@@ -743,7 +751,7 @@ function DeanStationsContent() {
                     <ClipboardCheck className="size-5" />
                   </div>
                   <span className="capitalize">
-                    {activeModule.module_name} — {activeExam.session_type} Session Stations
+                    {activeModule.module_name} — {isRetakeSession(activeExam.session_type) ? 'Retake' : 'Regular'} Session Stations
                   </span>
                 </>
               )}
@@ -918,8 +926,8 @@ function DeanStationsContent() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {displayedModules.map((mod) => {
                 const modExams = exams.filter((e) => e.module_id === mod.id)
-                const regExam = modExams.find((e) => e.session_type === 'regular')
-                const retkExam = modExams.find((e) => e.session_type === 'retake')
+                const regExam = modExams.find((e) => isRegularSession(e.session_type))
+                const retkExam = modExams.find((e) => isRetakeSession(e.session_type))
                 const modStations = stations.filter(
                   (s) => s.module_id === mod.id || modExams.some((e) => e.id === s.exam_id)
                 )
@@ -1321,7 +1329,7 @@ function DeanStationsContent() {
             <div className="flex items-center gap-3.5">
               <div
                 className={`size-11 rounded-2xl flex items-center justify-center shrink-0 ${
-                  activeExam.session_type === 'retake'
+                  isRetakeSession(activeExam.session_type)
                     ? 'bg-purple-100 dark:bg-purple-950/80 text-purple-600 dark:text-purple-400'
                     : 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400'
                 }`}
@@ -1331,7 +1339,7 @@ function DeanStationsContent() {
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-base font-black capitalize text-slate-900 dark:text-white">
-                    {activeExam.session_type === 'retake' ? 'Retake Examination' : 'Regular Examination'}
+                    {isRetakeSession(activeExam.session_type) ? 'Retake Examination' : 'Regular Examination'}
                   </h2>
                   <span className="text-xs text-slate-400 font-mono">
                     • {new Date(activeExam.exam_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -1348,7 +1356,7 @@ function DeanStationsContent() {
               <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800 self-start sm:self-auto">
                 {activeModuleExams.map((ex) => {
                   const isCurrent = ex.id === activeExam.id
-                  const isRetake = ex.session_type === 'retake'
+                  const isRetake = isRetakeSession(ex.session_type)
                   const count = stations.filter((s) => s.exam_id === ex.id).length
 
                   return (
@@ -1386,7 +1394,7 @@ function DeanStationsContent() {
                     Curriculum Stations Weightage Allocation
                   </h3>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Total station weightages for this {activeExam.session_type === 'retake' ? 'Retake' : 'Regular'} session must equal 100.00%.
+                    Total station weightages for this {isRetakeSession(activeExam.session_type) ? 'Retake' : 'Regular'} session must equal 100.00%.
                   </p>
                 </div>
               </div>
@@ -1493,7 +1501,7 @@ function DeanStationsContent() {
               </h3>
               <p className="text-xs text-slate-400 max-w-md mx-auto">
                 Click &quot;+ Create Clinical Station&quot; above to add Station #1 to this{' '}
-                {activeExam.session_type === 'retake' ? 'Retake' : 'Regular'} exam session.
+                {isRetakeSession(activeExam.session_type) ? 'Retake' : 'Regular'} exam session.
               </p>
               <button
                 type="button"
@@ -1795,7 +1803,7 @@ function DeanStationsContent() {
                     Create Clinical Station
                   </h3>
                   <p className="text-[11px] font-semibold text-slate-400">
-                    Session: {activeExam.session_type === 'retake' ? 'Retake' : 'Regular'} ({activeModule?.module_name})
+                    Session: {isRetakeSession(activeExam.session_type) ? 'Retake' : 'Regular'} ({activeModule?.module_name})
                   </p>
                 </div>
               </div>
@@ -2165,7 +2173,7 @@ function DeanStationsContent() {
             </div>
             <div className="space-y-1">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Delete {deletingExam.session_type === 'retake' ? 'Retake' : 'Regular'} Session?
+                Delete {isRetakeSession(deletingExam.session_type) ? 'Retake' : 'Regular'} Session?
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Removing this session will remove all child stations and criteria authored for it. This action cannot be undone.

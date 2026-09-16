@@ -114,14 +114,17 @@ export async function GET(req: NextRequest) {
 
       examsList = (rawExams || []).map((e) => {
         const mod = moduleMap.get(e.module_id)
+        const rawType = String(e.session_type || 'regular').trim().toLowerCase()
+        const normType: 'regular' | 'retake' = rawType === 'retake' || rawType === 'makeup' ? 'retake' : 'regular'
         return {
           id: e.id,
           module_id: e.module_id,
           module_name: mod ? mod.module_name : 'Unassigned Module',
           level_name: mod ? mod.level_name : 'Unassigned Level',
-          session_type: e.session_type || 'regular',
+          session_type: normType,
+          raw_session_type: e.session_type,
           exam_date: e.exam_date,
-          display_label: `${mod ? mod.module_name : 'Exam'} (${e.session_type || 'regular'}) • ${e.exam_date || ''}`,
+          display_label: `${mod ? mod.module_name : 'Exam'} (${normType === 'retake' ? 'Retake' : 'Regular'}) • ${e.exam_date || ''}`,
         }
       })
     }

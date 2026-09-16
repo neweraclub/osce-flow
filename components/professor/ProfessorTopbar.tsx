@@ -78,6 +78,24 @@ export function ProfessorTopbar({
       }
     }
     loadSession()
+
+    const handleUserUpdate = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (detail) {
+        const fn = detail.firstName || ''
+        const ln = detail.lastName || ''
+        setUserProfile((prev) => ({
+          name: `Prof. ${fn} ${ln}`.trim() || 'Professor',
+          email: prev?.email || '',
+          faculty: detail.facultyName || prev?.faculty || 'Medical Faculty',
+        }))
+      }
+    }
+
+    window.addEventListener('ecos:user-updated', handleUserUpdate)
+    return () => {
+      window.removeEventListener('ecos:user-updated', handleUserUpdate)
+    }
   }, [])
 
   // Inline path chip array with monospace text for IDs

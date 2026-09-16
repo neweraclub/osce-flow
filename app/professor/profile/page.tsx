@@ -148,16 +148,33 @@ export default function ProfessorProfilePage() {
 
       if (res.ok && json.success) {
         showSuccess('Personal information updated successfully.')
+        const trimmedFirst = firstName.trim()
+        const trimmedLast = lastName.trim()
+        const full = `Prof. ${trimmedFirst} ${trimmedLast}`
+
         setProfile((prev) =>
           prev
             ? {
                 ...prev,
-                firstName: firstName.trim(),
-                lastName: lastName.trim(),
-                fullName: `Prof. ${firstName.trim()} ${lastName.trim()}`,
+                firstName: trimmedFirst,
+                lastName: trimmedLast,
+                fullName: full,
               }
             : null
         )
+
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('ecos:user-updated', {
+              detail: {
+                firstName: trimmedFirst,
+                lastName: trimmedLast,
+                fullName: full,
+                facultyName: profile?.facultyName,
+              },
+            })
+          )
+        }
       } else {
         showError(json.error || 'Failed to update personal details.')
       }

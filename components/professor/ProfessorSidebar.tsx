@@ -54,6 +54,27 @@ export function ProfessorSidebar({
       }
     }
     loadSession()
+
+    const handleUserUpdate = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (detail) {
+        const fn = detail.firstName || ''
+        const ln = detail.lastName || ''
+        if (fn || ln) {
+          setProfessorName(`Prof. ${fn} ${ln}`.trim())
+          const init = `${fn.charAt(0)}${ln.charAt(0)}`.toUpperCase() || 'PR'
+          setInitials(init)
+        }
+        if (detail.facultyName) {
+          setFacultyName(detail.facultyName)
+        }
+      }
+    }
+
+    window.addEventListener('ecos:user-updated', handleUserUpdate)
+    return () => {
+      window.removeEventListener('ecos:user-updated', handleUserUpdate)
+    }
   }, [])
 
   const navItems = [

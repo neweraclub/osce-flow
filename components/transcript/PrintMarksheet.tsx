@@ -355,6 +355,23 @@ export function PrintMarksheet({
                     ))}
                   </div>
                 )}
+
+                {/* Candidate Merit Points & Bonuses */}
+                {st.bonuses && st.bonuses.length > 0 && (
+                  <div className="bg-emerald-50/70 border-t border-emerald-200 p-2.5 space-y-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 block">
+                      Exceptional Clinical Merit & Protocol Bonuses:
+                    </span>
+                    {st.bonuses.map((bon, bIdx) => (
+                      <div key={bon.id || bIdx} className="flex items-center justify-between text-xs text-emerald-900">
+                        <span>• {bon.reason}</span>
+                        <span className="font-mono font-bold shrink-0 text-emerald-700">
+                          +{Math.abs(Number(bon.points)).toFixed(1)} pts
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>

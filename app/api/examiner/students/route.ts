@@ -186,10 +186,11 @@ export async function GET(req: NextRequest) {
       studentList = rawStudents || []
     }
 
-    // 7. Fetch existing exam_attempts (scoped to station_id), saved student_answers, and candidate_penalties
+    // 7. Fetch existing exam_attempts (scoped to station_id), saved student_answers, candidate_penalties, and candidate_bonuses
     const attemptMap = new Map<string, any>()
     const answersMap = new Map<string, any[]>()
     const penaltiesMap = new Map<string, any[]>()
+    const bonusesMap = new Map<string, any[]>()
 
     if (studentList.length > 0) {
       const studentIds = studentList.map((s) => s.id)
@@ -239,6 +240,31 @@ export async function GET(req: NextRequest) {
         } catch (penErr) {
           console.warn('Could not fetch candidate_penalties:', penErr)
         }
+
+        // Fetch per-candidate bonuses strictly from candidate_bonuses
+        try {
+          const { data: bonusesData } = await supabaseAdmin
+            .from('candidate_bonuses')
+            .select('id, exam_attempt_id, criteria_id, reason, points, created_at')
+            .in('exam_attempt_id', attemptIds)
+            .order('created_at', { ascending: true })
+
+          ;(bonusesData || []).forEach((b) => {
+            if (!bonusesMap.has(b.exam_attempt_id)) {
+              bonusesMap.set(b.exam_attempt_id, [])
+            }
+            bonusesMap.get(b.exam_attempt_id)!.push({
+              id: b.id,
+              exam_attempt_id: b.exam_attempt_id,
+              criteria_id: b.criteria_id || null,
+              reason: b.reason,
+              points: Number(b.points),
+              created_at: b.created_at,
+            })
+          })
+        } catch (bonErr) {
+          console.warn('Could not fetch candidate_bonuses:', bonErr)
+        }
       }
 
       ;(attempts || []).forEach((att) => {
@@ -253,14 +279,16 @@ export async function GET(req: NextRequest) {
       const attempt = attemptMap.get(st.id)
       const savedAnswers = attempt ? answersMap.get(attempt.id) || [] : []
       const candidatePenalties = attempt ? penaltiesMap.get(attempt.id) || [] : []
+      const candidateBonuses = attempt ? bonusesMap.get(attempt.id) || [] : []
       
       const isCompleted = attempt?.status === 'completed' || (attempt && (savedAnswers.length > 0 || typeof attempt.final_score === 'number'))
 
-      // Dynamic Net Raw Score: GREATEST(0, earnedScore + totalDeductions)
-      const earnedScore = savedAnswers.reduce((sum, a) => sum + (Number(a.points_awarded) || 0), 0)
-      const totalDeductions = candidatePenalties.reduce((sum, p) => sum + (Number(p.points) || 0), 0)
+      // Dynamic Net Raw Score: GREATEST(0, earnedScore + totalDeductions + totalBonuses)
+      const earnedScore = savedAnswers.reduce((sum: number, a: any) => sum + (Number(a.points_awarded) || 0), 0)
+      const totalDeductions = candidatePenalties.reduce((sum: number, p: any) => sum + (Number(p.points) || 0), 0)
+      const totalBonuses = candidateBonuses.reduce((sum: number, b: any) => sum + (Number(b.points) || 0), 0)
       const dynamicFinalScore = isCompleted
-        ? Math.max(0, Math.round((earnedScore + totalDeductions) * 100) / 100)
+        ? Math.max(0, Math.round((earnedScore + totalDeductions + totalBonuses) * 100) / 100)
         : null
 
       return {
@@ -286,6 +314,7 @@ export async function GET(req: NextRequest) {
           points_awarded: Number(ans.points_awarded || 0),
         })),
         penalties: candidatePenalties,
+        bonuses: candidateBonuses,
       }
     })
 

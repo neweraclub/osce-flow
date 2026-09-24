@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   ShieldAlert,
   ShieldCheck,
+  Sparkles,
   Stethoscope,
   X,
   ExternalLink,
@@ -82,6 +83,7 @@ export function ProfessorSidebar({
     { label: 'Stations', href: '/professor/stations', icon: Layers },
     { label: 'Student Performance & Transcripts', href: '/professor/students', icon: GraduationCap },
     { label: 'Clinical Deductions & Penalties', href: '/professor/penalties', icon: ShieldAlert },
+    { label: 'Clinical Bonuses & Merit Points', href: '/professor/bonuses', icon: Sparkles },
   ]
 
   return (

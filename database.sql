@@ -159,3 +159,25 @@ CREATE TABLE public.candidate_penalties (
   CONSTRAINT candidate_penalties_exam_attempt_id_fkey FOREIGN KEY (exam_attempt_id) REFERENCES public.exam_attempts(id),
   CONSTRAINT candidate_penalties_criteria_id_fkey FOREIGN KEY (criteria_id) REFERENCES public.station_criteria(id)
 );
+CREATE TABLE public.station_bonuses (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  station_id uuid NOT NULL,
+  title text NOT NULL,
+  description text,
+  points numeric NOT NULL CHECK (points > 0::numeric),
+  created_at timestamp with time zone DEFAULT clock_timestamp(),
+  updated_at timestamp with time zone DEFAULT clock_timestamp(),
+  CONSTRAINT station_bonuses_pkey PRIMARY KEY (id),
+  CONSTRAINT station_bonuses_station_id_fkey FOREIGN KEY (station_id) REFERENCES public.stations(id)
+);
+CREATE TABLE public.candidate_bonuses (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  exam_attempt_id uuid NOT NULL,
+  criteria_id uuid,
+  reason text NOT NULL,
+  points numeric NOT NULL CHECK (points > 0::numeric),
+  created_at timestamp with time zone DEFAULT clock_timestamp(),
+  CONSTRAINT candidate_bonuses_pkey PRIMARY KEY (id),
+  CONSTRAINT candidate_bonuses_criteria_id_fkey FOREIGN KEY (criteria_id) REFERENCES public.station_bonuses(id),
+  CONSTRAINT candidate_bonuses_exam_attempt_id_fkey FOREIGN KEY (exam_attempt_id) REFERENCES public.exam_attempts(id)
+);

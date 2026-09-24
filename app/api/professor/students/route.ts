@@ -343,6 +343,16 @@ export async function GET(req: NextRequest) {
       allPenalties = penData || []
     }
 
+    let allBonuses: any[] = []
+    if (attemptIds.length > 0) {
+      const { data: bonData } = await supabaseAdmin
+        .from('candidate_bonuses')
+        .select('exam_attempt_id, points')
+        .in('exam_attempt_id', attemptIds)
+
+      allBonuses = bonData || []
+    }
+
     // Map station max points: station_id -> maxPoints
     const stationMaxPointsMap = new Map<string, number>()
     allQuestions.forEach((q) => {
@@ -383,7 +393,11 @@ export async function GET(req: NextRequest) {
         .filter((p) => p.exam_attempt_id === att.id)
         .reduce((sum, p) => sum + (Number(p.points) || 0), 0)
 
-      const netRawScore = Math.min(maxPoints, Math.max(0, earned + deductions))
+      const bonuses = allBonuses
+        .filter((b) => b.exam_attempt_id === att.id)
+        .reduce((sum, b) => sum + (Number(b.points) || 0), 0)
+
+      const netRawScore = Math.min(maxPoints, Math.max(0, earned + deductions + bonuses))
 
       // Centralized station normalization & weightage application
       const stationCalc = calculateStationScore({

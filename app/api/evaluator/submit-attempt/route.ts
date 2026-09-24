@@ -13,6 +13,8 @@ export async function POST(req: NextRequest) {
       graded_by_prof_id,
       penalty_total,
       penalties = [],
+      bonus_total,
+      bonuses = [],
     } = body
 
     if ((!student_id && !matricule) || !exam_id || !station_id) {
@@ -43,7 +45,7 @@ export async function POST(req: NextRequest) {
       points_awarded: number
     }> = Array.isArray(answers) ? answers : []
 
-    // 1. Calculate total score with clinical deductions
+    // 1. Calculate total score with clinical deductions and merit bonuses
     const earnedScore = answerList.reduce((sum, a) => {
       const pts = Number(a.points_awarded) || 0
       return sum + (pts >= 0 ? pts : 0)
@@ -55,7 +57,16 @@ export async function POST(req: NextRequest) {
 
     const deductionsFromList = penaltyList.reduce((sum, p) => sum + Math.abs(Number(p.points) || 0), 0)
     const deductions = penaltyList.length > 0 ? deductionsFromList : Math.abs(Number(penalty_total) || 0)
-    const finalScore = Math.max(0, Math.round((earnedScore - deductions) * 100) / 100)
+
+    const bonusList: Array<{ reason: string; points: number; criteria_id?: string | null }> = Array.isArray(bonuses)
+      ? bonuses
+      : []
+
+    const bonusesFromList = bonusList.reduce((sum, b) => sum + Math.abs(Number(b.points) || 0), 0)
+    const bonusPoints = bonusList.length > 0 ? bonusesFromList : Math.abs(Number(bonus_total) || 0)
+
+    // Final Net Score = Raw Score - Penalties Points + Bonuses Points
+    const finalScore = Math.max(0, Math.round((earnedScore - deductions + bonusPoints) * 100) / 100)
 
     // 2. Resiliently find or insert exam_attempts record
     let attemptId: string | null = null
@@ -166,6 +177,38 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // 6. Clear and batch insert candidate_bonuses for this attempt
+    await supabaseAdmin
+      .from('candidate_bonuses')
+      .delete()
+      .eq('exam_attempt_id', attemptId)
+
+    if (bonusList.length > 0) {
+      const bonusRows = bonusList
+        .filter((b) => b.reason && b.reason.trim())
+        .map((b) => {
+          const rawPts = Number(b.points) || 0
+          const positivePts = Math.abs(rawPts) > 0 ? Math.abs(rawPts) : 0.5
+          return {
+            exam_attempt_id: attemptId,
+            criteria_id: b.criteria_id || null,
+            reason: b.reason.trim(),
+            points: positivePts,
+          }
+        })
+
+      if (bonusRows.length > 0) {
+        const { error: bonErr } = await supabaseAdmin
+          .from('candidate_bonuses')
+          .insert(bonusRows)
+
+        if (bonErr) {
+          console.error('Error batch inserting candidate_bonuses:', bonErr)
+          throw bonErr
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Attempt submitted and scored successfully.',
@@ -173,6 +216,7 @@ export async function POST(req: NextRequest) {
       final_score: finalScore,
       answers_count: answerList.length,
       penalties_count: penaltyList.length,
+      bonuses_count: bonusList.length,
     })
   } catch (error: any) {
     console.error('submit-attempt error:', error)

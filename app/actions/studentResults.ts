@@ -46,6 +46,13 @@ export interface StationQuestionAnswerBreakdown {
   selected_options?: string[]
 }
 
+export interface StationBonusBreakdown {
+  id: string
+  reason: string
+  points: number
+  matched_criteria_title?: string | null
+}
+
 export interface EvaluatedStationBreakdown {
   station_id: string
   station_number: number
@@ -54,12 +61,14 @@ export interface EvaluatedStationBreakdown {
   station_max_points: number
   raw_earned_points: number
   deductions_points: number
+  bonuses_points?: number
   net_station_raw_score: number
   station_percentage: number // (points_awarded / max_points) * 100
   weighted_percentage: number // station_percentage * (weightage / 100)
   station_max_contribution: number // 20 * (weightage / 100)
   station_contribution: number // 20 * (weightage / 100) * (net_score / max_points)
   penalties: StationPenaltyBreakdown[]
+  bonuses?: StationBonusBreakdown[]
   answers: StationQuestionAnswerBreakdown[]
   attempt_status: string
   attempt_date?: string
@@ -352,6 +361,19 @@ export async function getStudentResultsDashboardDataAction(
       }
     }
 
+    // 5b. Fetch candidate_bonuses across these attempts
+    let allBonuses: any[] = []
+    if (attemptIds.length > 0) {
+      const { data: bonData, error: bonErr } = await supabaseAdmin
+        .from('candidate_bonuses')
+        .select('id, exam_attempt_id, criteria_id, points, reason, created_at')
+        .in('exam_attempt_id', attemptIds)
+
+      if (!bonErr && bonData) {
+        allBonuses = bonData
+      }
+    }
+
     // 6. Fetch station_criteria to correlate penalty titles
     let allCriteria: any[] = []
     if (stationIds.length > 0) {
@@ -362,6 +384,19 @@ export async function getStudentResultsDashboardDataAction(
 
       if (!critErr && critData) {
         allCriteria = critData
+      }
+    }
+
+    // 6b. Fetch station_bonuses to correlate bonus titles
+    let allStationBonuses: any[] = []
+    if (stationIds.length > 0) {
+      const { data: sbonData, error: sbonErr } = await supabaseAdmin
+        .from('station_bonuses')
+        .select('id, station_id, title, description, points')
+        .in('station_id', stationIds)
+
+      if (!sbonErr && sbonData) {
+        allStationBonuses = sbonData
       }
     }
 
@@ -422,17 +457,25 @@ export async function getStudentResultsDashboardDataAction(
         Math.max(0, Math.round(totalRawEarned * 100) / 100)
       )
 
-      // Penalties for this attempt (points are strictly negative)
+      // Penalties for this attempt (points are strictly negative in database, e.g. -0.5)
       const attemptPenalties = allPenalties.filter((p) => p.exam_attempt_id === att.id)
       const deductionsPoints = attemptPenalties.reduce(
         (sum, p) => sum + (Number(p.points) || 0),
         0
       )
 
+      // Bonuses for this attempt (points are strictly positive in database, e.g. +0.5)
+      const attemptBonuses = allBonuses.filter((b) => b.exam_attempt_id === att.id)
+      const bonusesPoints = attemptBonuses.reduce(
+        (sum, b) => sum + (Number(b.points) || 0),
+        0
+      )
+
       // Net Station Raw Score: strictly clamped between 0 and stationMaxPoints
+      // Final Net Score = Raw Score - Penalties Points + Bonuses Points
       const netStationRawScore = Math.min(
         stationMaxPoints,
-        Math.max(0, Math.round((rawEarnedPoints + deductionsPoints) * 100) / 100)
+        Math.max(0, Math.round((rawEarnedPoints + deductionsPoints + bonusesPoints) * 100) / 100)
       )
 
       // Centralized station score & weightage calculation (strictly capped)
@@ -465,6 +508,22 @@ export async function getStudentResultsDashboardDataAction(
         }
       })
 
+      // Match itemized bonuses to station_bonuses if title/keyword matches
+      const stationBonusesPresets = allStationBonuses.filter((sb) => sb.station_id === station.id)
+      const formattedBonuses: StationBonusBreakdown[] = attemptBonuses.map((b) => {
+        const matched = stationBonusesPresets.find((sb) =>
+          (b.criteria_id && sb.id === b.criteria_id) ||
+          b.reason.toLowerCase().includes(sb.title.toLowerCase()) ||
+          sb.title.toLowerCase().includes(b.reason.toLowerCase())
+        )
+        return {
+          id: b.id,
+          reason: b.reason,
+          points: Number(b.points),
+          matched_criteria_title: matched?.title || null,
+        }
+      })
+
       // Formatted question answer breakdown
       const formattedAnswers: StationQuestionAnswerBreakdown[] = stationQuestions.map((q) => {
         const foundAns = attemptAnswers.find((a) => a.question_id === q.id)
@@ -489,12 +548,14 @@ export async function getStudentResultsDashboardDataAction(
         station_max_points: stationMaxPoints,
         raw_earned_points: Math.round(rawEarnedPoints * 100) / 100,
         deductions_points: Math.round(deductionsPoints * 100) / 100,
+        bonuses_points: Math.round(bonusesPoints * 100) / 100,
         net_station_raw_score: netStationRawScore,
         station_percentage: scoreCalculation.stationPercentage,
         weighted_percentage: scoreCalculation.weightedPercentage,
         station_max_contribution: stationMaxContribution,
         station_contribution: stationContribution,
         penalties: formattedPenalties,
+        bonuses: formattedBonuses,
         answers: formattedAnswers,
         attempt_status: att.status || 'completed',
         attempt_date: att.created_at,

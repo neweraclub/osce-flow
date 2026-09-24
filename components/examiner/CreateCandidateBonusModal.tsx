@@ -15,6 +15,8 @@ interface CreateCandidateBonusModalProps {
   onClose: () => void
   studentName: string
   presetCriteria?: PresetCriterionOption[]
+  initialReason?: string
+  initialPoints?: number
   onAddBonus: (bonus: { id: string; reason: string; points: number; criteria_id?: string }) => void
 }
 
@@ -25,6 +27,8 @@ export function CreateCandidateBonusModal({
   onClose,
   studentName,
   presetCriteria = [],
+  initialReason,
+  initialPoints,
   onAddBonus,
 }: CreateCandidateBonusModalProps) {
   const [reason, setReason] = useState('')
@@ -34,12 +38,12 @@ export function CreateCandidateBonusModal({
 
   useEffect(() => {
     if (isOpen) {
-      setReason('')
-      setPointsInput('0.5')
+      setReason(initialReason || '')
+      setPointsInput(initialPoints !== undefined ? String(initialPoints) : '0.5')
       setSelectedCriteriaId(undefined)
       setErrorMessage(null)
     }
-  }, [isOpen])
+  }, [isOpen, initialReason, initialPoints])
 
   if (!isOpen) return null
 

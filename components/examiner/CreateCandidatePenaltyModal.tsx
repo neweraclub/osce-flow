@@ -20,6 +20,8 @@ interface CreateCandidatePenaltyModalProps {
   onClose: () => void
   studentName: string
   presetCriteria?: PresetCriterionOption[]
+  initialReason?: string
+  initialPoints?: number
   onAddPenalty: (penalty: { id: string; reason: string; points: number; criteria_id?: string }) => void
 }
 
@@ -30,6 +32,8 @@ export function CreateCandidatePenaltyModal({
   onClose,
   studentName,
   presetCriteria = [],
+  initialReason,
+  initialPoints,
   onAddPenalty,
 }: CreateCandidatePenaltyModalProps) {
   const [reason, setReason] = useState('')
@@ -39,12 +43,12 @@ export function CreateCandidatePenaltyModal({
 
   useEffect(() => {
     if (isOpen) {
-      setReason('')
-      setPointsInput('-0.5')
+      setReason(initialReason || '')
+      setPointsInput(initialPoints !== undefined ? String(initialPoints) : '-0.5')
       setSelectedCriteriaId(undefined)
       setErrorMessage(null)
     }
-  }, [isOpen])
+  }, [isOpen, initialReason, initialPoints])
 
   if (!isOpen) return null
 

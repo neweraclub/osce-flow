@@ -43,6 +43,7 @@ import {
   UserMinus,
   Users,
   FileEdit,
+  Zap,
 } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { useToast } from '@/context/ToastContext'
@@ -65,6 +66,14 @@ import {
   CandidateBonusItem,
   getCandidateBonusesAction,
 } from '@/app/actions/candidateBonuses'
+import { TemplateQuickAssignDrawer } from '@/components/examiner/TemplateQuickAssignDrawer'
+import {
+  PenaltyBonusTemplate,
+  getPenaltyBonusTemplatesAction,
+  createPenaltyBonusTemplateAction,
+  updatePenaltyBonusTemplateAction,
+  deletePenaltyBonusTemplateAction,
+} from '@/app/actions/penaltyBonusTemplates'
 
 interface StudentAnswerItem {
   question_id: string
@@ -236,6 +245,13 @@ function ExaminerWorkspaceContent() {
   const [isCreateBonusOpen, setIsCreateBonusOpen] = useState(false)
   const [submittingAttempt, setSubmittingAttempt] = useState(false)
   const isSubmittingAttemptRef = React.useRef(false)
+
+  // Quick Templates & Presets Library State
+  const [templates, setTemplates] = useState<PenaltyBonusTemplate[]>([])
+  const [isQuickTemplatesDrawerOpen, setIsQuickTemplatesDrawerOpen] = useState(false)
+  const [activeModalPreset, setActiveModalPreset] = useState<{ reason: string; points: number } | null>(null)
+  const [dragOverActiveCandidate, setDragOverActiveCandidate] = useState(false)
+  const [dragOverStudentMatricule, setDragOverStudentMatricule] = useState<string | null>(null)
 
   // Active Exam Session
   const activeExam = useMemo(
@@ -719,6 +735,129 @@ function ExaminerWorkspaceContent() {
     showSuccess('Merit bonus removed.')
   }
 
+  // Load templates on mount
+  useEffect(() => {
+    async function loadTemplates() {
+      try {
+        const res = await getPenaltyBonusTemplatesAction()
+        if (res.success && res.templates) {
+          setTemplates(res.templates)
+        }
+      } catch (err) {
+        console.error('Failed to load templates:', err)
+      }
+    }
+    loadTemplates()
+  }, [])
+
+  // Quick Apply Template (Click or Drag-and-Drop)
+  const handleQuickApplyTemplate = (tpl: PenaltyBonusTemplate, targetStudent?: StudentItem | null) => {
+    const student = targetStudent || activeStudent
+    if (!student) {
+      showError('Please select a candidate to assign this template.')
+      return
+    }
+
+    if (activeStudent?.matricule !== student.matricule) {
+      handleStartExamination(student)
+    }
+
+    const note = tpl.default_note ? `${tpl.title}: ${tpl.default_note}` : tpl.title
+
+    if (tpl.type === 'bonus') {
+      const pts = Math.abs(tpl.default_value)
+      setCandidateBonuses((prev) => [
+        ...prev,
+        {
+          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `bonus-${Date.now()}`,
+          exam_attempt_id: student.attempt_id || '',
+          reason: note,
+          points: pts,
+        },
+      ])
+      showSuccess(`Applied Bonus: "${tpl.title}" (+${pts.toFixed(1)} pts) to ${student.full_name}`)
+    } else {
+      const pts = -Math.abs(tpl.default_value)
+      setCandidatePenalties((prev) => [
+        ...prev,
+        {
+          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `penalty-${Date.now()}`,
+          exam_attempt_id: student.attempt_id || '',
+          reason: note,
+          points: pts,
+        },
+      ])
+      showSuccess(`Applied Deduction: "${tpl.title}" (${pts.toFixed(1)} pts) to ${student.full_name}`)
+    }
+  }
+
+  // Customize & Apply Template (Pre-populates corresponding modal)
+  const handleCustomizeApplyTemplate = (tpl: PenaltyBonusTemplate) => {
+    if (!activeStudent) {
+      showError('Please select a candidate first.')
+      return
+    }
+
+    const note = tpl.default_note ? `${tpl.title}: ${tpl.default_note}` : tpl.title
+    const pts = Math.abs(tpl.default_value)
+    setActiveModalPreset({ reason: note, points: pts })
+
+    if (tpl.type === 'bonus') {
+      setIsCreateBonusOpen(true)
+    } else {
+      setIsCreatePenaltyOpen(true)
+    }
+  }
+
+  // Create Template CRUD
+  const handleCreateTemplate = async (input: {
+    type: 'bonus' | 'penalty'
+    title: string
+    default_value: number
+    default_note: string
+  }): Promise<boolean> => {
+    const res = await createPenaltyBonusTemplateAction({
+      type: input.type,
+      title: input.title,
+      default_value: input.default_value,
+      default_note: input.default_note,
+    })
+    if (res.success && res.template) {
+      setTemplates((prev) => [res.template!, ...prev])
+      return true
+    } else {
+      showError(res.error || 'Failed to create template.')
+      return false
+    }
+  }
+
+  // Update Template CRUD
+  const handleUpdateTemplate = async (
+    id: string,
+    input: Partial<PenaltyBonusTemplate>
+  ): Promise<boolean> => {
+    const res = await updatePenaltyBonusTemplateAction(id, input)
+    if (res.success && res.template) {
+      setTemplates((prev) => prev.map((t) => (t.id === id ? res.template! : t)))
+      return true
+    } else {
+      showError(res.error || 'Failed to update template.')
+      return false
+    }
+  }
+
+  // Delete Template CRUD
+  const handleDeleteTemplate = async (id: string): Promise<boolean> => {
+    const res = await deletePenaltyBonusTemplateAction(id)
+    if (res.success) {
+      setTemplates((prev) => prev.filter((t) => t.id !== id))
+      return true
+    } else {
+      showError(res.error || 'Failed to delete template.')
+      return false
+    }
+  }
+
   // Submit Completed Assessment (Submit & Next Candidate)
   const handleSubmitAttempt = async () => {
     // 3. Async Race Condition Protection: prevent double-firing immediately
@@ -975,8 +1114,21 @@ function ExaminerWorkspaceContent() {
             </div>
           </div>
 
-          {/* Right Controls: Session Selector + Theme + Lock */}
-          <div className="flex items-center gap-2.5">
+          {/* Right Controls: Quick Templates + Session Selector + Theme + Lock */}
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            <button
+              type="button"
+              onClick={() => setIsQuickTemplatesDrawerOpen(true)}
+              title="Open Quick Templates Library (Bonus & Penalty Presets)"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-emerald-500/15 border border-amber-500/30 hover:border-amber-500 text-xs font-bold text-amber-900 dark:text-amber-200 hover:shadow-xs transition-all cursor-pointer shrink-0"
+            >
+              <Zap className="size-3.5 text-amber-500 fill-amber-500" />
+              <span className="hidden sm:inline">Templates</span>
+              <span className="font-mono text-[10px] px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-800 dark:text-amber-200 font-extrabold">
+                {templates.length}
+              </span>
+            </button>
+
             {exams.length > 0 && (
               <div className="w-[170px] sm:w-[220px]">
                 <Select
@@ -1335,6 +1487,35 @@ function ExaminerWorkspaceContent() {
                     placeholder="Sort By"
                   />
                 </div>
+
+                {/* Quick Templates Trigger Banner */}
+                <button
+                  type="button"
+                  onClick={() => setIsQuickTemplatesDrawerOpen(true)}
+                  className="w-full flex items-center justify-between p-2.5 rounded-xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-emerald-500/10 border border-amber-500/25 hover:border-amber-500/50 text-slate-800 dark:text-slate-200 transition-all text-xs font-bold shadow-xs cursor-pointer group hover:shadow-md hover:shadow-amber-500/10 mt-1"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="size-6 rounded-lg bg-amber-500 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform shrink-0">
+                      <Zap className="size-3.5 fill-current" />
+                    </div>
+                    <div className="text-left truncate">
+                      <span className="block leading-tight font-extrabold text-slate-900 dark:text-white truncate">
+                        Quick Templates Library
+                      </span>
+                      <span className="block text-[10px] text-slate-500 dark:text-slate-400 font-normal">
+                        Drag & drop card directly onto candidate
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 font-mono text-[10px] shrink-0 ml-1">
+                    <span className="px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-700 dark:text-rose-300 font-bold">
+                      -{templates.filter((t) => t.type === 'penalty').length}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold">
+                      +{templates.filter((t) => t.type === 'bonus').length}
+                    </span>
+                  </div>
+                </button>
               </div>
 
               {/* Roster Candidate List */}
@@ -1347,16 +1528,46 @@ function ExaminerWorkspaceContent() {
                   </div>
                 ) : (
                   filteredStudents.map((st) => {
-                    const isSelected = activeStudent?.id ? activeStudent.id === st.id : activeStudent?.matricule === st.matricule
+                    const isSelected = activeStudent?.id
+                      ? activeStudent.id === st.id
+                      : activeStudent?.matricule === st.matricule
                     const isCompleted = st.status === 'completed'
                     const isEvaluating = st.status === 'in_progress'
+                    const isDragOverThis = dragOverStudentMatricule === st.matricule
 
                     return (
                       <div
                         key={st.id || st.matricule}
                         onClick={() => handleStartExamination(st)}
-                        className={`p-3 sm:p-3.5 transition-all cursor-pointer border-l-4 ${
-                          isSelected
+                        onDragOver={(e) => {
+                          e.preventDefault()
+                          e.dataTransfer.dropEffect = 'copy'
+                          if (dragOverStudentMatricule !== st.matricule) {
+                            setDragOverStudentMatricule(st.matricule)
+                          }
+                        }}
+                        onDragLeave={() => {
+                          if (dragOverStudentMatricule === st.matricule) {
+                            setDragOverStudentMatricule(null)
+                          }
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault()
+                          setDragOverStudentMatricule(null)
+                          try {
+                            const raw = e.dataTransfer.getData('application/json')
+                            if (raw) {
+                              const tpl: PenaltyBonusTemplate = JSON.parse(raw)
+                              handleQuickApplyTemplate(tpl, st)
+                            }
+                          } catch (err) {
+                            console.error('Drop error:', err)
+                          }
+                        }}
+                        className={`p-3 sm:p-3.5 transition-all cursor-pointer border-l-4 relative ${
+                          isDragOverThis
+                            ? 'bg-amber-100/90 dark:bg-amber-950/70 border-amber-500 ring-2 ring-amber-500/80 scale-[1.01] shadow-lg'
+                            : isSelected
                             ? 'bg-amber-500/10 border-amber-500 dark:bg-amber-500/15'
                             : isCompleted
                             ? 'border-emerald-500/60 hover:bg-slate-50 dark:hover:bg-slate-800/40'
@@ -1523,7 +1734,44 @@ function ExaminerWorkspaceContent() {
               ) : (
                 <div className="max-w-4xl w-full mx-auto space-y-6 pb-24">
                   {/* Active Candidate Header */}
-                  <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault()
+                      e.dataTransfer.dropEffect = 'copy'
+                      if (!dragOverActiveCandidate) setDragOverActiveCandidate(true)
+                    }}
+                    onDragLeave={(e) => {
+                      if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                        setDragOverActiveCandidate(false)
+                      }
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault()
+                      setDragOverActiveCandidate(false)
+                      try {
+                        const raw = e.dataTransfer.getData('application/json')
+                        if (raw) {
+                          const tpl: PenaltyBonusTemplate = JSON.parse(raw)
+                          handleQuickApplyTemplate(tpl, activeStudent)
+                        }
+                      } catch (err) {
+                        console.error('Drop error:', err)
+                      }
+                    }}
+                    className={`p-4 sm:p-6 rounded-3xl transition-all duration-200 shadow-sm space-y-4 relative ${
+                      dragOverActiveCandidate
+                        ? 'bg-amber-50/90 dark:bg-amber-950/60 ring-4 ring-amber-500 border-amber-500 shadow-2xl shadow-amber-500/20 scale-[1.01]'
+                        : 'bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800'
+                    }`}
+                  >
+                    {/* Visual Drop Banner */}
+                    {dragOverActiveCandidate && (
+                      <div className="p-2.5 rounded-2xl bg-amber-500 text-white text-center text-xs font-black animate-pulse flex items-center justify-center gap-2 shadow-md">
+                        <Zap className="size-4 fill-white" />
+                        <span>Drop template card here to instantly assign to {activeStudent.full_name}!</span>
+                      </div>
+                    )}
+
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
                         <div className="size-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-600 text-white font-black text-lg flex items-center justify-center shadow-md shadow-orange-500/20">
@@ -1737,9 +1985,14 @@ function ExaminerWorkspaceContent() {
                   {station && (
                     <CreateCandidatePenaltyModal
                       isOpen={isCreatePenaltyOpen}
-                      onClose={() => setIsCreatePenaltyOpen(false)}
+                      onClose={() => {
+                        setIsCreatePenaltyOpen(false)
+                        setActiveModalPreset(null)
+                      }}
                       studentName={activeStudent.full_name}
                       presetCriteria={presetCriteria}
+                      initialReason={activeModalPreset?.reason}
+                      initialPoints={activeModalPreset ? -Math.abs(activeModalPreset.points) : undefined}
                       onAddPenalty={handleAddLocalPenalty}
                     />
                   )}
@@ -1758,9 +2011,14 @@ function ExaminerWorkspaceContent() {
                   {station && (
                     <CreateCandidateBonusModal
                       isOpen={isCreateBonusOpen}
-                      onClose={() => setIsCreateBonusOpen(false)}
+                      onClose={() => {
+                        setIsCreateBonusOpen(false)
+                        setActiveModalPreset(null)
+                      }}
                       studentName={activeStudent.full_name}
                       presetCriteria={presetBonusesCriteria}
+                      initialReason={activeModalPreset?.reason}
+                      initialPoints={activeModalPreset ? Math.abs(activeModalPreset.points) : undefined}
                       onAddBonus={handleAddLocalBonus}
                     />
                   )}
@@ -1854,6 +2112,19 @@ function ExaminerWorkspaceContent() {
           </div>
         )}
       </div>
+
+      {/* Quick Templates Drawer Widget */}
+      <TemplateQuickAssignDrawer
+        isOpen={isQuickTemplatesDrawerOpen}
+        onClose={() => setIsQuickTemplatesDrawerOpen(false)}
+        templates={templates}
+        activeStudentName={activeStudent?.full_name}
+        onQuickApply={(tpl) => handleQuickApplyTemplate(tpl, activeStudent)}
+        onCustomizeApply={handleCustomizeApplyTemplate}
+        onCreateTemplate={handleCreateTemplate}
+        onUpdateTemplate={handleUpdateTemplate}
+        onDeleteTemplate={handleDeleteTemplate}
+      />
 
       {/* Full-Screen Sign-Out Overlay */}
       <SignOutOverlay

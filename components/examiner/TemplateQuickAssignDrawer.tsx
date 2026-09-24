@@ -19,7 +19,7 @@ import {
   Loader2,
   Layers,
 } from 'lucide-react'
-import { PenaltyBonusTemplate } from '@/app/actions/penaltyBonusTemplates'
+import { PenaltyBonusTemplate } from '@/lib/penaltyBonusTemplates'
 import { useToast } from '@/context/ToastContext'
 
 interface TemplateQuickAssignDrawerProps {

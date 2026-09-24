@@ -27,6 +27,13 @@ export interface CandidatePenaltyPayload {
   points: number
 }
 
+export interface CandidateBonusPayload {
+  id?: string
+  criteria_id?: string | null
+  reason: string
+  points: number
+}
+
 export interface SubmitAssessmentPayload {
   student_id?: string
   matricule?: string
@@ -34,6 +41,7 @@ export interface SubmitAssessmentPayload {
   station_id: string
   answers: AssessmentAnswerPayload[]
   penalties: CandidatePenaltyPayload[]
+  bonuses?: CandidateBonusPayload[]
   graded_by_prof_id?: string | null
 }
 
@@ -44,8 +52,10 @@ export interface SubmitAssessmentResult {
   final_score?: number
   earned_score?: number
   total_deductions?: number
+  total_bonuses?: number
   answers_count?: number
   penalties_count?: number
+  bonuses_count?: number
 }
 
 export interface AddCandidatePenaltyInput {
@@ -272,6 +282,7 @@ export async function submitAssessmentAction(
       station_id,
       answers = [],
       penalties = [],
+      bonuses = [],
       graded_by_prof_id,
     } = payload
 
@@ -307,7 +318,12 @@ export async function submitAssessmentAction(
       return sum + Math.abs(Number(p.points) || 0)
     }, 0)
 
-    const finalScore = Math.max(0, Math.round((earnedScore - totalDeductions) * 100) / 100)
+    const totalBonuses = bonuses.reduce((sum, b) => {
+      return sum + Math.abs(Number(b.points) || 0)
+    }, 0)
+
+    // Final Net Score = Raw Score - Penalties Points + Bonuses Points
+    const finalScore = Math.max(0, Math.round((earnedScore - totalDeductions + totalBonuses) * 100) / 100)
 
     // 3. Resiliently find or insert exam_attempts record
     // Works reliably whether or not uq_student_station unique constraint exists
@@ -420,6 +436,34 @@ export async function submitAssessmentAction(
       }
     }
 
+    // 6. Clear and batch insert candidate_bonuses for this attempt
+    await supabaseAdmin
+      .from('candidate_bonuses')
+      .delete()
+      .eq('exam_attempt_id', attemptId)
+
+    if (bonuses && bonuses.length > 0) {
+      const bonusRows = bonuses
+        .filter((b) => b.reason && b.reason.trim())
+        .map((b) => ({
+          exam_attempt_id: attemptId,
+          criteria_id: b.criteria_id || null,
+          reason: b.reason.trim(),
+          points: Math.abs(Number(b.points) || 0.5),
+        }))
+
+      if (bonusRows.length > 0) {
+        const { error: bonErr } = await supabaseAdmin
+          .from('candidate_bonuses')
+          .insert(bonusRows)
+
+        if (bonErr) {
+          console.error('Error batch inserting candidate_bonuses:', bonErr)
+          throw bonErr
+        }
+      }
+    }
+
     revalidatePath('/examiner/workspace')
 
     return {
@@ -428,8 +472,10 @@ export async function submitAssessmentAction(
       final_score: finalScore,
       earned_score: earnedScore,
       total_deductions: totalDeductions,
+      total_bonuses: totalBonuses,
       answers_count: answers.length,
       penalties_count: penalties.length,
+      bonuses_count: bonuses.length,
     }
   } catch (err: any) {
     console.error('submitAssessmentAction exception:', err)

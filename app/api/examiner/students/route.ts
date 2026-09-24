@@ -133,6 +133,21 @@ export async function GET(req: NextRequest) {
       points: Number(c.points),
     }))
 
+    // 4d. Fetch preset merit bonuses for this station
+    const { data: bonusesData } = await supabaseAdmin
+      .from('station_bonuses')
+      .select('id, station_id, title, description, points')
+      .eq('station_id', stationId)
+      .order('points', { ascending: false })
+
+    const stationBonuses = (bonusesData || []).map((b) => ({
+      id: b.id,
+      station_id: b.station_id,
+      title: b.title,
+      description: b.description,
+      points: Number(b.points),
+    }))
+
     // 5. Strictly scope sections & groups to this station's study level
     let rawSections: any[] = []
     let rawGroups: any[] = []
@@ -350,6 +365,7 @@ export async function GET(req: NextRequest) {
       exams: exams || [],
       questions: questions || [],
       criteria: stationCriteria,
+      bonuses_criteria: stationBonuses,
       sections: formattedSections,
       groups: formattedGroups,
       students: formattedStudents,

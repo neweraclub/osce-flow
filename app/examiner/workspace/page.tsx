@@ -59,6 +59,12 @@ import {
   getCandidatePenaltiesAction,
   submitAssessmentAction,
 } from '@/app/actions/candidatePenalties'
+import { ClinicalBonusesCard } from '@/components/examiner/ClinicalBonusesCard'
+import { CreateCandidateBonusModal } from '@/components/examiner/CreateCandidateBonusModal'
+import {
+  CandidateBonusItem,
+  getCandidateBonusesAction,
+} from '@/app/actions/candidateBonuses'
 
 interface StudentAnswerItem {
   question_id: string
@@ -85,6 +91,7 @@ interface StudentItem {
   final_score: number | null
   saved_answers?: StudentAnswerItem[]
   penalties?: CandidatePenaltyItem[]
+  bonuses?: CandidateBonusItem[]
 }
 
 interface SectionItem {
@@ -223,6 +230,10 @@ function ExaminerWorkspaceContent() {
   const [loadingCandidatePenalties, setLoadingCandidatePenalties] = useState<boolean>(false)
   const [presetCriteria, setPresetCriteria] = useState<PresetCriterionOption[]>([])
   const [isCreatePenaltyOpen, setIsCreatePenaltyOpen] = useState(false)
+  const [candidateBonuses, setCandidateBonuses] = useState<CandidateBonusItem[]>([])
+  const [loadingCandidateBonuses, setLoadingCandidateBonuses] = useState<boolean>(false)
+  const [presetBonusesCriteria, setPresetBonusesCriteria] = useState<PresetCriterionOption[]>([])
+  const [isCreateBonusOpen, setIsCreateBonusOpen] = useState(false)
   const [submittingAttempt, setSubmittingAttempt] = useState(false)
   const isSubmittingAttemptRef = React.useRef(false)
 
@@ -328,11 +339,13 @@ function ExaminerWorkspaceContent() {
       }
       setQuestions(data.questions || [])
       setPresetCriteria(data.criteria || [])
+      setPresetBonusesCriteria(data.bonuses_criteria || [])
       setSections(data.sections || [])
       setGroups(data.groups || [])
       setStudents(data.students || [])
 
       setCandidatePenalties([])
+      setCandidateBonuses([])
     } catch (err: any) {
       showError(err?.message || 'Error fetching examiner data.')
     } finally {
@@ -347,6 +360,7 @@ function ExaminerWorkspaceContent() {
     setActiveStudent(null)
     setAnswersState({})
     setCandidatePenalties([])
+    setCandidateBonuses([])
     loadDashboardData(station.id, newExamId)
   }
 
@@ -505,6 +519,24 @@ function ExaminerWorkspaceContent() {
       setCandidatePenalties([])
     }
 
+    // Populate local candidate bonuses for this candidate view
+    if (student.bonuses && student.bonuses.length > 0) {
+      setCandidateBonuses(student.bonuses)
+    } else if (student.attempt_id) {
+      setCandidateBonuses([])
+      setLoadingCandidateBonuses(true)
+      getCandidateBonusesAction(student.attempt_id)
+        .then((res) => {
+          if (res.success && res.bonuses) {
+            setCandidateBonuses(res.bonuses)
+          }
+        })
+        .catch((err) => console.error('Error fetching candidate bonuses:', err))
+        .finally(() => setLoadingCandidateBonuses(false))
+    } else {
+      setCandidateBonuses([])
+    }
+
     // Initialize answer state, populating with existing answers if available
     const initialAnswers: typeof answersState = {}
     questions.forEach((q) => {
@@ -623,10 +655,15 @@ function ExaminerWorkspaceContent() {
     return candidatePenalties.reduce((sum, p) => sum + Number(p.points), 0)
   }, [candidatePenalties])
 
-  // Net score awarded to active candidate
+  // Bonuses calculation strictly from local candidateBonuses state array
+  const totalBonuses = useMemo(() => {
+    return candidateBonuses.reduce((sum, b) => sum + Number(b.points), 0)
+  }, [candidateBonuses])
+
+  // Net score awarded to active candidate: GREATEST(0, earnedScore + totalDeductions + totalBonuses)
   const netScore = useMemo(() => {
-    return Math.max(0, Math.round((calculatedPoints.earned + totalDeductions) * 100) / 100)
-  }, [calculatedPoints.earned, totalDeductions])
+    return Math.max(0, Math.round((calculatedPoints.earned + totalDeductions + totalBonuses) * 100) / 100)
+  }, [calculatedPoints.earned, totalDeductions, totalBonuses])
 
   // Weighted score contributions on /20 institutional scale
   const stationWeightage = Number(station?.weightage_percentage) || 50
@@ -658,6 +695,28 @@ function ExaminerWorkspaceContent() {
   const handleDeletePenalty = (targetId: string) => {
     setCandidatePenalties((prev) => prev.filter((p) => p.id !== targetId))
     showSuccess('Deduction removed.')
+  }
+
+  // Modal Submit Handler (+ Record Bonus): appends directly to local component state array
+  const handleAddLocalBonus = (newBonus: { id: string; reason: string; points: number; criteria_id?: string }) => {
+    const pts = Math.abs(newBonus.points)
+    setCandidateBonuses((prev) => [
+      ...prev,
+      {
+        id: newBonus.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `bonus-${Date.now()}`),
+        exam_attempt_id: activeStudent?.attempt_id || '',
+        criteria_id: newBonus.criteria_id,
+        reason: newBonus.reason,
+        points: pts,
+      },
+    ])
+    showSuccess(`Recorded bonus: "${newBonus.reason}" (+${pts.toFixed(1)} pts)`)
+  }
+
+  // Delete candidate bonus from local state array
+  const handleDeleteBonus = (targetId: string) => {
+    setCandidateBonuses((prev) => prev.filter((b) => b.id !== targetId))
+    showSuccess('Merit bonus removed.')
   }
 
   // Submit Completed Assessment (Submit & Next Candidate)
@@ -727,7 +786,7 @@ function ExaminerWorkspaceContent() {
         }
       })
 
-      // Unified Server Action commits answers AND local penalties in a single atomic payload
+      // Unified Server Action commits answers, local penalties, and bonuses in a single atomic payload
       const res = await submitAssessmentAction({
         student_id: activeStudent.id,
         matricule: activeStudent.matricule,
@@ -735,6 +794,7 @@ function ExaminerWorkspaceContent() {
         station_id: station.id,
         answers: answersPayload,
         penalties: candidatePenalties,
+        bonuses: candidateBonuses,
         graded_by_prof_id: undefined,
       })
 
@@ -763,6 +823,7 @@ function ExaminerWorkspaceContent() {
       const currentMatricule = activeStudent.matricule
       const resolvedAttemptId = res.attempt_id || activeStudent.attempt_id
       const savedPenaltiesForStudent = [...candidatePenalties]
+      const savedBonusesForStudent = [...candidateBonuses]
 
       setStudents((prev) =>
         prev.map((s) =>
@@ -774,6 +835,7 @@ function ExaminerWorkspaceContent() {
                 attempt_id: resolvedAttemptId,
                 saved_answers: updatedSavedAnswers,
                 penalties: savedPenaltiesForStudent,
+                bonuses: savedBonusesForStudent,
               }
             : s
         )
@@ -781,6 +843,7 @@ function ExaminerWorkspaceContent() {
 
       // Clear local state when transitioning to the next student
       setCandidatePenalties([])
+      setCandidateBonuses([])
 
       // Auto-advance to next candidate sequentially if not re-evaluating an already completed record
       if (!wasAlreadyCompleted && nextCandidate) {
@@ -794,11 +857,13 @@ function ExaminerWorkspaceContent() {
                 final_score: finalRecordedScore,
                 saved_answers: updatedSavedAnswers,
                 penalties: savedPenaltiesForStudent,
+                bonuses: savedBonusesForStudent,
                 attempt_id: resolvedAttemptId,
               }
             : null
         )
         setCandidatePenalties(savedPenaltiesForStudent)
+        setCandidateBonuses(savedBonusesForStudent)
       }
     } catch (err: any) {
       showError(err?.message || 'Network error submitting candidate assessment.')
@@ -1679,6 +1744,27 @@ function ExaminerWorkspaceContent() {
                     />
                   )}
 
+                  {/* Clinical Bonuses & Merit Points Section (Candidate-Isolated Feed) */}
+                  <ClinicalBonusesCard
+                    bonuses={candidateBonuses}
+                    studentName={activeStudent.full_name}
+                    totalBonusPoints={totalBonuses}
+                    onOpenAddModal={() => setIsCreateBonusOpen(true)}
+                    onDeleteBonus={handleDeleteBonus}
+                    isLoading={loadingCandidateBonuses}
+                  />
+
+                  {/* Ad-Hoc & Preset Candidate Bonus Creation Modal */}
+                  {station && (
+                    <CreateCandidateBonusModal
+                      isOpen={isCreateBonusOpen}
+                      onClose={() => setIsCreateBonusOpen(false)}
+                      studentName={activeStudent.full_name}
+                      presetCriteria={presetBonusesCriteria}
+                      onAddBonus={handleAddLocalBonus}
+                    />
+                  )}
+
                   {/* Bottom Sticky Submission Bar */}
                   <div className="sticky bottom-4 z-20 p-4 rounded-3xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800/90 shadow-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
@@ -1710,6 +1796,13 @@ function ExaminerWorkspaceContent() {
                             Deductions:{' '}
                             <strong className={totalDeductions < 0 ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-400 font-bold'}>
                               {totalDeductions < 0 ? `${totalDeductions.toFixed(1)}` : '-0.0'}
+                            </strong>
+                          </span>
+                          <span className="text-slate-300 dark:text-slate-600">|</span>
+                          <span className="text-slate-700 dark:text-slate-200">
+                            Bonuses:{' '}
+                            <strong className={totalBonuses > 0 ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-400 font-bold'}>
+                              {totalBonuses > 0 ? `+${totalBonuses.toFixed(1)}` : '+0.0'}
                             </strong>
                           </span>
                           <span className="text-slate-300 dark:text-slate-600">|</span>

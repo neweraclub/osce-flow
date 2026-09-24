@@ -249,6 +249,8 @@ function ExaminerWorkspaceContent() {
   // Quick Templates & Presets Library State
   const [templates, setTemplates] = useState<PenaltyBonusTemplate[]>([])
   const [isQuickTemplatesDrawerOpen, setIsQuickTemplatesDrawerOpen] = useState(false)
+  const [leftPanelTab, setLeftPanelTab] = useState<'roster' | 'templates'>('roster')
+  const [isDraggingTemplate, setIsDraggingTemplate] = useState(false)
   const [activeModalPreset, setActiveModalPreset] = useState<{ reason: string; points: number } | null>(null)
   const [dragOverActiveCandidate, setDragOverActiveCandidate] = useState(false)
   const [dragOverStudentMatricule, setDragOverStudentMatricule] = useState<string | null>(null)
@@ -1118,13 +1120,25 @@ function ExaminerWorkspaceContent() {
           <div className="flex items-center gap-2 sm:gap-2.5">
             <button
               type="button"
-              onClick={() => setIsQuickTemplatesDrawerOpen(true)}
-              title="Open Quick Templates Library (Bonus & Penalty Presets)"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-emerald-500/15 border border-amber-500/30 hover:border-amber-500 text-xs font-bold text-amber-900 dark:text-amber-200 hover:shadow-xs transition-all cursor-pointer shrink-0"
+              onClick={() => {
+                if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                  setIsQuickTemplatesDrawerOpen((prev) => !prev)
+                } else {
+                  setLeftPanelTab((prev) => (prev === 'templates' ? 'roster' : 'templates'))
+                }
+              }}
+              title="Toggle Quick Templates Library (Bonus & Penalty Presets)"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                leftPanelTab === 'templates'
+                  ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
+                  : 'bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-emerald-500/15 border-amber-500/30 hover:border-amber-500 text-amber-900 dark:text-amber-200 hover:shadow-xs'
+              }`}
             >
-              <Zap className="size-3.5 text-amber-500 fill-amber-500" />
+              <Zap className={`size-3.5 ${leftPanelTab === 'templates' ? 'text-white fill-white' : 'text-amber-500 fill-amber-500'}`} />
               <span className="hidden sm:inline">Templates</span>
-              <span className="font-mono text-[10px] px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-800 dark:text-amber-200 font-extrabold">
+              <span className={`font-mono text-[10px] px-1.5 py-0.2 rounded-md font-extrabold ${
+                leftPanelTab === 'templates' ? 'bg-white/20 text-white' : 'bg-amber-500/20 text-amber-800 dark:text-amber-200'
+              }`}>
                 {templates.length}
               </span>
             </button>
@@ -1378,9 +1392,62 @@ function ExaminerWorkspaceContent() {
           /* 2. DUAL-PANE MAIN WORKSPACE: CANDIDATE ROSTER + GRADING CHECKLIST        */
           /* ======================================================================= */
           <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
-            {/* LEFT COLUMN: CANDIDATE ROSTER PANEL */}
+            {/* LEFT COLUMN: CANDIDATE ROSTER PANEL OR QUICK TEMPLATES */}
             <aside className="w-full md:w-96 lg:w-[410px] border-r border-slate-200/80 dark:border-slate-800 flex flex-col bg-white dark:bg-slate-900/60 shrink-0">
-              {/* Search & Header Controls */}
+              {/* Dual Tab Switcher: Candidate Roster vs Quick Templates */}
+              <div className="p-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 shrink-0">
+                <div className="grid grid-cols-2 gap-1 p-1 bg-slate-200/70 dark:bg-slate-800/80 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setLeftPanelTab('roster')}
+                    className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      leftPanelTab === 'roster'
+                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <Users className="size-3.5" />
+                    <span>Candidate Roster</span>
+                    <span className="font-mono text-[10px] px-1.5 py-0.2 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                      {students.length}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setLeftPanelTab('templates')}
+                    className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      leftPanelTab === 'templates'
+                        ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400'
+                    }`}
+                  >
+                    <Zap className="size-3.5 text-amber-500 fill-amber-500" />
+                    <span>Templates</span>
+                    <span className="font-mono text-[10px] px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-800 dark:text-amber-200 font-extrabold">
+                      {templates.length}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {leftPanelTab === 'templates' ? (
+                <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+                  <TemplateQuickAssignDrawer
+                    mode="inline"
+                    templates={templates}
+                    activeStudentName={activeStudent?.full_name}
+                    onQuickApply={(tpl) => handleQuickApplyTemplate(tpl, activeStudent)}
+                    onCustomizeApply={handleCustomizeApplyTemplate}
+                    onCreateTemplate={handleCreateTemplate}
+                    onUpdateTemplate={handleUpdateTemplate}
+                    onDeleteTemplate={handleDeleteTemplate}
+                    onDragStateChange={setIsDraggingTemplate}
+                  />
+                </div>
+              ) : (
+                <>
+                  {/* Search & Header Controls */}
               <div className="p-3.5 border-b border-slate-100 dark:border-slate-800 space-y-2.5 bg-slate-50/50 dark:bg-slate-900/50">
                 {/* Status Tabs Filter */}
                 <div className="flex items-center p-1 bg-slate-200/60 dark:bg-slate-800/80 rounded-xl gap-1">
@@ -1703,6 +1770,8 @@ function ExaminerWorkspaceContent() {
                   })
                 )}
               </div>
+                </>
+              )}
             </aside>
 
             {/* RIGHT PANE: LIVE GRADING CHECKLIST WORKSPACE */}
@@ -1761,14 +1830,24 @@ function ExaminerWorkspaceContent() {
                     className={`p-4 sm:p-6 rounded-3xl transition-all duration-200 shadow-sm space-y-4 relative ${
                       dragOverActiveCandidate
                         ? 'bg-amber-50/90 dark:bg-amber-950/60 ring-4 ring-amber-500 border-amber-500 shadow-2xl shadow-amber-500/20 scale-[1.01]'
+                        : isDraggingTemplate
+                        ? 'bg-amber-50/40 dark:bg-amber-950/30 border-2 border-dashed border-amber-500 ring-2 ring-amber-500/30 shadow-lg'
                         : 'bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800'
                     }`}
                   >
                     {/* Visual Drop Banner */}
-                    {dragOverActiveCandidate && (
-                      <div className="p-2.5 rounded-2xl bg-amber-500 text-white text-center text-xs font-black animate-pulse flex items-center justify-center gap-2 shadow-md">
-                        <Zap className="size-4 fill-white" />
-                        <span>Drop template card here to instantly assign to {activeStudent.full_name}!</span>
+                    {(dragOverActiveCandidate || isDraggingTemplate) && (
+                      <div className={`p-2.5 rounded-2xl text-center text-xs font-black flex items-center justify-center gap-2 shadow-md transition-all ${
+                        dragOverActiveCandidate
+                          ? 'bg-amber-500 text-white animate-pulse'
+                          : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/40'
+                      }`}>
+                        <Zap className="size-4 fill-current" />
+                        <span>
+                          {dragOverActiveCandidate
+                            ? `Release to instantly assign to ${activeStudent.full_name}!`
+                            : `Drag from the left and drop here to assign to ${activeStudent.full_name}`}
+                        </span>
                       </div>
                     )}
 
@@ -1972,14 +2051,33 @@ function ExaminerWorkspaceContent() {
                   </div>
 
                   {/* Clinical Deductions & Penalties Section (Candidate-Isolated Feed) */}
-                  <ClinicalPenaltiesCard
-                    penalties={candidatePenalties}
-                    studentName={activeStudent.full_name}
-                    totalDeductionPoints={totalDeductions}
-                    onOpenAddModal={() => setIsCreatePenaltyOpen(true)}
-                    onDeletePenalty={handleDeletePenalty}
-                    isLoading={loadingCandidatePenalties}
-                  />
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault()
+                      e.dataTransfer.dropEffect = 'copy'
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault()
+                      try {
+                        const raw = e.dataTransfer.getData('application/json')
+                        if (raw) {
+                          const tpl: PenaltyBonusTemplate = JSON.parse(raw)
+                          handleQuickApplyTemplate(tpl, activeStudent)
+                        }
+                      } catch (err) {
+                        console.error('Drop error:', err)
+                      }
+                    }}
+                  >
+                    <ClinicalPenaltiesCard
+                      penalties={candidatePenalties}
+                      studentName={activeStudent.full_name}
+                      totalDeductionPoints={totalDeductions}
+                      onOpenAddModal={() => setIsCreatePenaltyOpen(true)}
+                      onDeletePenalty={handleDeletePenalty}
+                      isLoading={loadingCandidatePenalties}
+                    />
+                  </div>
 
                   {/* Ad-Hoc & Preset Candidate Penalty Creation Modal */}
                   {station && (
@@ -1998,14 +2096,33 @@ function ExaminerWorkspaceContent() {
                   )}
 
                   {/* Clinical Bonuses & Merit Points Section (Candidate-Isolated Feed) */}
-                  <ClinicalBonusesCard
-                    bonuses={candidateBonuses}
-                    studentName={activeStudent.full_name}
-                    totalBonusPoints={totalBonuses}
-                    onOpenAddModal={() => setIsCreateBonusOpen(true)}
-                    onDeleteBonus={handleDeleteBonus}
-                    isLoading={loadingCandidateBonuses}
-                  />
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault()
+                      e.dataTransfer.dropEffect = 'copy'
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault()
+                      try {
+                        const raw = e.dataTransfer.getData('application/json')
+                        if (raw) {
+                          const tpl: PenaltyBonusTemplate = JSON.parse(raw)
+                          handleQuickApplyTemplate(tpl, activeStudent)
+                        }
+                      } catch (err) {
+                        console.error('Drop error:', err)
+                      }
+                    }}
+                  >
+                    <ClinicalBonusesCard
+                      bonuses={candidateBonuses}
+                      studentName={activeStudent.full_name}
+                      totalBonusPoints={totalBonuses}
+                      onOpenAddModal={() => setIsCreateBonusOpen(true)}
+                      onDeleteBonus={handleDeleteBonus}
+                      isLoading={loadingCandidateBonuses}
+                    />
+                  </div>
 
                   {/* Ad-Hoc & Preset Candidate Bonus Creation Modal */}
                   {station && (
@@ -2113,8 +2230,9 @@ function ExaminerWorkspaceContent() {
         )}
       </div>
 
-      {/* Quick Templates Drawer Widget */}
+      {/* Quick Templates Drawer Widget (Left Drawer with non-blocking overlay) */}
       <TemplateQuickAssignDrawer
+        mode="drawer"
         isOpen={isQuickTemplatesDrawerOpen}
         onClose={() => setIsQuickTemplatesDrawerOpen(false)}
         templates={templates}
@@ -2124,6 +2242,7 @@ function ExaminerWorkspaceContent() {
         onCreateTemplate={handleCreateTemplate}
         onUpdateTemplate={handleUpdateTemplate}
         onDeleteTemplate={handleDeleteTemplate}
+        onDragStateChange={setIsDraggingTemplate}
       />
 
       {/* Full-Screen Sign-Out Overlay */}

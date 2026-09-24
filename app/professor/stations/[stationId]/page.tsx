@@ -23,6 +23,7 @@ import {
   Edit2,
   Eye,
   EyeOff,
+  FileSpreadsheet,
   GripVertical,
   Hash,
   HelpCircle,
@@ -49,6 +50,7 @@ import {
   EditStationFormValues,
 } from '@/components/stations/EditStationModal'
 import { updateStationDetailsAction } from '@/app/professor/stations/actions'
+import { ImportQuestionsExcelModal } from '@/components/stations/ImportQuestionsExcelModal'
 
 export interface StationDetail {
   id: string
@@ -149,6 +151,7 @@ export default function ProfessorStationDetailPage({
   const [editingQuestion, setEditingQuestion] = useState<QuestionRecord | null>(null)
   const [deletingQuestion, setDeletingQuestion] = useState<QuestionRecord | null>(null)
   const [exitingQuestionIds, setExitingQuestionIds] = useState<Set<string>>(new Set())
+  const [isImportExcelOpen, setIsImportExcelOpen] = useState(false)
 
   // Question Form Fields
   const [formText, setFormText] = useState('')
@@ -696,13 +699,26 @@ export default function ProfessorStationDetailPage({
                 </p>
               </div>
 
-              <button
-                onClick={handleOpenAddQuestion}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/25 transition-all active:scale-[0.98] cursor-pointer"
-              >
-                <Plus className="size-4" />
-                <span>Add Question</span>
-              </button>
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setIsImportExcelOpen(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-emerald-300 dark:border-emerald-500/30 bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-[0.98]"
+                  title="Bulk import questions from Excel (.xlsx) or CSV"
+                >
+                  <FileSpreadsheet className="size-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>Import Excel</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleOpenAddQuestion}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/25 transition-all active:scale-[0.98] cursor-pointer"
+                >
+                  <Plus className="size-4" />
+                  <span>Add Question</span>
+                </button>
+              </div>
             </div>
 
             {questions.length === 0 ? (
@@ -714,15 +730,26 @@ export default function ProfessorStationDetailPage({
                   No Questions Authored Yet
                 </h3>
                 <p className="text-xs text-slate-400 max-w-md mx-auto">
-                  Click "Add Question" to build your multiple choice questions, single choice questions, or clinical scale grading checklist for this station.
+                  Click &quot;Add Question&quot; to build questions manually, or use &quot;Import from Excel&quot; to upload your full question spreadsheet in seconds.
                 </p>
-                <button
-                  onClick={handleOpenAddQuestion}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-sm hover:bg-emerald-700 transition-all cursor-pointer"
-                >
-                  <Plus className="size-4" />
-                  <span>Create First Question</span>
-                </button>
+                <div className="flex items-center justify-center gap-2.5 pt-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setIsImportExcelOpen(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-emerald-300 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-xs font-bold shadow-xs hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-all cursor-pointer"
+                  >
+                    <FileSpreadsheet className="size-4 text-emerald-600 dark:text-emerald-400" />
+                    <span>Import from Excel</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleOpenAddQuestion}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-sm hover:bg-emerald-700 transition-all cursor-pointer"
+                  >
+                    <Plus className="size-4" />
+                    <span>Create First Question</span>
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="space-y-3.5">
@@ -1257,6 +1284,22 @@ export default function ProfessorStationDetailPage({
           assignedModules={assignedModules}
           moduleWeightageMap={moduleWeightageMap}
           onSave={handleSaveStationDetails}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 5: BULK EXCEL QUESTION IMPORT MODAL                                 */}
+      {/* ========================================================================= */}
+      {station && (
+        <ImportQuestionsExcelModal
+          isOpen={isImportExcelOpen}
+          onClose={() => setIsImportExcelOpen(false)}
+          stationId={station.id}
+          stationTitle={`Station #${station.station_number} • ${station.title}`}
+          onImportSuccess={(count) => {
+            showSuccess(`Successfully imported ${count} ${count === 1 ? 'question' : 'questions'} from Excel.`)
+            fetchStationData(true)
+          }}
         />
       )}
     </div>

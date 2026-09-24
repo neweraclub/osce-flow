@@ -4,6 +4,7 @@ import { getAuthenticatedProfessorFromCookies } from '@/lib/professorAuth'
 import { supabaseAdmin } from '@/lib/auth'
 import { resolveStationRecord } from '@/lib/stationResolver'
 import { getStationSlug } from '@/lib/stationSlug'
+import { revalidatePath } from 'next/cache'
 
 export interface UpdateStationInput {
   stationId: string
@@ -185,3 +186,124 @@ export async function updateStationDetailsAction(
     }
   }
 }
+
+export interface BulkImportQuestionItem {
+  question_text: string
+  question_type: 'MCQ' | 'SCQ' | 'Q&A'
+  max_scale_value: number
+  options: {
+    id: string
+    text: string
+    is_correct: boolean
+  }[]
+}
+
+export interface BulkImportQuestionsInput {
+  stationId: string
+  questions: BulkImportQuestionItem[]
+}
+
+export interface BulkImportQuestionsResult {
+  success: boolean
+  error?: string
+  count?: number
+  questions?: any[]
+}
+
+/**
+ * Server Action: Bulk inserts Excel-parsed questions into public.questions
+ * securely linked to the active station and validated against professor module ownership.
+ */
+export async function bulkImportQuestionsAction(
+  input: BulkImportQuestionsInput
+): Promise<BulkImportQuestionsResult> {
+  try {
+    const prof = await getAuthenticatedProfessorFromCookies()
+    if (!prof) {
+      return { success: false, error: 'Unauthorized. Please log in again.' }
+    }
+
+    const { stationId, questions } = input
+
+    if (!stationId) {
+      return { success: false, error: 'Station identifier is required.' }
+    }
+
+    if (!questions || !Array.isArray(questions) || questions.length === 0) {
+      return { success: false, error: 'No valid questions provided for import.' }
+    }
+
+    // 1. Resolve station record and verify professor ownership
+    const resolved = await resolveStationRecord(stationId, prof)
+    if (resolved.unauthorized) {
+      return {
+        success: false,
+        error: 'Unauthorized: You are not assigned to manage this station.',
+      }
+    }
+    if (!resolved.station) {
+      return { success: false, error: 'Station not found.' }
+    }
+
+    const currentStation = resolved.station
+
+    // 2. Prepare payload rows for batch insertion into public.questions
+    const rows = questions
+      .filter((q) => q.question_text && q.question_text.trim())
+      .map((q) => {
+        const qType = ['MCQ', 'SCQ', 'Q&A'].includes(q.question_type) ? q.question_type : 'Q&A'
+        const scaleVal = Math.max(1, Number(q.max_scale_value) || 10)
+        let sanitizedOptions: any[] = []
+
+        if ((qType === 'MCQ' || qType === 'SCQ') && Array.isArray(q.options)) {
+          sanitizedOptions = q.options.map((opt: any, idx: number) => ({
+            id: opt.id || `opt_${idx + 1}`,
+            text: typeof opt === 'string' ? opt : String(opt.text || opt.title || ''),
+            is_correct: typeof opt === 'object' ? !!opt.is_correct : false,
+          }))
+        }
+
+        return {
+          station_id: currentStation.id,
+          question_text: q.question_text.trim(),
+          question_type: qType,
+          max_scale_value: scaleVal,
+          options: sanitizedOptions,
+        }
+      })
+
+    if (rows.length === 0) {
+      return { success: false, error: 'All question prompts were empty or invalid.' }
+    }
+
+    // 3. Batch insert into questions table
+    const { data: inserted, error: insertErr } = await supabaseAdmin
+      .from('questions')
+      .insert(rows)
+      .select()
+
+    if (insertErr) {
+      console.error('Error bulk inserting questions:', insertErr)
+      throw insertErr
+    }
+
+    revalidatePath(`/professor/stations/${currentStation.id}`)
+    if (resolved.slug) {
+      revalidatePath(`/professor/stations/${resolved.slug}`)
+    }
+    revalidatePath('/examiner/workspace')
+
+    return {
+      success: true,
+      count: inserted ? inserted.length : rows.length,
+      questions: inserted || [],
+    }
+  } catch (error: any) {
+    console.error('bulkImportQuestionsAction error:', error)
+    return {
+      success: false,
+      error: error?.message || 'Failed to bulk import questions into database.',
+    }
+  }
+}
+

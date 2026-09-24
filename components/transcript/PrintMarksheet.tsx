@@ -213,13 +213,14 @@ export function PrintMarksheet({
           <table className="w-full text-xs text-left border-collapse">
             <thead>
               <tr className="bg-slate-900 text-white font-bold">
-                <th className="py-2 px-3 w-[12%]">Station</th>
-                <th className="py-2 px-3 w-[32%]">Clinical Station Title</th>
-                <th className="py-2 px-2.5 w-[10%] text-center">Weight</th>
-                <th className="py-2 px-2.5 w-[12%] text-right">Max Scale</th>
-                <th className="py-2 px-2.5 w-[11%] text-right">Deductions</th>
-                <th className="py-2 px-2.5 w-[11%] text-right">Net Raw</th>
-                <th className="py-2 px-3 w-[12%] text-right font-bold">Contrib (/20)</th>
+                <th className="py-2 px-3 w-[10%]">Station</th>
+                <th className="py-2 px-3 w-[28%]">Clinical Station Title</th>
+                <th className="py-2 px-2 text-center">Weight</th>
+                <th className="py-2 px-2 text-right">Max Scale</th>
+                <th className="py-2 px-2 text-right">Deductions</th>
+                <th className="py-2 px-2 text-right">Bonuses</th>
+                <th className="py-2 px-2 text-right">Net Raw</th>
+                <th className="py-2 px-3 text-right font-bold">Contrib (/20)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white">
@@ -231,16 +232,19 @@ export function PrintMarksheet({
                   <td className="py-2 px-3 font-medium text-slate-900">
                     {st.station_title}
                   </td>
-                  <td className="py-2 px-2.5 text-center font-mono font-semibold text-slate-700">
+                  <td className="py-2 px-2 text-center font-mono font-semibold text-slate-700">
                     {st.weightage_percentage}%
                   </td>
-                  <td className="py-2 px-2.5 text-right font-mono text-slate-700">
+                  <td className="py-2 px-2 text-right font-mono text-slate-700">
                     {st.station_max_points} pts
                   </td>
-                  <td className="py-2 px-2.5 text-right font-mono text-slate-900 font-semibold">
+                  <td className="py-2 px-2 text-right font-mono text-slate-900 font-semibold">
                     {st.deductions_points < 0 ? `${st.deductions_points.toFixed(1)} pts` : '-0.0 pts'}
                   </td>
-                  <td className="py-2 px-2.5 text-right font-mono font-bold text-slate-900">
+                  <td className="py-2 px-2 text-right font-mono text-emerald-700 font-semibold">
+                    {st.bonuses_points > 0 ? `+${st.bonuses_points.toFixed(1)} pts` : '+0.0 pts'}
+                  </td>
+                  <td className="py-2 px-2 text-right font-mono font-bold text-slate-900">
                     {st.net_station_raw_score.toFixed(2)} pts
                   </td>
                   <td className="py-2 px-3 text-right font-mono font-black text-slate-900">
@@ -254,10 +258,10 @@ export function PrintMarksheet({
                 <td colSpan={2} className="py-2 px-3 uppercase tracking-wider text-[10px]">
                   Total Module Aggregation
                 </td>
-                <td className="py-2 px-2.5 text-center font-mono">
+                <td className="py-2 px-2 text-center font-mono">
                   {activeModule.stations.reduce((sum, s) => sum + Number(s.weightage_percentage || 0), 0)}%
                 </td>
-                <td colSpan={3} className="py-2 px-2.5 text-right text-[10px] text-slate-600 uppercase">
+                <td colSpan={4} className="py-2 px-2 text-right text-[10px] text-slate-600 uppercase">
                   Institutional Final Grade:
                 </td>
                 <td className="py-2 px-3 text-right font-mono font-black text-sm text-slate-900">

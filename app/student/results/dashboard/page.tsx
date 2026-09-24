@@ -725,6 +725,8 @@ function StudentResultsDashboardContent() {
                   {activeModule.stations.map((st) => {
                     const isExpanded = !!expandedStations[st.station_id]
                     const hasPenalties = st.penalties && st.penalties.length > 0
+                    const hasBonuses = st.bonuses && st.bonuses.length > 0
+                    const bonusPoints = Number(st.bonuses_points || 0)
                     const stationPercentage = typeof st.station_percentage === 'number'
                       ? st.station_percentage
                       : (st.station_max_points > 0 ? Math.min(100, Math.max(0, (st.net_station_raw_score / st.station_max_points) * 100)) : 0)
@@ -745,6 +747,12 @@ function StudentResultsDashboardContent() {
                               <h4 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
                                 {st.station_title}
                               </h4>
+                              {bonusPoints > 0 && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-300/80 dark:border-emerald-800/80">
+                                  <Sparkles className="size-3 text-emerald-500" />
+                                  <span>+{bonusPoints.toFixed(1)} pts merit</span>
+                                </span>
+                              )}
                             </div>
 
                             <p className="text-xs font-medium text-slate-500 dark:text-cyan-200/70">
@@ -773,12 +781,12 @@ function StudentResultsDashboardContent() {
                           </div>
                         </div>
 
-                        {/* 4 Points Calculation Metric Tiles (Surface 2: bg-[#0F1E34]/80) */}
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {/* 5 Points Calculation Metric Tiles */}
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                           {/* 1. Raw Earned */}
                           <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#0F1E34]/80 border border-slate-200/60 dark:border-cyan-500/15 space-y-0.5">
                             <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-cyan-400/70 block">
-                              Raw Earned Points
+                              Raw Checklist
                             </span>
                             <span className="text-xs sm:text-sm font-black font-mono text-slate-900 dark:text-[#F8FAFC]">
                               {st.raw_earned_points.toFixed(2)}{' '}
@@ -806,10 +814,28 @@ function StudentResultsDashboardContent() {
                             </span>
                           </div>
 
-                          {/* 3. Net Station Raw */}
+                          {/* 3. Clinical Bonuses & Merit Points (Emerald Success Theme) */}
+                          <div className="p-3.5 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/80 dark:border-emerald-500/25 space-y-0.5">
+                            <span className="text-[10px] uppercase font-bold text-emerald-700 dark:text-emerald-400 block">
+                              Merit Bonuses
+                            </span>
+                            <span
+                              className={`text-xs sm:text-sm font-black font-mono ${
+                                bonusPoints > 0
+                                  ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+                                  : 'text-slate-400 dark:text-slate-500'
+                              }`}
+                            >
+                              {bonusPoints > 0
+                                ? `+${bonusPoints.toFixed(1)} pts`
+                                : '+0.0 pts'}
+                            </span>
+                          </div>
+
+                          {/* 4. Net Station Raw */}
                           <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#0F1E34]/80 border border-slate-200/60 dark:border-cyan-500/15 space-y-0.5">
                             <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-cyan-400/70 block">
-                              Net Raw Score ({stationPercentage.toFixed(0)}%)
+                              Net Raw ({stationPercentage.toFixed(0)}%)
                             </span>
                             <span className="text-xs sm:text-sm font-black font-mono text-cyan-600 dark:text-cyan-300">
                               {st.net_station_raw_score.toFixed(2)}{' '}
@@ -819,15 +845,47 @@ function StudentResultsDashboardContent() {
                             </span>
                           </div>
 
-                          {/* 4. Scaled Contribution */}
-                          <div className="p-3.5 rounded-xl bg-cyan-950/30 border border-cyan-500/30 space-y-0.5">
+                          {/* 5. Scaled Contribution */}
+                          <div className="p-3.5 rounded-xl bg-cyan-950/30 border border-cyan-500/30 space-y-0.5 col-span-2 sm:col-span-1">
                             <span className="text-[10px] uppercase font-bold text-cyan-700 dark:text-cyan-300 block">
-                              Module Contribution (/20)
+                              Contribution (/20)
                             </span>
                             <span className="text-xs sm:text-sm font-black font-mono text-cyan-600 dark:text-cyan-300">
                               {st.station_contribution.toFixed(2)} pts
                             </span>
                           </div>
+                        </div>
+
+                        {/* Transparent Calculation Strip */}
+                        <div className="p-3 px-4 rounded-xl bg-slate-100/80 dark:bg-[#0A1628]/70 border border-slate-200/80 dark:border-cyan-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs font-mono">
+                          <div className="flex items-center gap-2 flex-wrap text-slate-700 dark:text-slate-200">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-cyan-400/80 font-sans">
+                              Transparent Formula:
+                            </span>
+                            <span className="font-bold text-slate-900 dark:text-white">
+                              {st.raw_earned_points.toFixed(1)}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-sans">(Raw)</span>
+                            <span className="text-slate-400 font-sans">−</span>
+                            <span className={st.deductions_points < 0 ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-400'}>
+                              {Math.abs(st.deductions_points).toFixed(1)}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-sans">(Penalties)</span>
+                            <span className="text-slate-400 font-sans">+</span>
+                            <span className={bonusPoints > 0 ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-400'}>
+                              {bonusPoints.toFixed(1)}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-sans">(Bonuses)</span>
+                            <span className="text-slate-400 font-sans">=</span>
+                            <span className="text-cyan-600 dark:text-cyan-300 font-bold text-sm">
+                              {st.net_station_raw_score.toFixed(1)}
+                            </span>
+                            <span className="text-slate-400 font-normal">/ {st.station_max_points} pts</span>
+                          </div>
+
+                          <span className="text-[10px] text-slate-400 dark:text-cyan-400/60 font-sans">
+                            Final Station Score = Raw Checklist Score − Penalties + Bonuses
+                          </span>
                         </div>
 
                         {/* Protocol Infractions & Safety Deductions Ledger (Semantic Crimson) */}
@@ -854,6 +912,47 @@ function StudentResultsDashboardContent() {
                                   </div>
                                   <span className="font-mono font-bold text-rose-600 dark:text-rose-400 shrink-0">
                                     [ {pen.points < 0 ? pen.points.toFixed(1) : `-${pen.points.toFixed(1)}`} pts ]
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Clinical Bonuses & Merit Points Awarded (Semantic Emerald) */}
+                        {hasBonuses && (
+                          <div className="p-4 rounded-xl bg-emerald-950/20 dark:bg-emerald-950/30 border-l-4 border-emerald-500 space-y-2.5 shadow-2xs">
+                            <div className="flex items-center justify-between gap-2 flex-wrap text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                              <div className="flex items-center gap-2">
+                                <Sparkles className="size-4 text-emerald-500" />
+                                <span>Clinical Bonuses & Merit Points Awarded ({st.bonuses.length}):</span>
+                              </div>
+                              <span className="font-mono text-emerald-700 dark:text-emerald-400 font-black">
+                                +{bonusPoints.toFixed(1)} pts total
+                              </span>
+                            </div>
+                            <div className="space-y-1.5 pl-1">
+                              {st.bonuses.map((bon) => (
+                                <div
+                                  key={bon.id}
+                                  className="flex items-center justify-between text-xs font-medium text-slate-800 dark:text-emerald-100 gap-2"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <span className="size-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                    <span className="font-semibold text-slate-900 dark:text-white">{bon.reason}</span>
+                                    {bon.matched_criteria_title && (
+                                      <span className="text-[10px] text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 px-2 py-0.5 rounded font-semibold border border-emerald-500/20">
+                                        {bon.matched_criteria_title}
+                                      </span>
+                                    )}
+                                    {bon.description && (
+                                      <span className="text-[10px] text-slate-400 italic">
+                                        ({bon.description})
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 shrink-0 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
+                                    [ +{Math.abs(bon.points).toFixed(1)} pts ]
                                   </span>
                                 </div>
                               ))}

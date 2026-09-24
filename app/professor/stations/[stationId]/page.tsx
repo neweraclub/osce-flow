@@ -220,7 +220,7 @@ export default function ProfessorStationDetailPage({
                 setQuestions(qJson.questions)
               }
             })
-            .catch(() => {})
+            .catch(() => { })
         }
 
         if (json.module_weightage_map) {
@@ -237,7 +237,7 @@ export default function ProfessorStationDetailPage({
                 setAssignedModules(mJson.modules)
               }
             })
-            .catch(() => {})
+            .catch(() => { })
         }
 
         // Wrap URL to clean human-readable slug if accessed via raw UUID
@@ -629,10 +629,6 @@ export default function ProfessorStationDetailPage({
                   <span className="px-2.5 py-0.5 rounded-md font-mono font-bold bg-lime-500/15 text-lime-700 dark:text-lime-300 border border-lime-500/20 tabular-nums">
                     {station.weightage_percentage}% Weightage
                   </span>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/10">
-                    <Clock className="size-3 text-emerald-500" />
-                    <span>8 mins duration</span>
-                  </span>
                   {station.exam_date && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/10">
                       <Calendar className="size-3 text-emerald-500" />
@@ -641,11 +637,10 @@ export default function ProfessorStationDetailPage({
                   )}
                   {station.session_type && (
                     <span
-                      className={`px-2 py-0.5 rounded-md text-[11px] font-bold border ${
-                        station.session_type === 'retake'
+                      className={`px-2 py-0.5 rounded-md text-[11px] font-bold border ${station.session_type === 'retake'
                           ? 'bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/30'
                           : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
-                      }`}
+                        }`}
                     >
                       {station.session_type === 'retake' ? 'Session Rattrapage' : 'Session Normale'}
                     </span>
@@ -761,11 +756,10 @@ export default function ProfessorStationDetailPage({
                   return (
                     <div
                       key={q.id}
-                      className={`p-5 rounded-xl bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 shadow-sm space-y-3 hover:border-emerald-500/40 dark:hover:border-emerald-500/40 hover:ring-1 hover:ring-emerald-500/20 transition-all ${
-                        isExiting
+                      className={`p-5 rounded-xl bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 shadow-sm space-y-3 hover:border-emerald-500/40 dark:hover:border-emerald-500/40 hover:ring-1 hover:ring-emerald-500/20 transition-all ${isExiting
                           ? 'opacity-0 scale-95 pointer-events-none'
                           : ''
-                      }`}
+                        }`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-2.5 min-w-0">
@@ -842,11 +836,10 @@ export default function ProfessorStationDetailPage({
                             {parsedOptions.map((opt, oIdx) => (
                               <div
                                 key={opt.id || oIdx}
-                                className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-between gap-2 transition-all ${
-                                  opt.is_correct
+                                className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center justify-between gap-2 transition-all ${opt.is_correct
                                     ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-900 dark:text-emerald-200 ring-1 ring-emerald-500/20'
                                     : 'bg-slate-50 dark:bg-[#0B1612] border-slate-200/70 dark:border-emerald-500/10 text-slate-600 dark:text-slate-400'
-                                }`}
+                                  }`}
                               >
                                 <div className="flex items-center gap-2 min-w-0">
                                   <span className="size-5 rounded bg-white dark:bg-[#12221C] border border-slate-200 dark:border-emerald-500/20 text-[10px] font-mono font-bold flex items-center justify-center shrink-0">
@@ -1017,11 +1010,10 @@ export default function ProfessorStationDetailPage({
                     <button
                       type="button"
                       onClick={() => setTypeDropdownOpen((prev) => !prev)}
-                      className={`w-full flex items-center justify-between px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border ${
-                        typeDropdownOpen
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border ${typeDropdownOpen
                           ? 'border-emerald-500 ring-2 ring-emerald-500/20'
                           : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                      } rounded-2xl text-xs font-semibold text-slate-900 dark:text-white transition-all text-left`}
+                        } rounded-2xl text-xs font-semibold text-slate-900 dark:text-white transition-all text-left`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0 pr-2">
                         <span className={`flex size-7 items-center justify-center rounded-xl ${selectedTypeConfig.iconBg} shrink-0`}>
@@ -1042,9 +1034,8 @@ export default function ProfessorStationDetailPage({
                           {selectedTypeConfig.badge}
                         </span>
                         <ChevronDown
-                          className={`size-4 text-slate-400 transition-transform duration-200 ${
-                            typeDropdownOpen ? 'rotate-180 text-emerald-500' : ''
-                          }`}
+                          className={`size-4 text-slate-400 transition-transform duration-200 ${typeDropdownOpen ? 'rotate-180 text-emerald-500' : ''
+                            }`}
                         />
                       </div>
                     </button>
@@ -1063,11 +1054,10 @@ export default function ProfessorStationDetailPage({
                                 setFormType(t.value)
                                 setTypeDropdownOpen(false)
                               }}
-                              className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs transition-all ${
-                                isSelected
+                              className={`w-full flex items-center justify-between p-2.5 rounded-xl text-xs transition-all ${isSelected
                                   ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/20'
                                   : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300'
-                              }`}
+                                }`}
                             >
                               <div className="flex items-center gap-2.5 min-w-0 text-left">
                                 <span className={`flex size-7 items-center justify-center rounded-lg ${t.iconBg} shrink-0`}>

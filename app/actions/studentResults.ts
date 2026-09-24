@@ -51,6 +51,8 @@ export interface StationBonusBreakdown {
   reason: string
   points: number
   matched_criteria_title?: string | null
+  description?: string | null
+  created_at?: string
 }
 
 export interface EvaluatedStationBreakdown {
@@ -61,14 +63,14 @@ export interface EvaluatedStationBreakdown {
   station_max_points: number
   raw_earned_points: number
   deductions_points: number
-  bonuses_points?: number
+  bonuses_points: number
   net_station_raw_score: number
   station_percentage: number // (points_awarded / max_points) * 100
   weighted_percentage: number // station_percentage * (weightage / 100)
   station_max_contribution: number // 20 * (weightage / 100)
   station_contribution: number // 20 * (weightage / 100) * (net_score / max_points)
   penalties: StationPenaltyBreakdown[]
-  bonuses?: StationBonusBreakdown[]
+  bonuses: StationBonusBreakdown[]
   answers: StationQuestionAnswerBreakdown[]
   attempt_status: string
   attempt_date?: string
@@ -521,6 +523,8 @@ export async function getStudentResultsDashboardDataAction(
           reason: b.reason,
           points: Number(b.points),
           matched_criteria_title: matched?.title || null,
+          description: matched?.description || null,
+          created_at: b.created_at,
         }
       })
 

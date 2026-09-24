@@ -146,120 +146,6 @@ export default function ProfessorLiveExamMonitorPage({
   const [searchQuery, setSearchQuery] = useState('')
   const [copiedMatriculeId, setCopiedMatriculeId] = useState<string | null>(null)
 
-  // Question Edit Modal State
-  const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false)
-  const [editingQuestion, setEditingQuestion] = useState<QuestionRecord | null>(null)
-  const [deletingQuestion, setDeletingQuestion] = useState<QuestionRecord | null>(null)
-  const [formText, setFormText] = useState('')
-  const [formType, setFormType] = useState<'MCQ' | 'SCQ' | 'Q&A'>('MCQ')
-  const [formMaxScale, setFormMaxScale] = useState<number>(10)
-  const [formOptions, setFormOptions] = useState<QuestionOptionItem[]>([])
-  const [submitting, setSubmitting] = useState(false)
-  const [formError, setFormError] = useState('')
-
-  // Seed / fetch candidates live stream
-  const initializeCandidates = (totalItems: number) => {
-    const seededCandidates: CandidateLiveItem[] = [
-      {
-        id: 'c1',
-        matricule: '2024-MED-0104',
-        full_name: 'Dr. Youssef Amrani',
-        rotation_group: 'Group 03 - Rotation B',
-        status: 'in_progress',
-        max_score: 20,
-        elapsed_seconds: 245,
-        items_evaluated: Math.min(3, totalItems || 3),
-        total_items: totalItems || 5,
-        examiner_note: 'Proper sterile technique observed, proceeding to auscultation.',
-      },
-      {
-        id: 'c2',
-        matricule: '2024-MED-0118',
-        full_name: 'Dr. Sarah Benali',
-        rotation_group: 'Group 03 - Rotation B',
-        status: 'in_progress',
-        max_score: 20,
-        elapsed_seconds: 310,
-        items_evaluated: Math.min(4, totalItems || 4),
-        total_items: totalItems || 5,
-        examiner_note: 'Clear differential diagnosis presented.',
-      },
-      {
-        id: 'c3',
-        matricule: '2024-MED-0089',
-        full_name: 'Dr. Omar Kabbaj',
-        rotation_group: 'Group 03 - Rotation B',
-        status: 'submitted',
-        score: 17.5,
-        max_score: 20,
-        elapsed_seconds: 480,
-        items_evaluated: totalItems || 5,
-        total_items: totalItems || 5,
-        examiner_note: 'Excellent anamnesis and clinical composure.',
-      },
-      {
-        id: 'c4',
-        matricule: '2024-MED-0135',
-        full_name: 'Dr. Kenza Mansouri',
-        rotation_group: 'Group 03 - Rotation B',
-        status: 'submitted',
-        score: 15.0,
-        max_score: 20,
-        elapsed_seconds: 472,
-        items_evaluated: totalItems || 5,
-        total_items: totalItems || 5,
-        examiner_note: 'Minor hesitation during palpation sequence.',
-      },
-      {
-        id: 'c5',
-        matricule: '2024-MED-0142',
-        full_name: 'Dr. Mehdi Tazi',
-        rotation_group: 'Group 03 - Rotation B',
-        status: 'submitted',
-        score: 18.25,
-        max_score: 20,
-        elapsed_seconds: 460,
-        items_evaluated: totalItems || 5,
-        total_items: totalItems || 5,
-        examiner_note: 'Flawless emergency protocol execution.',
-      },
-      {
-        id: 'c6',
-        matricule: '2024-MED-0158',
-        full_name: 'Dr. Leila Berrada',
-        rotation_group: 'Group 03 - Rotation B',
-        status: 'pending',
-        max_score: 20,
-        elapsed_seconds: 0,
-        items_evaluated: 0,
-        total_items: totalItems || 5,
-      },
-      {
-        id: 'c7',
-        matricule: '2024-MED-0169',
-        full_name: 'Dr. Hamza Chraibi',
-        rotation_group: 'Group 03 - Rotation B',
-        status: 'pending',
-        max_score: 20,
-        elapsed_seconds: 0,
-        items_evaluated: 0,
-        total_items: totalItems || 5,
-      },
-      {
-        id: 'c8',
-        matricule: '2024-MED-0177',
-        full_name: 'Dr. Salma Fassi',
-        rotation_group: 'Group 03 - Rotation B',
-        status: 'pending',
-        max_score: 20,
-        elapsed_seconds: 0,
-        items_evaluated: 0,
-        total_items: totalItems || 5,
-      },
-    ]
-    setCandidates(seededCandidates)
-  }
-
   // Live timer tick for active in-progress candidates
   useEffect(() => {
     const timer = setInterval(() => {
@@ -285,9 +171,8 @@ export default function ProfessorLiveExamMonitorPage({
       if (res.ok && json.success) {
         setExam(json.exam || null)
         setStation(json.station || null)
-        const qList = json.questions || []
-        setQuestions(qList)
-        initializeCandidates(qList.length)
+        setQuestions(json.questions || [])
+        setCandidates(json.candidates || [])
       } else {
         showError(json.error || 'Failed to fetch exam session data.')
       }
@@ -422,10 +307,14 @@ export default function ProfessorLiveExamMonitorPage({
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div className="space-y-1.5 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap text-xs">
-                  {/* Rotation Group Chip */}
+                  {/* Rotation / Cohort Chip */}
                   <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-600 text-white font-mono font-black shadow-xs">
                     <Users className="size-3" />
-                    <span>Group 03 - Rotation B</span>
+                    <span>
+                      {candidates.length > 0 && candidates[0].rotation_group !== 'Candidate'
+                        ? candidates[0].rotation_group
+                        : station?.level_name || station?.module_name || 'Enrolled Cohort'}
+                    </span>
                   </span>
 
                   {/* Session Type Badge */}
@@ -557,7 +446,22 @@ export default function ProfessorLiveExamMonitorPage({
           {/* LIVE CANDIDATE EVALUATION STREAM GRID                                     */}
           {/* ========================================================================= */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredCandidates.map((candidate) => {
+            {filteredCandidates.length === 0 ? (
+              <div className="col-span-full py-16 px-6 text-center rounded-2xl bg-white dark:bg-[#0B1612] border border-dashed border-slate-200 dark:border-emerald-500/20">
+                <Users className="size-10 text-slate-300 dark:text-emerald-500/30 mx-auto mb-3" />
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                  {candidates.length === 0
+                    ? 'No Candidate Attempts Recorded Yet'
+                    : 'No Candidates Matching Filter'}
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto mt-1">
+                  {candidates.length === 0
+                    ? 'Live candidate attempts, real-time timer tracking, checklist progress, and examiner notes will automatically stream here once students begin evaluations in Examiner Mode.'
+                    : 'Try adjusting your search query or status filter.'}
+                </p>
+              </div>
+            ) : (
+              filteredCandidates.map((candidate) => {
               const isInProgress = candidate.status === 'in_progress'
               const isSubmitted = candidate.status === 'submitted'
               const isPending = candidate.status === 'pending'
@@ -684,7 +588,7 @@ export default function ProfessorLiveExamMonitorPage({
                   </div>
                 </div>
               )
-            })}
+            }))}
           </div>
         </>
       )}

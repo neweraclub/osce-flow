@@ -1668,7 +1668,7 @@ function DeanStationsContent() {
                       </div>
 
                       <Link
-                        href={`/professor/stations/${st.id}/exams/${activeExam.id}`}
+                        href={`/professor/stations/${st.id}`}
                         className="flex items-center gap-1.5 font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 group-hover:translate-x-0.5 transition-all duration-150 text-xs"
                       >
                         <span>Open Checklist</span>

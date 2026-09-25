@@ -1,5 +1,6 @@
 export interface PenaltyBonusTemplate {
   id: string
+  station_id?: string
   professor_id?: string | null
   type: 'bonus' | 'penalty'
   title: string
@@ -98,124 +99,53 @@ export const DEFAULT_PENALTY_BONUS_TEMPLATES: PenaltyBonusTemplate[] = [
   },
 ]
 
-const LOCAL_STORAGE_KEY = 'osce_penalty_bonus_templates'
-
 /**
- * Retrieve templates entirely from client state and browser storage.
- * Strictly avoids any database calls or tables.
+ * Maps a station_criteria database row (points < 0) to a unified template representation.
  */
-export function getLocalTemplates(): PenaltyBonusTemplate[] {
-  if (typeof window === 'undefined') {
-    return DEFAULT_PENALTY_BONUS_TEMPLATES
-  }
-
-  try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY)
-    if (!raw) {
-      return DEFAULT_PENALTY_BONUS_TEMPLATES
-    }
-
-    const custom: PenaltyBonusTemplate[] = JSON.parse(raw)
-    if (!Array.isArray(custom)) {
-      return DEFAULT_PENALTY_BONUS_TEMPLATES
-    }
-
-    // Merge custom with default presets, deduplicating by title
-    const customTitles = new Set(custom.map((c) => c.title.toLowerCase().trim()))
-    const remainingPresets = DEFAULT_PENALTY_BONUS_TEMPLATES.filter(
-      (p) => !customTitles.has(p.title.toLowerCase().trim())
-    )
-
-    return [...custom, ...remainingPresets]
-  } catch (err) {
-    console.error('Failed to load local templates from storage:', err)
-    return DEFAULT_PENALTY_BONUS_TEMPLATES
-  }
-}
-
-/**
- * Save a new or edited template entirely into browser storage.
- */
-export function saveLocalTemplate(input: {
-  id?: string
-  type: 'bonus' | 'penalty'
+export function mapStationCriterionToTemplate(row: {
+  id: string
+  station_id: string
   title: string
-  default_value: number
-  default_note?: string
+  description: string | null
+  points: number | string
+  created_at?: string
+  updated_at?: string
 }): PenaltyBonusTemplate {
-  const absValue = Math.abs(Number(input.default_value) || 0)
-  const finalValue = input.type === 'penalty' ? -absValue : absValue
-
-  const newTemplate: PenaltyBonusTemplate = {
-    id: input.id || `custom-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-    type: input.type,
-    title: input.title.trim(),
-    default_value: finalValue,
-    default_note: input.default_note?.trim() || '',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+  const pts = Number(row.points)
+  return {
+    id: row.id,
+    station_id: row.station_id,
+    type: 'penalty',
+    title: row.title,
+    default_value: pts > 0 ? -pts : pts,
+    default_note: row.description || '',
+    created_at: row.created_at,
+    updated_at: row.updated_at,
   }
-
-  if (typeof window !== 'undefined') {
-    try {
-      const raw = localStorage.getItem(LOCAL_STORAGE_KEY)
-      let customList: PenaltyBonusTemplate[] = raw ? JSON.parse(raw) : []
-      if (!Array.isArray(customList)) customList = []
-
-      // If updating an existing custom template
-      const existingIndex = customList.findIndex((t) => t.id === newTemplate.id)
-      if (existingIndex >= 0) {
-        customList[existingIndex] = newTemplate
-      } else {
-        customList.unshift(newTemplate)
-      }
-
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(customList))
-      window.dispatchEvent(new Event('osce-templates-updated'))
-    } catch (err) {
-      console.error('Failed to save local template:', err)
-    }
-  }
-
-  return newTemplate
 }
 
 /**
- * Delete a custom template from browser storage.
+ * Maps a station_bonuses database row (points > 0) to a unified template representation.
  */
-export function deleteLocalTemplate(id: string): boolean {
-  if (id.startsWith('preset-')) {
-    // Default system presets are read-only
-    return false
+export function mapStationBonusToTemplate(row: {
+  id: string
+  station_id: string
+  title: string
+  description: string | null
+  points: number | string
+  created_at?: string
+  updated_at?: string
+}): PenaltyBonusTemplate {
+  const pts = Math.abs(Number(row.points))
+  return {
+    id: row.id,
+    station_id: row.station_id,
+    type: 'bonus',
+    title: row.title,
+    default_value: pts,
+    default_note: row.description || '',
+    created_at: row.created_at,
+    updated_at: row.updated_at,
   }
-
-  if (typeof window !== 'undefined') {
-    try {
-      const raw = localStorage.getItem(LOCAL_STORAGE_KEY)
-      if (!raw) return true
-
-      const customList: PenaltyBonusTemplate[] = JSON.parse(raw)
-      if (Array.isArray(customList)) {
-        const filtered = customList.filter((t) => t.id !== id)
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(filtered))
-        window.dispatchEvent(new Event('osce-templates-updated'))
-      }
-      return true
-    } catch (err) {
-      console.error('Failed to delete local template:', err)
-      return false
-    }
-  }
-
-  return true
 }
 
-/**
- * Reset templates back to pure hardcoded domain constants.
- */
-export function resetLocalTemplates(): void {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem(LOCAL_STORAGE_KEY)
-    window.dispatchEvent(new Event('osce-templates-updated'))
-  }
-}

@@ -9,44 +9,70 @@ import {
   Sparkles,
   AlertTriangle,
   Search,
-  Check,
   RotateCcw,
   Sliders,
-  ShieldAlert,
-  ShieldCheck,
   Layers,
-  HelpCircle,
+  ChevronDown,
+  Database,
+  Loader2,
+  Check,
 } from 'lucide-react'
 import {
   PenaltyBonusTemplate,
-  DEFAULT_PENALTY_BONUS_TEMPLATES,
-  getLocalTemplates,
-  saveLocalTemplate,
-  deleteLocalTemplate,
-  resetLocalTemplates,
+  mapStationCriterionToTemplate,
+  mapStationBonusToTemplate,
 } from '@/lib/penaltyBonusTemplates'
+import {
+  getStationCriteriaAction,
+  createStationCriterionAction,
+  updateStationCriterionAction,
+  deleteStationCriterionAction,
+  seedStandardStationCriteriaAction,
+} from '@/app/actions/stationCriteria'
+import {
+  getStationBonusesAction,
+  createStationBonusAction,
+  updateStationBonusAction,
+  deleteStationBonusAction,
+  seedStandardStationBonusesAction,
+} from '@/app/actions/stationBonuses'
 import { useToast } from '@/context/ToastContext'
+
+interface StationOption {
+  id: string
+  title: string
+  number: number
+}
 
 interface FrontendTemplateLibraryModalProps {
   isOpen: boolean
   onClose: () => void
   initialType?: 'all' | 'penalty' | 'bonus'
   title?: string
+  stations?: StationOption[]
+  initialStationId?: string
 }
 
 export function FrontendTemplateLibraryModal({
   isOpen,
   onClose,
   initialType = 'all',
-  title = 'Standardized Scoring Presets & Templates',
+  title = 'Station Scoring Criteria & Bonuses (Database)',
+  stations = [],
+  initialStationId,
 }: FrontendTemplateLibraryModalProps) {
   const { showSuccess, showError } = useToast()
 
+  const [activeStationId, setActiveStationId] = useState<string>(
+    initialStationId || stations[0]?.id || ''
+  )
+  const [stationDropdownOpen, setStationDropdownOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [templates, setTemplates] = useState<PenaltyBonusTemplate[]>([])
   const [activeTab, setActiveTab] = useState<'all' | 'penalty' | 'bonus'>(initialType)
   const [searchQuery, setSearchQuery] = useState('')
 
-  // Form Modal state for adding or editing templates
+  // Form Modal state for adding or editing
   const [isEditorOpen, setIsEditorOpen] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<PenaltyBonusTemplate | null>(null)
   const [formType, setFormType] = useState<'penalty' | 'bonus'>(
@@ -55,23 +81,48 @@ export function FrontendTemplateLibraryModal({
   const [formTitle, setFormTitle] = useState('')
   const [formValue, setFormValue] = useState<string>('0.5')
   const [formNote, setFormNote] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
-  // Reload templates on mount or when storage updates
-  const reloadTemplates = () => {
-    setTemplates(getLocalTemplates())
+  // Sync activeStationId when initialStationId or stations change
+  useEffect(() => {
+    if (initialStationId) {
+      setActiveStationId(initialStationId)
+    } else if (stations.length > 0 && !activeStationId) {
+      setActiveStationId(stations[0].id)
+    }
+  }, [initialStationId, stations, activeStationId])
+
+  // Fetch from public.station_criteria and public.station_bonuses
+  const fetchStationData = async (stationId: string) => {
+    if (!stationId) return
+    setLoading(true)
+    try {
+      const [criteriaRes, bonusesRes] = await Promise.all([
+        getStationCriteriaAction(stationId),
+        getStationBonusesAction(stationId),
+      ])
+
+      const penalties: PenaltyBonusTemplate[] = (criteriaRes.criteria || []).map(
+        mapStationCriterionToTemplate
+      )
+      const bonuses: PenaltyBonusTemplate[] = (bonusesRes.bonuses || []).map(
+        mapStationBonusToTemplate
+      )
+
+      setTemplates([...penalties, ...bonuses])
+    } catch (err: any) {
+      showError(err?.message || 'Failed to load station criteria from database.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
-    if (isOpen) {
-      reloadTemplates()
+    if (isOpen && activeStationId) {
+      fetchStationData(activeStationId)
       setActiveTab(initialType)
     }
-  }, [isOpen, initialType])
-
-  useEffect(() => {
-    window.addEventListener('osce-templates-updated', reloadTemplates)
-    return () => window.removeEventListener('osce-templates-updated', reloadTemplates)
-  }, [])
+  }, [isOpen, activeStationId, initialType])
 
   // Filtered list
   const filteredTemplates = useMemo(() => {
@@ -89,8 +140,13 @@ export function FrontendTemplateLibraryModal({
 
   const penaltyCount = useMemo(() => templates.filter((t) => t.type === 'penalty').length, [templates])
   const bonusCount = useMemo(() => templates.filter((t) => t.type === 'bonus').length, [templates])
+  const currentStation = stations.find((s) => s.id === activeStationId)
 
   const handleOpenCreate = () => {
+    if (!activeStationId) {
+      showError('Please select a station first.')
+      return
+    }
     setEditingTemplate(null)
     setFormType(activeTab === 'bonus' ? 'bonus' : 'penalty')
     setFormTitle('')
@@ -108,10 +164,14 @@ export function FrontendTemplateLibraryModal({
     setIsEditorOpen(true)
   }
 
-  const handleSaveForm = (e: React.FormEvent) => {
+  const handleSaveForm = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!activeStationId) {
+      showError('No station selected.')
+      return
+    }
     if (!formTitle.trim()) {
-      showError('Template title is required.')
+      showError('Title is required.')
       return
     }
 
@@ -121,45 +181,95 @@ export function FrontendTemplateLibraryModal({
       return
     }
 
-    saveLocalTemplate({
-      id: editingTemplate ? editingTemplate.id : undefined,
-      type: formType,
-      title: formTitle,
-      default_value: numericVal,
-      default_note: formNote,
-    })
+    setSubmitting(true)
+    try {
+      if (editingTemplate) {
+        if (formType === 'penalty') {
+          // Negative points check constraint: points < 0
+          const res = await updateStationCriterionAction({
+            id: editingTemplate.id,
+            title: formTitle,
+            description: formNote,
+            points: -Math.abs(numericVal),
+            station_id: activeStationId,
+          })
+          if (!res.success) throw new Error(res.error)
+        } else {
+          // Positive points check constraint: points > 0
+          const res = await updateStationBonusAction({
+            id: editingTemplate.id,
+            title: formTitle,
+            description: formNote,
+            points: Math.abs(numericVal),
+            station_id: activeStationId,
+          })
+          if (!res.success) throw new Error(res.error)
+        }
+        showSuccess(`Updated "${formTitle}" in database.`)
+      } else {
+        if (formType === 'penalty') {
+          // Insert into public.station_criteria (points < 0)
+          const res = await createStationCriterionAction({
+            station_id: activeStationId,
+            title: formTitle,
+            description: formNote,
+            points: -Math.abs(numericVal),
+          })
+          if (!res.success) throw new Error(res.error)
+        } else {
+          // Insert into public.station_bonuses (points > 0)
+          const res = await createStationBonusAction({
+            station_id: activeStationId,
+            title: formTitle,
+            description: formNote,
+            points: Math.abs(numericVal),
+          })
+          if (!res.success) throw new Error(res.error)
+        }
+        showSuccess(`Saved "${formTitle}" to database.`)
+      }
 
-    showSuccess(
-      editingTemplate
-        ? `Updated template: "${formTitle}"`
-        : `Added template: "${formTitle}"`
-    )
-
-    setIsEditorOpen(false)
-    reloadTemplates()
+      setIsEditorOpen(false)
+      await fetchStationData(activeStationId)
+    } catch (err: any) {
+      showError(err?.message || 'Database error saving item.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
-  const handleDelete = (id: string, title: string) => {
-    if (id.startsWith('preset-')) {
-      showError('System default presets cannot be deleted.')
-      return
-    }
-    const ok = deleteLocalTemplate(id)
-    if (ok) {
-      showSuccess(`Deleted "${title}".`)
-      reloadTemplates()
+  const handleDelete = async (id: string, type: 'bonus' | 'penalty', titleStr: string) => {
+    try {
+      if (type === 'penalty') {
+        const res = await deleteStationCriterionAction(id, activeStationId)
+        if (!res.success) throw new Error(res.error)
+      } else {
+        const res = await deleteStationBonusAction(id, activeStationId)
+        if (!res.success) throw new Error(res.error)
+      }
+      showSuccess(`Deleted "${titleStr}" from database.`)
+      await fetchStationData(activeStationId)
+    } catch (err: any) {
+      showError(err?.message || 'Failed to delete criteria.')
     }
   }
 
-  const handleResetToDefaults = () => {
-    if (
-      window.confirm(
-        'Reset all templates to standard faculty presets? This will clear custom templates saved in this browser.'
-      )
-    ) {
-      resetLocalTemplates()
-      reloadTemplates()
-      showSuccess('Templates reset to factory presets.')
+  const handleSeedStationPresets = async () => {
+    if (!activeStationId) return
+    setLoading(true)
+    try {
+      if (activeTab === 'penalty' || activeTab === 'all') {
+        await seedStandardStationCriteriaAction(activeStationId)
+      }
+      if (activeTab === 'bonus' || activeTab === 'all') {
+        await seedStandardStationBonusesAction(activeStationId)
+      }
+      showSuccess('Seeded standard presets into station database tables.')
+      await fetchStationData(activeStationId)
+    } catch (err: any) {
+      showError(err?.message || 'Failed to seed station presets.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -173,7 +283,7 @@ export function FrontendTemplateLibraryModal({
         <div className="px-6 py-5 border-b border-slate-200/80 dark:border-emerald-500/20 flex items-center justify-between gap-4 bg-slate-50/60 dark:bg-[#0B1612]">
           <div className="flex items-center gap-3">
             <div className="size-10 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
-              <Sliders className="size-5" />
+              <Database className="size-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -181,11 +291,11 @@ export function FrontendTemplateLibraryModal({
                   {title}
                 </h2>
                 <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300/40 dark:border-emerald-700/40">
-                  Client-Side Store
+                  PostgreSQL Tables
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Standardized templates surfaced to examiners for 1-click evaluation without database schema overhead.
+                Saved directly to <code className="font-mono text-[11px] text-emerald-600 dark:text-emerald-400">station_criteria</code> &amp; <code className="font-mono text-[11px] text-emerald-600 dark:text-emerald-400">station_bonuses</code> tables.
               </p>
             </div>
           </div>
@@ -194,10 +304,11 @@ export function FrontendTemplateLibraryModal({
             <button
               type="button"
               onClick={handleOpenCreate}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+              disabled={!activeStationId}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
             >
               <Plus className="size-3.5" />
-              <span>New Preset</span>
+              <span>Add Criterion</span>
             </button>
             <button
               type="button"
@@ -210,9 +321,53 @@ export function FrontendTemplateLibraryModal({
           </div>
         </div>
 
-        {/* Filter Controls Bar */}
+        {/* Station Selector & Filter Bar */}
         <div className="px-6 py-3 border-b border-slate-200/60 dark:border-emerald-500/15 bg-white dark:bg-[#12221C] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          {/* Tabs */}
+          
+          {/* Station Selector Dropdown */}
+          {stations.length > 0 && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setStationDropdownOpen((prev) => !prev)}
+                className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-emerald-500/20 text-slate-800 dark:text-slate-200 hover:border-emerald-500 transition-colors cursor-pointer"
+              >
+                <span>
+                  {currentStation
+                    ? `Station #${currentStation.number}: ${currentStation.title}`
+                    : 'Select Clinical Station'}
+                </span>
+                <ChevronDown className="size-3.5 text-slate-400" />
+              </button>
+
+              {stationDropdownOpen && (
+                <div className="absolute left-0 top-full mt-1.5 z-50 w-72 max-h-56 overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-1.5 space-y-1">
+                  {stations.map((st) => (
+                    <button
+                      key={st.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveStationId(st.id)
+                        setStationDropdownOpen(false)
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-left transition-colors cursor-pointer ${
+                        st.id === activeStationId
+                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold'
+                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      <span className="truncate">
+                        #{st.number} - {st.title}
+                      </span>
+                      {st.id === activeStationId && <Check className="size-3.5 text-emerald-500" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Type Tabs */}
           <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800 self-start sm:self-auto">
             <button
               type="button"
@@ -256,34 +411,57 @@ export function FrontendTemplateLibraryModal({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search templates by title or note..."
+              placeholder="Search criteria or description..."
               className="w-full pl-8 pr-3 py-1.5 rounded-xl text-xs bg-slate-50 dark:bg-[#0B1612] border border-slate-200 dark:border-emerald-500/20 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
             />
           </div>
         </div>
 
-        {/* Content Grid */}
+        {/* Content Stream */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
-          {filteredTemplates.length === 0 ? (
-            <div className="p-12 text-center rounded-2xl bg-slate-50/50 dark:bg-[#0B1612]/50 border border-dashed border-slate-200 dark:border-emerald-500/20 space-y-3">
+          {loading ? (
+            <div className="py-16 text-center space-y-3">
+              <Loader2 className="size-7 text-emerald-600 dark:text-emerald-400 animate-spin mx-auto" />
+              <p className="text-xs text-slate-400 font-semibold">
+                Fetching station criteria &amp; bonuses from database...
+              </p>
+            </div>
+          ) : !activeStationId ? (
+            <div className="py-16 text-center rounded-2xl bg-slate-50/50 dark:bg-[#0B1612]/50 border border-dashed border-slate-200 dark:border-emerald-500/20 space-y-2">
+              <Layers className="size-8 text-slate-400 mx-auto" />
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                Please select a station to configure criteria.
+              </p>
+            </div>
+          ) : filteredTemplates.length === 0 ? (
+            <div className="py-14 text-center rounded-2xl bg-slate-50/50 dark:bg-[#0B1612]/50 border border-dashed border-slate-200 dark:border-emerald-500/20 space-y-3">
               <Layers className="size-8 text-slate-400 mx-auto" />
               <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
-                No templates found matching your query.
+                No criteria found in database for this station.
               </p>
-              <button
-                type="button"
-                onClick={handleOpenCreate}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-xs hover:bg-emerald-700"
-              >
-                <Plus className="size-3.5" />
-                <span>Create Preset</span>
-              </button>
+              <div className="flex items-center justify-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleSeedStationPresets}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-300 dark:hover:bg-slate-700"
+                >
+                  <RotateCcw className="size-3.5" />
+                  <span>Seed Standard Presets</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenCreate}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-xs hover:bg-emerald-700"
+                >
+                  <Plus className="size-3.5" />
+                  <span>Create Item</span>
+                </button>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               {filteredTemplates.map((tpl) => {
                 const isBonus = tpl.type === 'bonus'
-                const isPreset = tpl.id.startsWith('preset-')
                 const absPts = Math.abs(tpl.default_value)
 
                 return (
@@ -313,12 +491,12 @@ export function FrontendTemplateLibraryModal({
                             <span>{isBonus ? 'Merit Bonus' : 'Deduction'}</span>
                           </span>
 
-                          <span className="text-[10px] text-slate-400 font-medium">
-                            {isPreset ? 'Standard Faculty Preset' : 'Custom Local Preset'}
+                          <span className="font-mono text-[10px] text-slate-400">
+                            {isBonus ? 'station_bonuses' : 'station_criteria'}
                           </span>
                         </div>
 
-                        {/* Points badge */}
+                        {/* Points badge enforcing signs */}
                         <span
                           className={`font-mono font-black text-sm px-2.5 py-0.5 rounded-lg shrink-0 ${
                             isBonus
@@ -343,30 +521,28 @@ export function FrontendTemplateLibraryModal({
                     </div>
 
                     <div className="pt-3 mt-3 border-t border-slate-200/50 dark:border-white/[0.05] flex items-center justify-between text-xs text-slate-400">
-                      <span className="text-[10px]">
-                        Examiner Terminal Ready (Click/Drag)
+                      <span className="text-[10px] font-mono text-slate-400 truncate max-w-[200px]">
+                        ID: {tpl.id.substring(0, 13)}...
                       </span>
 
-                      {!isPreset && (
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEdit(tpl)}
-                            className="p-1 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
-                            title="Edit template"
-                          >
-                            <Edit2 className="size-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(tpl.id, tpl.title)}
-                            className="p-1 rounded-lg hover:bg-rose-500/15 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
-                            title="Delete template"
-                          >
-                            <Trash2 className="size-3.5" />
-                          </button>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEdit(tpl)}
+                          className="p-1.5 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+                          title="Edit criteria"
+                        >
+                          <Edit2 className="size-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(tpl.id, tpl.type, tpl.title)}
+                          className="p-1.5 rounded-lg hover:bg-rose-500/15 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                          title="Delete from database"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )
@@ -379,11 +555,12 @@ export function FrontendTemplateLibraryModal({
         <div className="px-6 py-4 border-t border-slate-200/80 dark:border-emerald-500/20 bg-slate-50/50 dark:bg-[#0B1612] flex items-center justify-between text-xs">
           <button
             type="button"
-            onClick={handleResetToDefaults}
-            className="flex items-center gap-1.5 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
+            onClick={handleSeedStationPresets}
+            disabled={!activeStationId || loading}
+            className="flex items-center gap-1.5 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 disabled:opacity-50 transition-colors cursor-pointer"
           >
             <RotateCcw className="size-3.5" />
-            <span>Reset Factory Presets</span>
+            <span>Seed Standard Presets for Station</span>
           </button>
 
           <button
@@ -395,14 +572,16 @@ export function FrontendTemplateLibraryModal({
           </button>
         </div>
 
-        {/* Nested Editor Modal (Create or Edit) */}
+        {/* Nested Editor Modal (Create or Edit in DB) */}
         {isEditorOpen && (
           <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
             <div className="w-full max-w-md bg-white dark:bg-[#12221C] border border-slate-200 dark:border-emerald-500/30 rounded-3xl shadow-2xl p-6 space-y-4 animate-in zoom-in-95">
               <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-emerald-500/20 pb-3">
                 <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <Sliders className="size-4 text-emerald-600" />
-                  <span>{editingTemplate ? 'Edit Template' : 'New Scoring Preset'}</span>
+                  <span>
+                    {editingTemplate ? 'Edit Criterion' : 'New Station Criterion'}
+                  </span>
                 </h3>
                 <button
                   type="button"
@@ -417,11 +596,12 @@ export function FrontendTemplateLibraryModal({
                 {/* Type Selection */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Template Type
+                    Table / Type
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
+                      disabled={!!editingTemplate}
                       onClick={() => setFormType('penalty')}
                       className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                         formType === 'penalty'
@@ -430,10 +610,11 @@ export function FrontendTemplateLibraryModal({
                       }`}
                     >
                       <AlertTriangle className="size-3.5" />
-                      <span>Deduction (Loss)</span>
+                      <span>station_criteria (&lt; 0)</span>
                     </button>
                     <button
                       type="button"
+                      disabled={!!editingTemplate}
                       onClick={() => setFormType('bonus')}
                       className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                         formType === 'bonus'
@@ -442,7 +623,7 @@ export function FrontendTemplateLibraryModal({
                       }`}
                     >
                       <Sparkles className="size-3.5" />
-                      <span>Merit Bonus</span>
+                      <span>station_bonuses (&gt; 0)</span>
                     </button>
                   </div>
                 </div>
@@ -450,7 +631,7 @@ export function FrontendTemplateLibraryModal({
                 {/* Title */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Title / Criterion Name *
+                    Title *
                   </label>
                   <input
                     type="text"
@@ -477,18 +658,23 @@ export function FrontendTemplateLibraryModal({
                     onChange={(e) => setFormValue(e.target.value)}
                     className="w-full px-3.5 py-2 rounded-xl text-xs font-mono font-bold bg-slate-50 dark:bg-[#0B1612] border border-slate-200 dark:border-emerald-500/20 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   />
+                  <p className="text-[10px] text-slate-400">
+                    {formType === 'penalty'
+                      ? 'Saved as negative points (< 0) in station_criteria.'
+                      : 'Saved as positive points (> 0) in station_bonuses.'}
+                  </p>
                 </div>
 
                 {/* Description Note */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Clinical Justification / Examiner Note
+                    Description / Examiner Guidance
                   </label>
                   <textarea
                     rows={2}
                     value={formNote}
                     onChange={(e) => setFormNote(e.target.value)}
-                    placeholder="Standardized guidance or reason description..."
+                    placeholder="Clinical justification or observation instructions..."
                     className="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-[#0B1612] border border-slate-200 dark:border-emerald-500/20 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   />
                 </div>
@@ -496,6 +682,7 @@ export function FrontendTemplateLibraryModal({
                 <div className="pt-2 flex items-center justify-end gap-2">
                   <button
                     type="button"
+                    disabled={submitting}
                     onClick={() => setIsEditorOpen(false)}
                     className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                   >
@@ -503,9 +690,11 @@ export function FrontendTemplateLibraryModal({
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 cursor-pointer"
+                    disabled={submitting}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 cursor-pointer disabled:opacity-50"
                   >
-                    {editingTemplate ? 'Update Preset' : 'Save Preset'}
+                    {submitting && <Loader2 className="size-3 animate-spin" />}
+                    <span>{editingTemplate ? 'Update in DB' : 'Save to DB'}</span>
                   </button>
                 </div>
               </form>

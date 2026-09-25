@@ -137,6 +137,135 @@ export async function getStationCriteriaAction(
 }
 
 /**
+ * Server Action: Updates an existing penalty criterion in public.station_criteria.
+ * Enforces negative numeric constraint (points < 0).
+ */
+export async function updateStationCriterionAction(input: {
+  id: string
+  title?: string
+  description?: string | null
+  points?: number
+  station_id?: string
+}): Promise<{ success: boolean; criterion?: StationCriterionRecord; error?: string }> {
+  try {
+    const { id, title, description, points, station_id } = input
+    if (!id) return { success: false, error: 'Criterion ID is required.' }
+
+    const updates: any = {
+      updated_at: new Date().toISOString(),
+    }
+
+    if (title !== undefined) {
+      if (!title.trim()) return { success: false, error: 'Title cannot be empty.' }
+      updates.title = title.trim()
+    }
+
+    if (description !== undefined) {
+      updates.description = description ? description.trim() : null
+    }
+
+    if (points !== undefined) {
+      const rawPoints = Number(points)
+      if (isNaN(rawPoints) || rawPoints === 0) {
+        return { success: false, error: 'Deduction points must be non-zero.' }
+      }
+      updates.points = rawPoints > 0 ? -rawPoints : rawPoints
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('station_criteria')
+      .update(updates)
+      .eq('id', id)
+      .select('*')
+      .single()
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+
+    if (station_id) {
+      revalidatePath(`/professor/stations/${station_id}`)
+    }
+    revalidatePath('/examiner/workspace')
+
+    return {
+      success: true,
+      criterion: {
+        id: data.id,
+        station_id: data.station_id,
+        title: data.title,
+        description: data.description,
+        points: Number(data.points),
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+      },
+    }
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to update penalty criterion.' }
+  }
+}
+
+/**
+ * Server Action: Seeds standard clinical deduction presets into public.station_criteria for a station.
+ */
+export async function seedStandardStationCriteriaAction(
+  stationId: string
+): Promise<{ success: boolean; insertedCount: number; error?: string }> {
+  try {
+    if (!stationId) return { success: false, insertedCount: 0, error: 'Station ID required.' }
+
+    const standardPresets = [
+      {
+        station_id: stationId,
+        title: 'Minor Aseptic Breach',
+        description: 'Compromised sterile field without immediate self-correction.',
+        points: -0.5,
+      },
+      {
+        station_id: stationId,
+        title: 'Late Arrival / Hesitation',
+        description: 'Excessive latency before initiating physical examination sequence.',
+        points: -1.0,
+      },
+      {
+        station_id: stationId,
+        title: 'Major Protocol Deviation',
+        description: 'Omitted mandatory safety check or critical contraindication review.',
+        points: -2.0,
+      },
+      {
+        station_id: stationId,
+        title: 'Communication Lapse',
+        description: 'Failed to introduce self, explain procedure, or verify patient consent.',
+        points: -0.5,
+      },
+      {
+        station_id: stationId,
+        title: 'Rough Physical Maneuver',
+        description: 'Inadequate gentleness or failing to warn simulated patient before palpation.',
+        points: -1.0,
+      },
+    ]
+
+    const { data, error } = await supabaseAdmin
+      .from('station_criteria')
+      .insert(standardPresets)
+      .select('id')
+
+    if (error) {
+      return { success: false, insertedCount: 0, error: error.message }
+    }
+
+    revalidatePath(`/professor/stations/${stationId}`)
+    revalidatePath('/examiner/workspace')
+
+    return { success: true, insertedCount: data?.length || 0 }
+  } catch (err: any) {
+    return { success: false, insertedCount: 0, error: err?.message || 'Failed to seed criteria.' }
+  }
+}
+
+/**
  * Server Action: Deletes a preset penalty criterion.
  */
 export async function deleteStationCriterionAction(
@@ -157,8 +286,8 @@ export async function deleteStationCriterionAction(
 
     if (stationId) {
       revalidatePath(`/professor/stations/${stationId}`)
-      revalidatePath('/examiner/workspace')
     }
+    revalidatePath('/examiner/workspace')
 
     return { success: true }
   } catch (err: any) {

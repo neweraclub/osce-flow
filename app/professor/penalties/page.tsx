@@ -884,12 +884,14 @@ export default function ProfessorPenaltiesPage() {
         )}
       </div>
 
-      {/* Standardized Scoring Presets Modal (Pure Frontend State) */}
+      {/* Standardized Scoring Presets Modal (Bound to public.station_criteria) */}
       <FrontendTemplateLibraryModal
         isOpen={isTemplateModalOpen}
         onClose={() => setIsTemplateModalOpen(false)}
         initialType="penalty"
-        title="Clinical Deduction Presets & Templates"
+        title="Station Clinical Deduction Criteria"
+        stations={stationsList}
+        initialStationId={selectedStationId !== 'all' ? selectedStationId : stationsList[0]?.id}
       />
     </div>
   )

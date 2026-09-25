@@ -965,12 +965,14 @@ export default function ProfessorBonusesPage() {
         )}
       </div>
 
-      {/* Standardized Scoring Presets Modal (Pure Frontend State) */}
+      {/* Standardized Scoring Presets Modal (Bound to public.station_bonuses) */}
       <FrontendTemplateLibraryModal
         isOpen={isTemplateModalOpen}
         onClose={() => setIsTemplateModalOpen(false)}
         initialType="bonus"
-        title="Clinical Merit Bonus Presets & Templates"
+        title="Station Clinical Merit Bonus Criteria"
+        stations={stationsList}
+        initialStationId={selectedStationId !== 'all' ? selectedStationId : stationsList[0]?.id}
       />
     </div>
   )

@@ -69,10 +69,15 @@ import {
 import { TemplateQuickAssignDrawer } from '@/components/examiner/TemplateQuickAssignDrawer'
 import {
   PenaltyBonusTemplate,
-  getLocalTemplates,
-  saveLocalTemplate,
-  deleteLocalTemplate,
 } from '@/lib/penaltyBonusTemplates'
+import {
+  getStationTemplatesAction,
+  createStationTemplateItemAction,
+  updateStationTemplateItemAction,
+  deleteStationTemplateItemAction,
+} from '@/app/actions/penaltyBonusTemplates'
+import { seedStandardStationCriteriaAction } from '@/app/actions/stationCriteria'
+import { seedStandardStationBonusesAction } from '@/app/actions/stationBonuses'
 
 interface StudentAnswerItem {
   question_id: string
@@ -736,15 +741,39 @@ function ExaminerWorkspaceContent() {
     showSuccess('Merit bonus removed.')
   }
 
-  // Load templates on mount entirely from client storage / constants
+  // Load templates dynamically from Supabase station_criteria & station_bonuses
   useEffect(() => {
-    function loadTemplates() {
-      setTemplates(getLocalTemplates())
+    if (!station?.id) return
+    let isCancelled = false
+
+    async function loadStationTemplates() {
+      try {
+        let res = await getStationTemplatesAction(station!.id)
+        if (isCancelled) return
+
+        // If station has no criteria or bonuses configured yet, auto-seed standard faculty presets into DB
+        if (res.success && res.templates.length === 0) {
+          await Promise.all([
+            seedStandardStationCriteriaAction(station!.id),
+            seedStandardStationBonusesAction(station!.id),
+          ])
+          if (isCancelled) return
+          res = await getStationTemplatesAction(station!.id)
+        }
+
+        if (res.success && !isCancelled) {
+          setTemplates(res.templates)
+        }
+      } catch (err) {
+        console.error('Failed to load station criteria & bonuses:', err)
+      }
     }
-    loadTemplates()
-    window.addEventListener('osce-templates-updated', loadTemplates)
-    return () => window.removeEventListener('osce-templates-updated', loadTemplates)
-  }, [])
+
+    loadStationTemplates()
+    return () => {
+      isCancelled = true
+    }
+  }, [station?.id])
 
   // Quick Apply Template (Click or Drag-and-Drop)
   const handleQuickApplyTemplate = (tpl: PenaltyBonusTemplate, targetStudent?: StudentItem | null) => {
@@ -767,6 +796,7 @@ function ExaminerWorkspaceContent() {
         {
           id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `bonus-${Date.now()}`,
           exam_attempt_id: student.attempt_id || '',
+          criteria_id: tpl.id, // Binds foreign key to station_bonuses(id)
           reason: note,
           points: pts,
         },
@@ -779,6 +809,7 @@ function ExaminerWorkspaceContent() {
         {
           id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `penalty-${Date.now()}`,
           exam_attempt_id: student.attempt_id || '',
+          criteria_id: tpl.id, // Binds foreign key to station_criteria(id)
           reason: note,
           points: pts,
         },
@@ -805,58 +836,74 @@ function ExaminerWorkspaceContent() {
     }
   }
 
-  // Create Template (Stored locally, zero database mutations)
+  // Create Template (Stored in station_criteria or station_bonuses)
   const handleCreateTemplate = async (input: {
     type: 'bonus' | 'penalty'
     title: string
     default_value: number
     default_note: string
   }): Promise<boolean> => {
-    try {
-      saveLocalTemplate(input)
-      setTemplates(getLocalTemplates())
-      showSuccess(`Saved preset: "${input.title}"`)
+    if (!station?.id) {
+      showError('Station not initialized.')
+      return false
+    }
+
+    const res = await createStationTemplateItemAction({
+      station_id: station.id,
+      type: input.type,
+      title: input.title,
+      default_value: input.default_value,
+      default_note: input.default_note,
+    })
+
+    if (res.success && res.template) {
+      setTemplates((prev) => [...prev, res.template!])
+      showSuccess(`Saved ${input.type === 'bonus' ? 'bonus' : 'deduction'} to station criteria.`)
       return true
-    } catch {
-      showError('Failed to save template locally.')
+    } else {
+      showError(res.error || 'Failed to save criteria to database.')
       return false
     }
   }
 
-  // Update Template (Stored locally, zero database mutations)
+  // Update Template (Stored in station_criteria or station_bonuses)
   const handleUpdateTemplate = async (
     id: string,
     input: Partial<PenaltyBonusTemplate>
   ): Promise<boolean> => {
-    try {
-      const existing = templates.find((t) => t.id === id)
-      if (existing) {
-        saveLocalTemplate({
-          id,
-          type: input.type || existing.type,
-          title: input.title !== undefined ? input.title : existing.title,
-          default_value: input.default_value !== undefined ? input.default_value : existing.default_value,
-          default_note: input.default_note !== undefined ? input.default_note : existing.default_note,
-        })
-        setTemplates(getLocalTemplates())
-        showSuccess('Preset template updated.')
-      }
+    const existing = templates.find((t) => t.id === id)
+    if (!existing) return false
+
+    const res = await updateStationTemplateItemAction(id, {
+      type: input.type || existing.type,
+      title: input.title,
+      default_value: input.default_value,
+      default_note: input.default_note,
+      station_id: station?.id,
+    })
+
+    if (res.success && res.template) {
+      setTemplates((prev) => prev.map((t) => (t.id === id ? res.template! : t)))
+      showSuccess('Station criteria updated.')
       return true
-    } catch {
-      showError('Failed to update template.')
+    } else {
+      showError(res.error || 'Failed to update criteria.')
       return false
     }
   }
 
-  // Delete Template (Stored locally, zero database mutations)
+  // Delete Template (Stored in station_criteria or station_bonuses)
   const handleDeleteTemplate = async (id: string): Promise<boolean> => {
-    const success = deleteLocalTemplate(id)
-    if (success) {
-      setTemplates(getLocalTemplates())
-      showSuccess('Template removed.')
+    const existing = templates.find((t) => t.id === id)
+    if (!existing) return false
+
+    const res = await deleteStationTemplateItemAction(id, existing.type)
+    if (res.success) {
+      setTemplates((prev) => prev.filter((t) => t.id !== id))
+      showSuccess('Criteria removed from station.')
       return true
     } else {
-      showError('System default presets cannot be deleted.')
+      showError(res.error || 'Failed to delete criteria.')
       return false
     }
   }

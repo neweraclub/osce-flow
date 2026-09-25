@@ -536,6 +536,67 @@ export function exportStudentTranscriptToPDF(
 
       currentY = (doc as any).lastAutoTable.finalY + 16
     }
+
+    // 5C. CLINICAL MERIT POINTS & BONUSES TABLE (IF ANY)
+    const allBonusRows: any[] = []
+    activeModule.stations.forEach((st) => {
+      (st.bonuses || []).forEach((b) => {
+        const rawPts = Number(b.points) || 0
+        const ptsText = rawPts > 0 ? `+${rawPts.toFixed(1)} pts` : `${rawPts.toFixed(1)} pts`
+        allBonusRows.push([
+          `St. #${st.station_number}`,
+          b.reason,
+          b.matched_criteria_title || b.description || 'Clinical Merit Recognition',
+          ptsText,
+        ])
+      })
+    })
+
+    if (allBonusRows.length > 0) {
+      if (currentY > 660) {
+        doc.addPage()
+        currentY = 40
+      }
+
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(9.5)
+      doc.setTextColor(...emeraldColor)
+      doc.text('Recorded Clinical Merit Points & Bonuses:', leftMargin, currentY)
+      currentY += 8
+
+      runAutoTable({
+        startY: currentY,
+        head: [['Station', 'Merit / Bonus Reason', 'Clinical Protocol / Criteria', 'Bonus Points']],
+        body: allBonusRows,
+        theme: 'striped',
+        headStyles: {
+          fillColor: emeraldColor, // Emerald 600
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 8,
+        },
+        styles: {
+          fontSize: 7.5,
+          cellPadding: 4.5,
+          textColor: [51, 65, 85],
+          lineColor: borderGreyColor,
+          lineWidth: 0.5,
+          overflow: 'linebreak',
+        },
+        alternateRowStyles: {
+          fillColor: emeraldLightColor, // Emerald 50
+        },
+        columnStyles: {
+          0: { cellWidth: 60, fontStyle: 'bold' },
+          1: { cellWidth: 200 },
+          2: { cellWidth: 165 },
+          3: { cellWidth: 98.28, halign: 'right', fontStyle: 'bold', textColor: emeraldColor },
+        },
+        margin: { left: leftMargin, right: leftMargin },
+      })
+
+      currentY = (doc as any).lastAutoTable.finalY + 16
+    }
   }
 
   // =========================================================================
@@ -1277,6 +1338,74 @@ export async function exportStudentTranscriptToExcel(
 
       autoFitWorksheetColumns(wsPenalties, { 1: 14, 2: 32, 3: 42, 4: 32, 5: 20 })
     }
+
+    // Sheet 5: Clinical Bonuses Log (if any bonuses exist)
+    const totalStudentBonuses = activeModule.stations.reduce((sum, st) => sum + (st.bonuses?.length || 0), 0)
+    if (totalStudentBonuses > 0) {
+      const wsBonuses = wb.addWorksheet('Clinical Bonuses', { views: [{ showGridLines: true }] })
+
+      wsBonuses.mergeCells('A1:E1')
+      const banner5 = wsBonuses.getCell('A1')
+      banner5.value = '  NEW ERA ECOS • CLINICAL MERIT POINTS & BONUSES'
+      banner5.font = { name: EXCEL_PALETTE.fontFamily, size: 13, bold: true, color: { argb: EXCEL_PALETTE.colors.white } }
+      banner5.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: EXCEL_PALETTE.colors.navyDark } }
+      banner5.alignment = { vertical: 'middle', horizontal: 'left' }
+      wsBonuses.getRow(1).height = 34
+
+      wsBonuses.mergeCells('A2:E2')
+      wsBonuses.getCell('A2').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: EXCEL_PALETTE.colors.emerald } }
+      wsBonuses.getRow(2).height = 4.5
+      wsBonuses.getRow(3).height = 8
+
+      const bonusHeaders = [
+        { label: 'Station #', alignment: 'center' as const },
+        { label: 'Station Title', alignment: 'left' as const },
+        { label: 'Merit / Bonus Reason', alignment: 'left' as const },
+        { label: 'Clinical Protocol / Criteria', alignment: 'left' as const },
+        { label: 'Bonus Points', alignment: 'right' as const },
+      ]
+      applyHeaderRowStyles(wsBonuses, 4, bonusHeaders)
+
+      let bRowIdx = 5
+      let bCounter = 0
+      activeModule.stations.forEach((st) => {
+        (st.bonuses || []).forEach((b) => {
+          const row = wsBonuses.getRow(bRowIdx)
+          row.height = 24
+          const isEven = bCounter % 2 === 0
+          const rowFill = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: isEven ? EXCEL_PALETTE.colors.white : EXCEL_PALETTE.colors.cardBg } }
+
+          const bCells = [
+            { col: 'A', val: st.station_number, align: 'center' as const, isEmerald: false },
+            { col: 'B', val: st.station_title, align: 'left' as const, isEmerald: false },
+            { col: 'C', val: b.reason, align: 'left' as const, isEmerald: false },
+            { col: 'D', val: b.matched_criteria_title || b.description || 'Clinical Merit Recognition', align: 'left' as const, isEmerald: false },
+            { col: 'E', val: Number(b.points), align: 'right' as const, isEmerald: true },
+          ]
+
+          bCells.forEach(({ col, val, align, isEmerald }) => {
+            const cell = wsBonuses.getCell(`${col}${bRowIdx}`)
+            cell.value = val
+            cell.font = {
+              name: EXCEL_PALETTE.fontFamily,
+              size: 9.5,
+              bold: isEmerald,
+              color: { argb: isEmerald ? EXCEL_PALETTE.colors.emeraldText : EXCEL_PALETTE.colors.textBody },
+            }
+            cell.fill = isEmerald
+              ? { type: 'pattern', pattern: 'solid', fgColor: { argb: EXCEL_PALETTE.colors.emeraldLight } }
+              : rowFill
+            cell.border = thinCellBorder
+            cell.alignment = { vertical: 'middle', horizontal: align }
+          })
+
+          bCounter++
+          bRowIdx++
+        })
+      })
+
+      autoFitWorksheetColumns(wsBonuses, { 1: 14, 2: 32, 3: 42, 4: 32, 5: 20 })
+    }
   }
 
   // Save Workbook
@@ -1889,6 +2018,62 @@ export function exportBulkStudentsToPDF(
           margin: { left: leftMargin, right: leftMargin },
         })
       }
+
+      // Clinical Bonuses & Merit Points
+      const allBonusRows: any[] = []
+      activeModule.stations.forEach((st) => {
+        (st.bonuses || []).forEach((b) => {
+          allBonusRows.push([
+            `St. #${st.station_number}`,
+            b.reason,
+            b.matched_criteria_title || b.description || 'Clinical Merit Recognition',
+            `+${Number(b.points).toFixed(1)} pts`,
+          ])
+        })
+      })
+
+      if (allBonusRows.length > 0) {
+        if (currentY > 660) {
+          doc.addPage()
+          currentY = 40
+        }
+
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(9)
+        doc.setTextColor(...emeraldColor)
+        doc.text('Recorded Clinical Merit Points & Bonuses:', leftMargin, currentY)
+        currentY += 8
+
+        runAutoTable({
+          startY: currentY,
+          head: [['Station', 'Merit / Bonus Reason', 'Clinical Protocol / Criteria', 'Bonus Points']],
+          body: allBonusRows,
+          theme: 'striped',
+          headStyles: {
+            fillColor: emeraldColor,
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            fontSize: 8,
+          },
+          styles: {
+            fontSize: 7.5,
+            cellPadding: 3.5,
+            textColor: [51, 65, 85],
+            lineColor: borderGreyColor,
+            lineWidth: 0.5,
+          },
+          alternateRowStyles: {
+            fillColor: emeraldLightColor,
+          },
+          columnStyles: {
+            0: { cellWidth: 55, fontStyle: 'bold' },
+            1: { cellWidth: 235 },
+            2: { cellWidth: 150 },
+            3: { cellWidth: 83, halign: 'right', fontStyle: 'bold', textColor: emeraldColor },
+          },
+          margin: { left: leftMargin, right: leftMargin },
+        })
+      }
     })
   }
 
@@ -2400,6 +2585,91 @@ export async function exportBulkStudentsToExcel(
       })
 
       autoFitWorksheetColumns(wsBulkPenalties, { 1: 18, 2: 28, 3: 12, 4: 30, 5: 42, 6: 30, 7: 20 })
+    }
+
+    // Sheet 5: Cohort Clinical Bonuses
+    let totalBulkBonuses = 0
+    transcripts.forEach((t) => {
+      t.modules.forEach((mod) => {
+        mod.stations.forEach((st) => {
+          totalBulkBonuses += (st.bonuses?.length || 0)
+        })
+      })
+    })
+
+    if (totalBulkBonuses > 0) {
+      const wsBulkBonuses = wb.addWorksheet('Clinical Bonuses', { views: [{ showGridLines: true }] })
+
+      wsBulkBonuses.mergeCells('A1:G1')
+      const b5 = wsBulkBonuses.getCell('A1')
+      b5.value = '  NEW ERA ECOS • COHORT CLINICAL MERIT POINTS & BONUSES'
+      b5.font = { name: EXCEL_PALETTE.fontFamily, size: 13, bold: true, color: { argb: EXCEL_PALETTE.colors.white } }
+      b5.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: EXCEL_PALETTE.colors.navyDark } }
+      b5.alignment = { vertical: 'middle', horizontal: 'left' }
+      wsBulkBonuses.getRow(1).height = 34
+
+      wsBulkBonuses.mergeCells('A2:G2')
+      wsBulkBonuses.getCell('A2').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: EXCEL_PALETTE.colors.emerald } }
+      wsBulkBonuses.getRow(2).height = 4.5
+      wsBulkBonuses.getRow(3).height = 8
+
+      const bulkBonusHeaders = [
+        { label: 'Matricule', alignment: 'center' as const },
+        { label: 'Candidate Name', alignment: 'left' as const },
+        { label: 'Station #', alignment: 'center' as const },
+        { label: 'Station Title', alignment: 'left' as const },
+        { label: 'Merit / Bonus Reason', alignment: 'left' as const },
+        { label: 'Clinical Protocol / Criteria', alignment: 'left' as const },
+        { label: 'Bonus Points', alignment: 'right' as const },
+      ]
+      applyHeaderRowStyles(wsBulkBonuses, 4, bulkBonusHeaders)
+
+      let bbRow = 5
+      let bbIdx = 0
+      transcripts.forEach((t) => {
+        const studentName = t.student.full_name || `${t.student.first_name} ${t.student.last_name}`
+        t.modules.forEach((mod) => {
+          mod.stations.forEach((st) => {
+            (st.bonuses || []).forEach((b) => {
+              const row = wsBulkBonuses.getRow(bbRow)
+              row.height = 24
+              const isEven = bbIdx % 2 === 0
+              const rowFill = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: isEven ? EXCEL_PALETTE.colors.white : EXCEL_PALETTE.colors.cardBg } }
+
+              const bbCells = [
+                { col: 'A', val: t.student.matricule, align: 'center' as const, isEmerald: false },
+                { col: 'B', val: studentName, align: 'left' as const, isEmerald: false },
+                { col: 'C', val: st.station_number, align: 'center' as const, isEmerald: false },
+                { col: 'D', val: st.station_title, align: 'left' as const, isEmerald: false },
+                { col: 'E', val: b.reason, align: 'left' as const, isEmerald: false },
+                { col: 'F', val: b.matched_criteria_title || b.description || 'Clinical Merit Recognition', align: 'left' as const, isEmerald: false },
+                { col: 'G', val: Number(b.points), align: 'right' as const, isEmerald: true },
+              ]
+
+              bbCells.forEach(({ col, val, align, isEmerald }) => {
+                const cell = wsBulkBonuses.getCell(`${col}${bbRow}`)
+                cell.value = val
+                cell.font = {
+                  name: EXCEL_PALETTE.fontFamily,
+                  size: 9.5,
+                  bold: isEmerald,
+                  color: { argb: isEmerald ? EXCEL_PALETTE.colors.emeraldText : EXCEL_PALETTE.colors.textBody },
+                }
+                cell.fill = isEmerald
+                  ? { type: 'pattern', pattern: 'solid', fgColor: { argb: EXCEL_PALETTE.colors.emeraldLight } }
+                  : rowFill
+                cell.border = thinCellBorder
+                cell.alignment = { vertical: 'middle', horizontal: align }
+              })
+
+              bbIdx++
+              bbRow++
+            })
+          })
+        })
+      })
+
+      autoFitWorksheetColumns(wsBulkBonuses, { 1: 18, 2: 28, 3: 12, 4: 30, 5: 42, 6: 30, 7: 20 })
     }
   }
 

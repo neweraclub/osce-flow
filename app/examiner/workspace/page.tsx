@@ -1919,7 +1919,7 @@ function ExaminerWorkspaceContent() {
                         </div>
                       </div>
 
-                      {/* Live Score Counter & Penalties Badge */}
+                      {/* Live Score Counter & Modifiers (Penalties & Bonuses Badges) */}
                       <div className="flex items-center gap-2.5 self-end sm:self-auto flex-wrap justify-end">
                         {/* Dedicated Red Penalty Badge */}
                         <div
@@ -1938,7 +1938,7 @@ function ExaminerWorkspaceContent() {
                           />
                           <div className="text-right">
                             <span className="text-[9px] uppercase tracking-wider font-bold block leading-tight">
-                              Penalties
+                              Penalties {candidatePenalties.length > 0 ? `(${candidatePenalties.length})` : ''}
                             </span>
                             <span
                               className={`text-sm font-black font-mono ${
@@ -1948,6 +1948,37 @@ function ExaminerWorkspaceContent() {
                               }`}
                             >
                               {totalDeductions < 0 ? `${totalDeductions.toFixed(1)} pts` : '0.0 pts'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Dedicated Green Bonus Badge */}
+                        <div
+                          className={`flex items-center gap-2 px-3 py-2 rounded-2xl border transition-all ${
+                            totalBonuses > 0
+                              ? 'bg-emerald-50 dark:bg-emerald-950/70 border-emerald-300 dark:border-emerald-800/80 text-emerald-700 dark:text-emerald-300 shadow-sm shadow-emerald-500/10 ring-1 ring-emerald-400/30'
+                              : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200/70 dark:border-slate-700/60 text-slate-400'
+                          }`}
+                        >
+                          <Sparkles
+                            className={`size-4 shrink-0 ${
+                              totalBonuses > 0
+                                ? 'text-emerald-600 dark:text-emerald-400 animate-pulse'
+                                : 'text-slate-400'
+                            }`}
+                          />
+                          <div className="text-right">
+                            <span className="text-[9px] uppercase tracking-wider font-bold block leading-tight">
+                              Bonuses {candidateBonuses.length > 0 ? `(${candidateBonuses.length})` : ''}
+                            </span>
+                            <span
+                              className={`text-sm font-black font-mono ${
+                                totalBonuses > 0
+                                  ? 'text-emerald-600 dark:text-emerald-400'
+                                  : 'text-slate-400'
+                              }`}
+                            >
+                              {totalBonuses > 0 ? `+${totalBonuses.toFixed(1)} pts` : '+0.0 pts'}
                             </span>
                           </div>
                         </div>

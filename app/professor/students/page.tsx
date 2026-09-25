@@ -1277,6 +1277,7 @@ function ProfessorStudentsContent() {
                   {activeTranscriptModule.stations.map((st: EvaluatedStationBreakdown) => {
                     const isExpanded = !!expandedStations[st.station_id]
                     const hasPenalties = st.penalties && st.penalties.length > 0
+                    const hasBonuses = st.bonuses && st.bonuses.length > 0
 
                     return (
                       <div
@@ -1306,6 +1307,11 @@ function ProfessorStudentsContent() {
                                 {st.deductions_points < 0 && (
                                   <span className="text-rose-500 font-semibold ml-1.5">
                                     (Deductions: {st.deductions_points.toFixed(2)} pts)
+                                  </span>
+                                )}
+                                {st.bonuses_points > 0 && (
+                                  <span className="text-emerald-500 font-semibold ml-1.5">
+                                    (Bonuses: +{st.bonuses_points.toFixed(2)} pts)
                                   </span>
                                 )}
                               </p>
@@ -1431,6 +1437,39 @@ function ProfessorStudentsContent() {
                                       </div>
                                       <span className="font-mono text-xs font-black text-rose-600 dark:text-rose-400 shrink-0">
                                         {pen.points > 0 ? `-${pen.points.toFixed(1)}` : pen.points.toFixed(1)} pts
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Clinical Bonuses Awarded Section */}
+                            {hasBonuses && (
+                              <div className="space-y-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/60">
+                                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                                  <Sparkles className="size-3.5 text-emerald-500" />
+                                  <span>Clinical Bonuses Awarded ({st.bonuses.length})</span>
+                                </span>
+
+                                <div className="space-y-1.5">
+                                  {st.bonuses.map((bon: any, bIdx: number) => (
+                                    <div
+                                      key={bon.id || bIdx}
+                                      className="p-3 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/40 flex items-center justify-between gap-3"
+                                    >
+                                      <div className="space-y-0.5">
+                                        <p className="text-xs font-semibold text-emerald-900 dark:text-emerald-200">
+                                          {bon.reason}
+                                        </p>
+                                        {(bon.matched_criteria_title || bon.description) && (
+                                          <p className="text-[10px] text-emerald-600 dark:text-emerald-400">
+                                            Criteria: {bon.matched_criteria_title || bon.description}
+                                          </p>
+                                        )}
+                                      </div>
+                                      <span className="font-mono text-xs font-black text-emerald-600 dark:text-emerald-400 shrink-0">
+                                        +{Math.abs(Number(bon.points)).toFixed(1)} pts
                                       </span>
                                     </div>
                                   ))}

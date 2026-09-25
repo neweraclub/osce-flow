@@ -13,7 +13,7 @@ export interface DatePickerProps {
   error?: string
   className?: string
   format?: 'MMM DD, YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD'
-  variant?: 'emerald' | 'sky' | 'blue'
+  variant?: 'emerald' | 'sky' | 'blue' | 'indigo'
   required?: boolean
 }
 
@@ -159,7 +159,14 @@ export function DatePicker({
 
   // Active theme classes based on variant
   const activeClasses =
-    variant === 'emerald'
+    variant === 'indigo'
+      ? {
+          focusRing: 'focus:ring-2 focus:ring-indigo-500/20 border-indigo-500',
+          selectedDay: 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25 hover:bg-indigo-700',
+          iconColor: 'text-indigo-600 dark:text-indigo-400',
+          todayBadge: 'border-indigo-500/40 text-indigo-600 dark:text-indigo-400 font-bold',
+        }
+      : variant === 'emerald'
       ? {
           focusRing: 'focus:ring-2 focus:ring-emerald-500/20 border-emerald-500',
           selectedDay: 'bg-emerald-600 text-white shadow-md shadow-emerald-500/25 hover:bg-emerald-700',
@@ -179,7 +186,18 @@ export function DatePicker({
     <div className={`relative w-full ${className}`} ref={containerRef} onKeyDown={handleKeyDown}>
       {label && (
         <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-          {label} {required && <span className="text-emerald-600 dark:text-emerald-400">*</span>}
+          {label}{' '}
+          {required && (
+            <span
+              className={
+                variant === 'indigo'
+                  ? 'text-indigo-600 dark:text-indigo-400'
+                  : 'text-emerald-600 dark:text-emerald-400'
+              }
+            >
+              *
+            </span>
+          )}
         </label>
       )}
 

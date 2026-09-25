@@ -592,7 +592,7 @@ function DeanStationsContent() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
-            <div className="flex size-9 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-md shadow-emerald-500/20">
+            <div className="flex size-9 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-md shadow-indigo-500/20">
               <Layers className="size-5" />
             </div>
             <span>Clinical Stations Management</span>
@@ -605,21 +605,21 @@ function DeanStationsContent() {
         <button
           onClick={() => fetchData(selectedYearId, true)}
           disabled={refreshing || loading}
-          className="flex items-center justify-center gap-2 px-4 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-xs disabled:opacity-50 self-start sm:self-auto cursor-pointer"
+          className="flex items-center justify-center gap-2 px-4 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#161B2A] text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-xs disabled:opacity-50 self-start sm:self-auto cursor-pointer"
         >
-          <RefreshCw className={`size-3.5 ${refreshing ? 'animate-spin text-emerald-500' : ''}`} />
+          <RefreshCw className={`size-3.5 ${refreshing ? 'animate-spin text-indigo-600 dark:text-indigo-400' : ''}`} />
           <span>Refresh</span>
         </button>
       </div>
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center p-16 rounded-3xl bg-white/50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800">
-          <Loader2 className="size-8 text-emerald-500 animate-spin mb-3" />
+        <div className="flex flex-col items-center justify-center p-16 rounded-3xl bg-white/50 dark:bg-[#161B2A]/50 border border-slate-200/80 dark:border-white/[0.08]">
+          <Loader2 className="size-8 text-indigo-600 dark:text-indigo-400 animate-spin mb-3" />
           <p className="text-xs font-bold text-slate-500">Loading module sessions and clinical stations...</p>
         </div>
       ) : modules.length === 0 ? (
         /* No Modules in Academic Year */
-        <div className="p-12 rounded-3xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 text-center space-y-3">
+        <div className="p-12 rounded-3xl bg-white/70 dark:bg-[#161B2A]/70 border border-slate-200/80 dark:border-white/[0.08] text-center space-y-3">
           <GraduationCap className="size-10 text-slate-400 mx-auto" />
           <h3 className="text-base font-bold text-slate-900 dark:text-white">No Clinical Modules Found</h3>
           <p className="text-xs text-slate-400 max-w-md mx-auto">
@@ -633,8 +633,8 @@ function DeanStationsContent() {
           {/* ========================================================================= */}
           <section className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-emerald-500/70 flex items-center gap-1.5">
-                <BookOpen className="size-3.5 text-emerald-500" />
+              <span className="text-xs font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+                <BookOpen className="size-3.5 text-indigo-600 dark:text-indigo-400" />
                 <span>Step 1: Select Curriculum Module</span>
               </span>
               <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">
@@ -648,9 +648,9 @@ function DeanStationsContent() {
                 <button
                   type="button"
                   onClick={() => setSelectedLevelId('ALL')}
-                  className={`px-3 py-1 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
                     selectedLevelId === 'ALL'
-                      ? 'bg-emerald-600 text-white shadow-xs'
+                      ? 'bg-indigo-600 text-white shadow-xs'
                       : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
@@ -663,9 +663,9 @@ function DeanStationsContent() {
                       key={lvl.id}
                       type="button"
                       onClick={() => setSelectedLevelId(lvl.id)}
-                      className={`px-3 py-1 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
                         selectedLevelId === lvl.id
-                          ? 'bg-emerald-600 text-white shadow-xs'
+                          ? 'bg-indigo-600 text-white shadow-xs'
                           : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
@@ -677,7 +677,7 @@ function DeanStationsContent() {
             )}
 
             {/* Scrollable horizontal segmented control pill bar */}
-            <div className="flex items-center gap-2 overflow-x-auto p-1.5 rounded-2xl bg-slate-100/80 dark:bg-[#0B1612] border border-slate-200/80 dark:border-emerald-500/15 scrollbar-none">
+            <div className="flex items-center gap-2 overflow-x-auto p-1.5 rounded-2xl bg-slate-100/80 dark:bg-[#111625] border border-slate-200/80 dark:border-white/[0.08] scrollbar-none">
               {filteredModules.map((mod) => {
                 const isSelected = mod.id === selectedModuleId
                 const modStationsCount = stations.filter((s) => s.module_id === mod.id).length
@@ -693,27 +693,27 @@ function DeanStationsContent() {
                     }}
                     className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-left transition-all shrink-0 cursor-pointer ${
                       isSelected
-                        ? 'bg-emerald-800 text-white dark:bg-[#0E281F] dark:text-emerald-100 border border-emerald-600/50 shadow-sm ring-1 ring-emerald-500/30 font-bold'
-                        : 'bg-white/60 dark:bg-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white dark:hover:bg-[#12221C] border border-transparent font-medium'
+                        ? 'bg-indigo-600 text-white shadow-sm ring-1 ring-indigo-500/30 font-bold dark:bg-indigo-900/60 dark:text-indigo-100 dark:border-indigo-500/40'
+                        : 'bg-white/60 dark:bg-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white dark:hover:bg-[#161B2A] border border-transparent font-medium'
                     }`}
                   >
                     <div
                       className={`size-6 rounded-lg flex items-center justify-center shrink-0 ${
                         isSelected
-                          ? 'bg-emerald-600/40 text-lime-300'
-                          : 'bg-slate-100 dark:bg-emerald-950/60 text-slate-500 dark:text-emerald-400'
+                          ? 'bg-white/20 text-white'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                       }`}
                     >
                       <FallbackIcon className="size-3.5" />
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs leading-none line-clamp-1">{mod.module_name}</span>
-                      {/* Lime badge counter showing total stations */}
+                      {/* Counter badge showing total stations */}
                       <span
                         className={`text-[10px] font-mono font-black px-1.5 py-0.5 rounded-md leading-none ${
                           isSelected
-                            ? 'bg-lime-400 text-emerald-950 shadow-xs'
-                            : 'bg-slate-200 dark:bg-emerald-950/80 text-slate-600 dark:text-emerald-300'
+                            ? 'bg-white/20 text-white'
+                            : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                         }`}
                         title={`${modStationsCount} stations`}
                       >
@@ -730,10 +730,10 @@ function DeanStationsContent() {
           {/* STEP 2: SESSION SELECTION LEVEL (Segmented Slider Mode Switcher)           */}
           {/* ========================================================================= */}
           <section className="space-y-3 pt-2">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200/80 dark:border-emerald-500/15">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200/80 dark:border-white/[0.08]">
               <div>
-                <span className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-emerald-500/70 flex items-center gap-1.5">
-                  <Calendar className="size-3.5 text-emerald-500" />
+                <span className="text-xs font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+                  <Calendar className="size-3.5 text-indigo-600 dark:text-indigo-400" />
                   <span>Step 2: Choose Exam Session ({currentModuleExams.length}/2)</span>
                 </span>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -745,7 +745,7 @@ function DeanStationsContent() {
                 <button
                   type="button"
                   onClick={handleOpenCreateSession}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition-all self-start sm:self-auto active:scale-95 cursor-pointer"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/20 transition-all self-start sm:self-auto active:scale-95 cursor-pointer"
                 >
                   <Plus className="size-4" />
                   <span>+ Create Exam Session</span>
@@ -755,8 +755,8 @@ function DeanStationsContent() {
 
             {/* Segmented Slider Session Switcher */}
             {currentModuleExams.length === 0 ? (
-              <div className="p-8 rounded-2xl bg-white dark:bg-[#0B1612] border border-dashed border-slate-200 dark:border-emerald-500/20 text-center space-y-3">
-                <div className="size-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
+              <div className="p-8 rounded-2xl bg-white dark:bg-[#111625] border border-dashed border-slate-200 dark:border-indigo-500/20 text-center space-y-3">
+                <div className="size-12 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto">
                   <Calendar className="size-6" />
                 </div>
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">
@@ -767,7 +767,7 @@ function DeanStationsContent() {
                 </p>
                 <button
                   onClick={handleOpenCreateSession}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-sm hover:bg-emerald-700 transition-all cursor-pointer"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold shadow-sm hover:bg-indigo-700 transition-all cursor-pointer"
                 >
                   <Plus className="size-4" />
                   <span>Create First Exam Session</span>
@@ -791,13 +791,13 @@ function DeanStationsContent() {
                           setSessionType('regular')
                           setIsCreateSessionOpen(true)
                         }}
-                        className="p-4 rounded-xl border border-dashed border-slate-200 dark:border-emerald-500/25 bg-slate-50/50 dark:bg-[#0B1612]/50 hover:bg-emerald-50/50 dark:hover:bg-[#12221C] text-left transition-all group cursor-pointer"
+                        className="p-4 rounded-xl border border-dashed border-slate-200 dark:border-indigo-500/25 bg-slate-50/50 dark:bg-[#111625]/50 hover:bg-indigo-50/50 dark:hover:bg-[#161B2A] text-left transition-all group cursor-pointer"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-slate-600 dark:text-slate-400 group-hover:text-emerald-500">
+                          <span className="text-xs font-bold text-slate-600 dark:text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
                             Session Normale
                           </span>
-                          <span className="text-[10px] text-emerald-600 dark:text-lime-400 font-bold flex items-center gap-1">
+                          <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-1">
                             <Plus className="size-3" /> Schedule
                           </span>
                         </div>
@@ -817,14 +817,14 @@ function DeanStationsContent() {
                       onClick={() => setActiveExamId(regEx.id)}
                       className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                         isActive
-                          ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-500/40 border-emerald-500'
-                          : 'bg-white dark:bg-[#0B1612] border-slate-200/80 dark:border-emerald-500/20 text-slate-700 dark:text-slate-300 hover:border-emerald-500/40'
+                          ? 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-500/40 border-indigo-500'
+                          : 'bg-white dark:bg-[#111625] border-slate-200/80 dark:border-white/[0.08] text-slate-700 dark:text-slate-300 hover:border-indigo-500/40'
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div
                           className={`size-9 rounded-xl flex items-center justify-center shrink-0 ${
-                            isActive ? 'bg-white/15 text-white' : 'bg-emerald-500/10 text-emerald-500'
+                            isActive ? 'bg-white/15 text-white' : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
                           }`}
                         >
                           <Calendar className="size-4" />
@@ -833,12 +833,12 @@ function DeanStationsContent() {
                           <div className="flex items-center gap-1.5">
                             <span className="text-xs font-bold truncate">Session Normale</span>
                             {isActive && (
-                              <span className="size-2 rounded-full bg-lime-400 animate-pulse shrink-0" />
+                              <span className="size-2 rounded-full bg-white animate-pulse shrink-0" />
                             )}
                           </div>
                           <p
                             className={`text-[11px] font-mono mt-0.5 truncate ${
-                              isActive ? 'text-emerald-100' : 'text-slate-400'
+                              isActive ? 'text-indigo-100' : 'text-slate-400'
                             }`}
                           >
                             {formattedDate} • {regStations} station{regStations !== 1 ? 's' : ''}
@@ -855,7 +855,7 @@ function DeanStationsContent() {
                         title="Delete Regular Session"
                         className={`p-1.5 rounded-lg transition-colors shrink-0 ${
                           isActive
-                            ? 'text-emerald-200 hover:text-white hover:bg-white/10'
+                            ? 'text-indigo-200 hover:text-white hover:bg-white/10'
                             : 'text-slate-400 hover:text-rose-500 hover:bg-rose-500/10'
                         }`}
                       >
@@ -882,13 +882,13 @@ function DeanStationsContent() {
                           setSessionType('retake')
                           setIsCreateSessionOpen(true)
                         }}
-                        className="p-4 rounded-xl border border-dashed border-slate-200 dark:border-emerald-500/25 bg-slate-50/50 dark:bg-[#0B1612]/50 hover:bg-amber-50/50 dark:hover:bg-[#12221C] text-left transition-all group cursor-pointer"
+                        className="p-4 rounded-xl border border-dashed border-slate-200 dark:border-purple-500/25 bg-slate-50/50 dark:bg-[#111625]/50 hover:bg-purple-50/50 dark:hover:bg-[#161B2A] text-left transition-all group cursor-pointer"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-slate-600 dark:text-slate-400 group-hover:text-amber-500">
+                          <span className="text-xs font-bold text-slate-600 dark:text-slate-400 group-hover:text-purple-500">
                             Session Rattrapage
                           </span>
-                          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1">
+                          <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold flex items-center gap-1">
                             <Plus className="size-3" /> Schedule
                           </span>
                         </div>
@@ -908,14 +908,14 @@ function DeanStationsContent() {
                       onClick={() => setActiveExamId(retEx.id)}
                       className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                         isActive
-                          ? 'border-2 border-amber-500 ring-2 ring-amber-500/30 bg-amber-500/15 text-amber-300 shadow-md'
-                          : 'bg-white dark:bg-[#0B1612] border-slate-200/80 dark:border-emerald-500/20 text-slate-700 dark:text-slate-300 hover:border-amber-500/40'
+                          ? 'border-2 border-purple-500 ring-2 ring-purple-500/30 bg-purple-600 text-white shadow-md'
+                          : 'bg-white dark:bg-[#111625] border-slate-200/80 dark:border-white/[0.08] text-slate-700 dark:text-slate-300 hover:border-purple-500/40'
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div
                           className={`size-9 rounded-xl flex items-center justify-center shrink-0 ${
-                            isActive ? 'bg-amber-500/30 text-amber-300' : 'bg-amber-500/10 text-amber-500'
+                            isActive ? 'bg-white/15 text-white' : 'bg-purple-500/10 text-purple-500'
                           }`}
                         >
                           <Layers className="size-4" />
@@ -924,10 +924,10 @@ function DeanStationsContent() {
                           <div className="flex items-center gap-1.5">
                             <span className="text-xs font-bold truncate">Session Rattrapage</span>
                             {isActive && (
-                              <span className="size-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                              <span className="size-2 rounded-full bg-white animate-pulse shrink-0" />
                             )}
                           </div>
-                          <p className="text-[11px] font-mono mt-0.5 text-slate-400 truncate">
+                          <p className="text-[11px] font-mono mt-0.5 truncate text-purple-100">
                             {formattedDate} • {retStations} station{retStations !== 1 ? 's' : ''}
                           </p>
                         </div>
@@ -957,8 +957,8 @@ function DeanStationsContent() {
           {activeExam && (
             <section className="space-y-4 pt-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-emerald-500/70 flex items-center gap-1.5">
-                  <ClipboardCheck className="size-3.5 text-emerald-500" />
+                <span className="text-xs font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+                  <ClipboardCheck className="size-3.5 text-indigo-600 dark:text-indigo-400" />
                   <span>
                     Step 3: Stations for{' '}
                     {String(activeExam.session_type || '').toLowerCase() === 'retake'
@@ -974,10 +974,10 @@ function DeanStationsContent() {
               </div>
 
               {/* Curriculum Modules Weightage Allocation Progress Bar Card towards 100% */}
-              <div className="p-5 sm:p-6 rounded-xl bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 shadow-sm space-y-3 relative overflow-hidden">
+              <div className="p-5 sm:p-6 rounded-xl bg-white dark:bg-[#161B2A] border border-slate-200/80 dark:border-white/[0.08] shadow-sm space-y-3 relative overflow-hidden">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 relative">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500 shrink-0 ring-1 ring-emerald-500/20">
+                    <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 shrink-0 ring-1 ring-indigo-500/20">
                       <Layers className="size-4" />
                     </div>
                     <div>
@@ -997,12 +997,12 @@ function DeanStationsContent() {
                   <span
                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border self-start sm:self-auto transition-colors ${
                       isFullyAllocated
-                        ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                        ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
                         : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30'
                     }`}
                   >
                     {isFullyAllocated ? (
-                      <CheckCircle2 className="size-3.5 text-emerald-500" />
+                      <CheckCircle2 className="size-3.5 text-indigo-600 dark:text-indigo-400" />
                     ) : (
                       <AlertCircle className="size-3.5 text-amber-500" />
                     )}
@@ -1015,11 +1015,11 @@ function DeanStationsContent() {
 
                 {/* Animated Progress Bar with percentage labels */}
                 <div className="space-y-1.5">
-                  <div className="h-2.5 w-full bg-slate-100 dark:bg-[#0B1612] rounded-full overflow-hidden">
+                  <div className="h-2.5 w-full bg-slate-100 dark:bg-[#101422] rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-700 ease-out relative ${
                         isFullyAllocated
-                          ? 'bg-gradient-to-r from-emerald-500 to-lime-400'
+                          ? 'bg-gradient-to-r from-indigo-500 via-indigo-600 to-purple-600'
                           : 'bg-gradient-to-r from-amber-500 to-orange-400'
                       }`}
                       style={{ width: `${Math.min(100, totalSessionWeightage)}%` }}
@@ -1044,14 +1044,14 @@ function DeanStationsContent() {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Search stations by number, title, or PIN..."
-                    className="w-full pl-10 pr-4 py-2 rounded-xl text-xs bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/40 focus:border-emerald-500 transition-all shadow-xs"
+                    className="w-full pl-10 pr-4 py-2 rounded-xl text-xs bg-white dark:bg-[#161B2A] border border-slate-200/80 dark:border-white/[0.08] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all shadow-xs"
                   />
                 </div>
 
                 <button
                   type="button"
                   onClick={handleOpenCreateStation}
-                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/25 transition-all active:scale-[0.98] cursor-pointer"
+                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/20 transition-all active:scale-[0.98] cursor-pointer"
                 >
                   <Plus className="size-4" />
                   <span>+ Create Clinical Station</span>
@@ -1060,7 +1060,7 @@ function DeanStationsContent() {
 
               {/* Stations Grid */}
               {displayedStations.length === 0 ? (
-                <div className="p-10 rounded-2xl bg-white dark:bg-[#0B1612] border border-dashed border-slate-200 dark:border-emerald-500/20 text-center space-y-3">
+                <div className="p-10 rounded-2xl bg-white dark:bg-[#111625] border border-dashed border-slate-200 dark:border-indigo-500/20 text-center space-y-3">
                   <ClipboardCheck className="size-8 text-slate-400 mx-auto" />
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                     No Clinical Stations Added Yet
@@ -1074,7 +1074,7 @@ function DeanStationsContent() {
                   </p>
                   <button
                     onClick={handleOpenCreateStation}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-sm hover:bg-emerald-700 transition-all cursor-pointer"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold shadow-sm hover:bg-indigo-700 transition-all cursor-pointer"
                   >
                     <Plus className="size-4" />
                     <span>Create Station #1</span>
@@ -1090,14 +1090,14 @@ function DeanStationsContent() {
                     return (
                       <div
                         key={st.id}
-                        className="p-5 rounded-xl bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 shadow-sm space-y-4 flex flex-col justify-between hover:shadow-lg hover:border-emerald-500/40 dark:hover:border-emerald-500/40 hover:ring-1 hover:ring-emerald-500/30 transition-all group"
+                        className="p-5 rounded-xl bg-white dark:bg-[#161B2A] border border-slate-200/80 dark:border-white/[0.08] shadow-sm space-y-4 flex flex-col justify-between hover:shadow-lg hover:border-indigo-500/40 dark:hover:border-indigo-500/40 hover:ring-1 hover:ring-indigo-500/30 transition-all group"
                       >
                         <div className="space-y-3.5">
                           {/* Station Header Pill & Big Monospace Number */}
                           <div className="flex items-start justify-between gap-2">
                             <div className="space-y-1 min-w-0 flex-1">
                               <div className="flex items-center gap-2">
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[11px] font-bold">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-[11px] font-bold">
                                   <ClipboardCheck className="size-3" />
                                   <span>Station</span>
                                 </span>
@@ -1122,7 +1122,7 @@ function DeanStationsContent() {
                                 </button>
                               </div>
 
-                              <h3 className="text-base font-bold text-slate-900 dark:text-white leading-snug group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors line-clamp-2">
+                              <h3 className="text-base font-bold text-slate-900 dark:text-white leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-2">
                                 {st.title}
                               </h3>
                               <p className="text-xs text-slate-400 truncate">
@@ -1131,22 +1131,22 @@ function DeanStationsContent() {
                             </div>
 
                             {/* Big Station Number Indicator stamped in bold monospace */}
-                            <span className="font-mono text-2xl sm:text-3xl font-black text-emerald-600/80 dark:text-lime-400/90 tracking-tight shrink-0">
+                            <span className="font-mono text-2xl sm:text-3xl font-black text-indigo-600 dark:text-indigo-400 tracking-tight shrink-0">
                               #{String(st.station_number).padStart(2, '0')}
                             </span>
                           </div>
 
                           {/* Weightage Gauge: Visual horizontal percentage bar depicting the station's weight */}
-                          <div className="p-3 rounded-lg bg-slate-50 dark:bg-[#0B1612] border border-slate-200/60 dark:border-emerald-500/15 space-y-1.5">
+                          <div className="p-3 rounded-lg bg-slate-50 dark:bg-[#101422] border border-slate-200/60 dark:border-white/[0.06] space-y-1.5">
                             <div className="flex items-center justify-between text-xs font-semibold">
                               <span className="text-slate-500 dark:text-slate-400">Weightage Gauge</span>
-                              <span className="font-mono font-bold text-emerald-600 dark:text-lime-400 tabular-nums">
+                              <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400 tabular-nums">
                                 {Number(st.weightage_percentage || 0).toFixed(1)}%
                               </span>
                             </div>
-                            <div className="h-2 w-full bg-slate-200 dark:bg-emerald-950/60 rounded-full overflow-hidden">
+                            <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                               <div
-                                className="h-full bg-gradient-to-r from-emerald-500 to-lime-400 rounded-full transition-all duration-500"
+                                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500"
                                 style={{
                                   width: `${Math.min(
                                     100,
@@ -1158,13 +1158,13 @@ function DeanStationsContent() {
                           </div>
 
                           {/* Live Scoring PIN Card with 1-click clipboard toggle */}
-                          <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-[#0B1612] border border-slate-200/60 dark:border-emerald-500/15 flex items-center justify-between gap-2">
+                          <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-[#101422] border border-slate-200/60 dark:border-white/[0.06] flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 min-w-0">
                               <Key className="size-3.5 text-amber-500 shrink-0" />
                               <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
                                 Tablet PIN:
                               </span>
-                              <span className="font-mono text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-500/20 tracking-widest">
+                              <span className="font-mono text-xs font-black text-indigo-600 dark:text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20 tracking-widest">
                                 {isPinRevealed ? st.access_pin : '••••••'}
                               </span>
                             </div>
@@ -1181,11 +1181,11 @@ function DeanStationsContent() {
                               <button
                                 type="button"
                                 onClick={(e) => handleCopyPin(e, st.id, st.access_pin)}
-                                className="p-1 rounded text-slate-400 hover:text-emerald-600 transition-colors relative cursor-pointer"
+                                className="p-1 rounded text-slate-400 hover:text-indigo-600 transition-colors relative cursor-pointer"
                                 aria-label="Copy Access PIN"
                               >
                                 {isCopied ? (
-                                  <Check className="size-3.5 text-lime-400" />
+                                  <Check className="size-3.5 text-indigo-600 dark:text-indigo-400" />
                                 ) : (
                                   <Copy className="size-3.5" />
                                 )}
@@ -1195,7 +1195,7 @@ function DeanStationsContent() {
                         </div>
 
                         {/* Card Footer: Clean Edit & Delete Actions (No Checklist Editor or Live Monitor) */}
-                        <div className="pt-3 border-t border-slate-100 dark:border-emerald-500/15 flex items-center justify-between text-xs text-slate-400">
+                        <div className="pt-3 border-t border-slate-100 dark:border-white/[0.06] flex items-center justify-between text-xs text-slate-400">
                           <span className="text-[11px] font-mono">
                             {typeof st.question_count === 'number'
                               ? `${st.question_count} Criteria Items`
@@ -1205,7 +1205,7 @@ function DeanStationsContent() {
                             <button
                               type="button"
                               onClick={(e) => handleOpenEditStation(e, st)}
-                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-all font-semibold cursor-pointer"
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 transition-all font-semibold cursor-pointer"
                               title="Edit Station Details"
                             >
                               <Edit2 className="size-3" />
@@ -1239,10 +1239,10 @@ function DeanStationsContent() {
       {/* ========================================================================= */}
       {isCreateSessionOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-md max-h-[85vh] rounded-2xl bg-white dark:bg-[#0B1612] border border-slate-200/80 dark:border-emerald-500/20 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95">
+          <div className="relative w-full max-w-md max-h-[85vh] rounded-2xl bg-white dark:bg-[#161B2A] border border-slate-200/80 dark:border-indigo-500/20 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95">
             <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="flex size-9 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-500/20">
+                <div className="flex size-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-500/20">
                   <Calendar className="size-4" />
                 </div>
                 <div>
@@ -1292,14 +1292,14 @@ function DeanStationsContent() {
                         hasRegularSession
                           ? 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60'
                           : sessionType === 'regular'
-                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500/20'
+                          ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500/20'
                           : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
                       }`}
                     >
                       <div className="flex items-center gap-1.5">
                         <CheckCircle2
                           className={`size-4 ${
-                            hasRegularSession ? 'text-slate-400' : 'text-emerald-500'
+                            hasRegularSession ? 'text-slate-400' : 'text-indigo-600 dark:text-indigo-400'
                           }`}
                         />
                         <span>Regular Session</span>
@@ -1340,7 +1340,7 @@ function DeanStationsContent() {
                   </div>
                 </div>
 
-                {/* Exam Date Picker */}
+                {/* Exam Date Picker with Dean Indigo Theme */}
                 <DatePicker
                   label="Exam Date"
                   required
@@ -1348,7 +1348,7 @@ function DeanStationsContent() {
                   onChange={(newDate) => setExamDate(newDate)}
                   disablePastDates={true}
                   placeholder="Select upcoming exam date..."
-                  variant="emerald"
+                  variant="indigo"
                   format="MMM DD, YYYY"
                 />
               </div>
@@ -1364,7 +1364,7 @@ function DeanStationsContent() {
                 <button
                   type="submit"
                   disabled={submittingSession}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/25 hover:bg-emerald-700 transition-all disabled:opacity-50 cursor-pointer"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-bold shadow-md shadow-indigo-500/20 hover:bg-indigo-700 transition-all disabled:opacity-50 cursor-pointer"
                 >
                   {submittingSession ? (
                     <>
@@ -1386,14 +1386,14 @@ function DeanStationsContent() {
       {/* ========================================================================= */}
       {isCreateStationOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-3xl max-h-[85vh] rounded-2xl bg-white dark:bg-[#0B1612] border border-slate-200/80 dark:border-emerald-500/20 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95">
+          <div className="relative w-full max-w-3xl max-h-[85vh] rounded-2xl bg-white dark:bg-[#161B2A] border border-slate-200/80 dark:border-indigo-500/20 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95">
             {/* Decorative top gradient bar */}
-            <div className="h-1 w-full bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 shrink-0" />
+            <div className="h-1 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-600 shrink-0" />
 
             {/* Fixed Header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
               <div className="flex items-center gap-3">
-                <div className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25 shrink-0">
+                <div className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/25 shrink-0">
                   <ClipboardCheck className="size-5" />
                 </div>
                 <div>
@@ -1401,14 +1401,14 @@ function DeanStationsContent() {
                     Create Clinical Station
                   </h3>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800">
                       {activeModule?.module_name}
                     </span>
                     <span
                       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
                         String(activeExam?.session_type || '').toLowerCase() === 'retake'
                           ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400 border-purple-200/60 dark:border-purple-800'
-                          : 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border-blue-200/60 dark:border-blue-800'
+                          : 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 border-indigo-200/60 dark:border-indigo-800'
                       }`}
                     >
                       {String(activeExam?.session_type || '').toLowerCase() === 'retake'
@@ -1449,12 +1449,12 @@ function DeanStationsContent() {
                         <span
                           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                             isFullyAllocated
-                              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                              ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
                               : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
                           }`}
                         >
                           {isFullyAllocated ? (
-                            <CheckCircle2 className="size-3 text-emerald-500" />
+                            <CheckCircle2 className="size-3 text-indigo-600 dark:text-indigo-400" />
                           ) : (
                             <AlertCircle className="size-3 text-amber-500" />
                           )}
@@ -1468,7 +1468,7 @@ function DeanStationsContent() {
                           <div
                             className={`h-full rounded-full transition-all duration-500 ${
                               isFullyAllocated
-                                ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
+                                ? 'bg-gradient-to-r from-indigo-500 to-purple-600'
                                 : 'bg-gradient-to-r from-amber-500 to-orange-500'
                             }`}
                             style={{ width: `${Math.min(100, totalSessionWeightage)}%` }}
@@ -1489,16 +1489,16 @@ function DeanStationsContent() {
                         </div>
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-slate-500 dark:text-slate-400">Next Recommended:</span>
-                          <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                          <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">
                             Station #{formStationNumber}
                           </span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="p-3.5 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/40 text-[11px] text-emerald-800 dark:text-emerald-300 space-y-1.5">
+                    <div className="p-3.5 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200/60 dark:border-indigo-800/40 text-[11px] text-indigo-800 dark:text-indigo-300 space-y-1.5">
                       <p className="font-bold flex items-center gap-1.5">
-                        <Sliders className="size-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <Sliders className="size-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
                         <span>Weightage Distribution</span>
                       </p>
                       <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-[10px]">
@@ -1523,7 +1523,7 @@ function DeanStationsContent() {
                             min={1}
                             value={formStationNumber}
                             onChange={(e) => setFormStationNumber(Number(e.target.value) || 1)}
-                            className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                            className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                             required
                           />
                         </div>
@@ -1538,7 +1538,7 @@ function DeanStationsContent() {
                           <button
                             type="button"
                             onClick={() => setFormWeightage(availableWeightage)}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer transition-colors border border-transparent hover:border-emerald-200/60"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-indigo-100 dark:hover:bg-indigo-950/40 hover:text-indigo-700 dark:hover:text-indigo-400 cursor-pointer transition-colors border border-transparent hover:border-indigo-200/60"
                             title="Click to auto-fill remaining weightage"
                           >
                             Avail: {availableWeightage}%
@@ -1553,7 +1553,7 @@ function DeanStationsContent() {
                             max={100}
                             value={formWeightage}
                             onChange={(e) => setFormWeightage(Number(e.target.value) || 0)}
-                            className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                            className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                             required
                           />
                         </div>
@@ -1573,7 +1573,7 @@ function DeanStationsContent() {
                           value={formTitle}
                           onChange={(e) => setFormTitle(e.target.value)}
                           placeholder="e.g. Station 1: Cardiovascular OSCE"
-                          className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                          className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                           required
                         />
                       </div>
@@ -1589,7 +1589,7 @@ function DeanStationsContent() {
                         <button
                           type="button"
                           onClick={generateRandomPin}
-                          className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors cursor-pointer"
                         >
                           <Sparkles className="size-3" />
                           <span>Generate Random</span>
@@ -1602,7 +1602,7 @@ function DeanStationsContent() {
                           value={formAccessPin}
                           onChange={(e) => setFormAccessPin(e.target.value)}
                           placeholder="e.g. 748291"
-                          className="w-full pl-9 pr-10 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold tracking-wider focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                          className="w-full pl-9 pr-10 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold tracking-wider focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                           required
                         />
                         <button
@@ -1623,7 +1623,7 @@ function DeanStationsContent() {
                         </span>
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
-                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[10px] font-black shadow-sm shrink-0">
+                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-[10px] font-black shadow-sm shrink-0">
                               <ClipboardCheck className="size-2.5" />
                               #{formStationNumber}
                             </span>
@@ -1632,7 +1632,7 @@ function DeanStationsContent() {
                             </span>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800 tabular-nums">
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800 tabular-nums">
                               {formWeightage}%
                             </span>
                             <span className="font-mono text-[10px] text-slate-400">
@@ -1658,7 +1658,7 @@ function DeanStationsContent() {
                 <button
                   type="submit"
                   disabled={submittingStation}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/30 hover:from-emerald-700 hover:to-teal-700 transition-all disabled:opacity-50 active:scale-[0.98] cursor-pointer"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-bold shadow-md shadow-indigo-500/20 transition-all disabled:opacity-50 active:scale-[0.98] cursor-pointer"
                 >
                   {submittingStation ? (
                     <>
@@ -1683,10 +1683,10 @@ function DeanStationsContent() {
       {/* ========================================================================= */}
       {editingStation && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-lg max-h-[85vh] rounded-2xl bg-white dark:bg-[#0B1612] border border-slate-200/80 dark:border-emerald-500/20 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95">
+          <div className="relative w-full max-w-lg max-h-[85vh] rounded-2xl bg-white dark:bg-[#161B2A] border border-slate-200/80 dark:border-indigo-500/20 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95">
             <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/20">
+                <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/20">
                   <Edit2 className="size-4" />
                 </div>
                 <div>
@@ -1697,7 +1697,7 @@ function DeanStationsContent() {
                     <span className="text-[11px] font-semibold text-slate-400">
                       {activeModule?.module_name}
                     </span>
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800">
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800">
                       Station #{editingStation.station_number}
                     </span>
                   </div>
@@ -1777,7 +1777,7 @@ function DeanStationsContent() {
                     <button
                       type="button"
                       onClick={generateRandomEditPin}
-                      className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors cursor-pointer"
+                      className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors cursor-pointer"
                     >
                       <Sparkles className="size-3" />
                       <span>Generate Random</span>
@@ -1790,7 +1790,7 @@ function DeanStationsContent() {
                       value={editAccessPin}
                       onChange={(e) => setEditAccessPin(e.target.value)}
                       placeholder="e.g. 748291"
-                      className="w-full pl-9 pr-10 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold tracking-wider focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                      className="w-full pl-9 pr-10 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold tracking-wider focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                       required
                     />
                     <button
@@ -1815,7 +1815,7 @@ function DeanStationsContent() {
                 <button
                   type="submit"
                   disabled={submittingEdit}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/25 hover:bg-emerald-700 transition-all disabled:opacity-50 cursor-pointer"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-bold shadow-md shadow-indigo-500/20 hover:bg-indigo-700 transition-all disabled:opacity-50 cursor-pointer"
                 >
                   {submittingEdit ? (
                     <>
@@ -1837,7 +1837,7 @@ function DeanStationsContent() {
       {/* ========================================================================= */}
       {deletingStation && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-sm rounded-2xl bg-white dark:bg-[#0B1612] border border-slate-200/80 dark:border-emerald-500/20 shadow-2xl p-6 space-y-4 animate-in zoom-in-95 text-center">
+          <div className="relative w-full max-w-sm rounded-2xl bg-white dark:bg-[#161B2A] border border-slate-200/80 dark:border-indigo-500/20 shadow-2xl p-6 space-y-4 animate-in zoom-in-95 text-center">
             <div className="flex size-14 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-600 mx-auto">
               <Trash2 className="size-7" />
             </div>
@@ -1872,7 +1872,7 @@ function DeanStationsContent() {
 
       {deletingExam && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-sm rounded-2xl bg-white dark:bg-[#0B1612] border border-slate-200/80 dark:border-emerald-500/20 shadow-2xl p-6 space-y-4 animate-in zoom-in-95 text-center">
+          <div className="relative w-full max-w-sm rounded-2xl bg-white dark:bg-[#161B2A] border border-slate-200/80 dark:border-indigo-500/20 shadow-2xl p-6 space-y-4 animate-in zoom-in-95 text-center">
             <div className="flex size-14 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-600 mx-auto">
               <Trash2 className="size-7" />
             </div>
@@ -1918,7 +1918,7 @@ export default function DeanStationsDrilldownPage() {
     <Suspense
       fallback={
         <div className="min-h-[60vh] flex items-center justify-center">
-          <Loader2 className="size-8 animate-spin text-emerald-500" />
+          <Loader2 className="size-8 animate-spin text-indigo-600" />
         </div>
       }
     >

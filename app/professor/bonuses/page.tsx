@@ -29,6 +29,7 @@ import {
 } from 'lucide-react'
 import { useAcademicYear } from '@/context/AcademicYearContext'
 import { useToast } from '@/context/ToastContext'
+import { FrontendTemplateLibraryModal } from '@/components/templates/FrontendTemplateLibraryModal'
 
 export interface BonusRecord {
   id: string
@@ -116,6 +117,7 @@ export default function ProfessorBonusesPage() {
   const [selectedModuleId, setSelectedModuleId] = useState<string>('all')
   const [selectedStationId, setSelectedStationId] = useState<string>('all')
   const [sortOrder, setSortOrder] = useState<SortField>('date_desc')
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false)
 
   // Custom Popover Dropdown States & Refs
   const [moduleDropdownOpen, setModuleDropdownOpen] = useState(false)
@@ -368,7 +370,17 @@ export default function ProfessorBonusesPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0 self-start md:self-center">
+        <div className="flex items-center gap-2.5 shrink-0 self-start md:self-center flex-wrap">
+          <button
+            type="button"
+            onClick={() => setIsTemplateModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+            title="Manage & Preview Standardized Bonus Templates"
+          >
+            <Sparkles className="size-4" />
+            <span>Bonus Presets & Templates</span>
+          </button>
+
           <button
             onClick={() => fetchBonusesData(true)}
             disabled={refreshing || loading}
@@ -952,6 +964,14 @@ export default function ProfessorBonusesPage() {
           </div>
         )}
       </div>
+
+      {/* Standardized Scoring Presets Modal (Pure Frontend State) */}
+      <FrontendTemplateLibraryModal
+        isOpen={isTemplateModalOpen}
+        onClose={() => setIsTemplateModalOpen(false)}
+        initialType="bonus"
+        title="Clinical Merit Bonus Presets & Templates"
+      />
     </div>
   )
 }

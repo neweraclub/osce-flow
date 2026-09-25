@@ -377,24 +377,30 @@ export function TemplateQuickAssignDrawer({
 
                 {/* Bottom Action Strip */}
                 <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenEdit(tpl)}
-                      className="p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                      title="Edit template"
-                    >
-                      <Edit2 className="size-3" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => handleDelete(tpl.id, e)}
-                      className="p-1 rounded text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                      title="Delete template"
-                    >
-                      <Trash2 className="size-3" />
-                    </button>
-                  </div>
+                  {!tpl.id.startsWith('preset-') ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEdit(tpl)}
+                        className="p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                        title="Edit template"
+                      >
+                        <Edit2 className="size-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => handleDelete(tpl.id, e)}
+                        className="p-1 rounded text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                        title="Delete template"
+                      >
+                        <Trash2 className="size-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider px-1">
+                      Preset
+                    </span>
+                  )}
 
                   <div className="flex items-center gap-1.5">
                     <button

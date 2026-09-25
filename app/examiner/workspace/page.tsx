@@ -69,11 +69,10 @@ import {
 import { TemplateQuickAssignDrawer } from '@/components/examiner/TemplateQuickAssignDrawer'
 import {
   PenaltyBonusTemplate,
-  getPenaltyBonusTemplatesAction,
-  createPenaltyBonusTemplateAction,
-  updatePenaltyBonusTemplateAction,
-  deletePenaltyBonusTemplateAction,
-} from '@/app/actions/penaltyBonusTemplates'
+  getLocalTemplates,
+  saveLocalTemplate,
+  deleteLocalTemplate,
+} from '@/lib/penaltyBonusTemplates'
 
 interface StudentAnswerItem {
   question_id: string
@@ -737,19 +736,14 @@ function ExaminerWorkspaceContent() {
     showSuccess('Merit bonus removed.')
   }
 
-  // Load templates on mount
+  // Load templates on mount entirely from client storage / constants
   useEffect(() => {
-    async function loadTemplates() {
-      try {
-        const res = await getPenaltyBonusTemplatesAction()
-        if (res.success && res.templates) {
-          setTemplates(res.templates)
-        }
-      } catch (err) {
-        console.error('Failed to load templates:', err)
-      }
+    function loadTemplates() {
+      setTemplates(getLocalTemplates())
     }
     loadTemplates()
+    window.addEventListener('osce-templates-updated', loadTemplates)
+    return () => window.removeEventListener('osce-templates-updated', loadTemplates)
   }, [])
 
   // Quick Apply Template (Click or Drag-and-Drop)
@@ -811,51 +805,58 @@ function ExaminerWorkspaceContent() {
     }
   }
 
-  // Create Template CRUD
+  // Create Template (Stored locally, zero database mutations)
   const handleCreateTemplate = async (input: {
     type: 'bonus' | 'penalty'
     title: string
     default_value: number
     default_note: string
   }): Promise<boolean> => {
-    const res = await createPenaltyBonusTemplateAction({
-      type: input.type,
-      title: input.title,
-      default_value: input.default_value,
-      default_note: input.default_note,
-    })
-    if (res.success && res.template) {
-      setTemplates((prev) => [res.template!, ...prev])
+    try {
+      saveLocalTemplate(input)
+      setTemplates(getLocalTemplates())
+      showSuccess(`Saved preset: "${input.title}"`)
       return true
-    } else {
-      showError(res.error || 'Failed to create template.')
+    } catch {
+      showError('Failed to save template locally.')
       return false
     }
   }
 
-  // Update Template CRUD
+  // Update Template (Stored locally, zero database mutations)
   const handleUpdateTemplate = async (
     id: string,
     input: Partial<PenaltyBonusTemplate>
   ): Promise<boolean> => {
-    const res = await updatePenaltyBonusTemplateAction(id, input)
-    if (res.success && res.template) {
-      setTemplates((prev) => prev.map((t) => (t.id === id ? res.template! : t)))
+    try {
+      const existing = templates.find((t) => t.id === id)
+      if (existing) {
+        saveLocalTemplate({
+          id,
+          type: input.type || existing.type,
+          title: input.title !== undefined ? input.title : existing.title,
+          default_value: input.default_value !== undefined ? input.default_value : existing.default_value,
+          default_note: input.default_note !== undefined ? input.default_note : existing.default_note,
+        })
+        setTemplates(getLocalTemplates())
+        showSuccess('Preset template updated.')
+      }
       return true
-    } else {
-      showError(res.error || 'Failed to update template.')
+    } catch {
+      showError('Failed to update template.')
       return false
     }
   }
 
-  // Delete Template CRUD
+  // Delete Template (Stored locally, zero database mutations)
   const handleDeleteTemplate = async (id: string): Promise<boolean> => {
-    const res = await deletePenaltyBonusTemplateAction(id)
-    if (res.success) {
-      setTemplates((prev) => prev.filter((t) => t.id !== id))
+    const success = deleteLocalTemplate(id)
+    if (success) {
+      setTemplates(getLocalTemplates())
+      showSuccess('Template removed.')
       return true
     } else {
-      showError(res.error || 'Failed to delete template.')
+      showError('System default presets cannot be deleted.')
       return false
     }
   }

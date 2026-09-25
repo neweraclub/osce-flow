@@ -705,15 +705,13 @@ function DeanStationsContent() {
                 setCurrentStep(1)
                 setSelectedModuleId('')
               }}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                currentStep === 1
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${currentStep === 1
                   ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/25'
                   : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#161B2A]'
-              }`}
+                }`}
             >
-              <span className={`size-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                currentStep > 1 ? 'bg-emerald-500 text-white' : currentStep === 1 ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-white/[0.08]'
-              }`}>
+              <span className={`size-5 rounded-full flex items-center justify-center text-[10px] font-bold ${currentStep > 1 ? 'bg-emerald-500 text-white' : currentStep === 1 ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-white/[0.08]'
+                }`}>
                 {currentStep > 1 ? <Check className="size-3" /> : '1'}
               </span>
               <span>Clinical Modules</span>
@@ -730,17 +728,15 @@ function DeanStationsContent() {
               type="button"
               disabled={!activeModule}
               onClick={() => activeModule && setCurrentStep(2)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                !activeModule
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${!activeModule
                   ? 'opacity-40 cursor-not-allowed text-slate-400'
                   : currentStep === 2
-                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/25 cursor-pointer'
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#161B2A] cursor-pointer'
-              }`}
+                    ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/25 cursor-pointer'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#161B2A] cursor-pointer'
+                }`}
             >
-              <span className={`size-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                currentStep > 2 ? 'bg-emerald-500 text-white' : currentStep === 2 ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-white/[0.08]'
-              }`}>
+              <span className={`size-5 rounded-full flex items-center justify-center text-[10px] font-bold ${currentStep > 2 ? 'bg-emerald-500 text-white' : currentStep === 2 ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-white/[0.08]'
+                }`}>
                 {currentStep > 2 ? <Check className="size-3" /> : '2'}
               </span>
               <span className="truncate max-w-[140px] sm:max-w-none">
@@ -759,17 +755,15 @@ function DeanStationsContent() {
               type="button"
               disabled={!activeExam}
               onClick={() => activeExam && setCurrentStep(3)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                !activeExam
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${!activeExam
                   ? 'opacity-40 cursor-not-allowed text-slate-400'
                   : currentStep === 3
-                  ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-500/25 cursor-pointer'
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#161B2A] cursor-pointer'
-              }`}
+                    ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-500/25 cursor-pointer'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#161B2A] cursor-pointer'
+                }`}
             >
-              <span className={`size-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                currentStep === 3 ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-white/[0.08]'
-              }`}>
+              <span className={`size-5 rounded-full flex items-center justify-center text-[10px] font-bold ${currentStep === 3 ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-white/[0.08]'
+                }`}>
                 3
               </span>
               <span>Stations Hub</span>
@@ -828,11 +822,10 @@ function DeanStationsContent() {
               <button
                 type="button"
                 onClick={() => setSelectedLevelId('ALL')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
-                  selectedLevelId === 'ALL'
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${selectedLevelId === 'ALL'
                     ? 'bg-indigo-600 text-white shadow-sm'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
+                  }`}
               >
                 All Levels ({loading ? '...' : modules.length})
               </button>
@@ -845,11 +838,10 @@ function DeanStationsContent() {
                     key={lvl.id}
                     type="button"
                     onClick={() => setSelectedLevelId(lvl.id)}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
-                      selectedLevelId === lvl.id
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${selectedLevelId === lvl.id
                         ? 'bg-indigo-600 text-white shadow-sm'
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                    }`}
+                      }`}
                   >
                     {lvl.level_name} ({lvlCount})
                   </button>
@@ -1111,211 +1103,209 @@ function DeanStationsContent() {
               ))}
             </div>
           ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* 1. Regular Session Card */}
-            {regularExam ? (
-              <div
-                onClick={() => {
-                  setActiveExamId(regularExam.id)
-                  setCurrentStep(3)
-                }}
-                className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500/60 transition-all shadow-sm flex flex-col justify-between space-y-5 cursor-pointer group"
-              >
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-extrabold uppercase">
-                      <Calendar className="size-3.5 text-emerald-600 dark:text-emerald-400" />
-                      <span>Regular Exam Session</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setDeletingExam(regularExam)
-                      }}
-                      title="Delete Regular Session"
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                    >
-                      <Trash2 className="size-4" />
-                    </button>
-                  </div>
-
-                  <div>
-                    <h4 className="text-base font-black text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                      {activeModule.module_name} — Regular Examination
-                    </h4>
-                    <p className="text-xs text-slate-400 font-mono mt-1">
-                      Scheduled Date: {new Date(regularExam.exam_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                    </p>
-                  </div>
-
-                  {/* Stations & Weightage progress */}
-                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 space-y-2">
-                    <div className="flex items-center justify-between text-xs font-bold">
-                      <span className="text-slate-600 dark:text-slate-400">
-                        {regularStations.length} Clinical Station{regularStations.length !== 1 ? 's' : ''}
-                      </span>
-                      <span className={`font-mono ${regularWeightage >= 100 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
-                        {regularWeightage.toFixed(1)}% / 100%
-                      </span>
-                    </div>
-                    <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          regularWeightage >= 100 ? 'bg-emerald-500' : 'bg-amber-500'
-                        }`}
-                        style={{ width: `${Math.min(100, regularWeightage)}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Prominent CTA */}
-                <button
-                  type="button"
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* 1. Regular Session Card */}
+              {regularExam ? (
+                <div
                   onClick={() => {
                     setActiveExamId(regularExam.id)
                     setCurrentStep(3)
                   }}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-500/20 transition-all cursor-pointer active:scale-[0.99]"
+                  className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500/60 transition-all shadow-sm flex flex-col justify-between space-y-5 cursor-pointer group"
                 >
-                  <ClipboardCheck className="size-4" />
-                  <span>Manage Stations ({regularStations.length})</span>
-                  <ArrowRight className="size-4 ml-1 group-hover:translate-x-1 transition-transform" />
-                </button>
-              </div>
-            ) : (
-              <div className="p-8 rounded-3xl bg-slate-50/50 dark:bg-slate-900/30 border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col justify-between items-center text-center space-y-5">
-                <div className="space-y-2">
-                  <div className="size-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
-                    <Calendar className="size-6" />
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-extrabold uppercase">
+                        <Calendar className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                        <span>Regular Exam Session</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setDeletingExam(regularExam)
+                        }}
+                        title="Delete Regular Session"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
+
+                    <div>
+                      <h4 className="text-base font-black text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                        {activeModule.module_name} — Regular Examination
+                      </h4>
+                      <p className="text-xs text-slate-400 font-mono mt-1">
+                        Scheduled Date: {new Date(regularExam.exam_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                      </p>
+                    </div>
+
+                    {/* Stations & Weightage progress */}
+                    <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 space-y-2">
+                      <div className="flex items-center justify-between text-xs font-bold">
+                        <span className="text-slate-600 dark:text-slate-400">
+                          {regularStations.length} Clinical Station{regularStations.length !== 1 ? 's' : ''}
+                        </span>
+                        <span className={`font-mono ${regularWeightage >= 100 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                          {regularWeightage.toFixed(1)}% / 100%
+                        </span>
+                      </div>
+                      <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${regularWeightage >= 100 ? 'bg-emerald-500' : 'bg-amber-500'
+                            }`}
+                          style={{ width: `${Math.min(100, regularWeightage)}%` }}
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <h4 className="text-base font-bold text-slate-900 dark:text-white">
-                    Regular Session Not Scheduled
-                  </h4>
-                  <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                    Schedule the primary OSCE examination session for &quot;{activeModule.module_name}&quot; to configure stations and author rubrics.
-                  </p>
+
+                  {/* Prominent CTA */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveExamId(regularExam.id)
+                      setCurrentStep(3)
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-500/20 transition-all cursor-pointer active:scale-[0.99]"
+                  >
+                    <ClipboardCheck className="size-4" />
+                    <span>Manage Stations ({regularStations.length})</span>
+                    <ArrowRight className="size-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                  </button>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSessionType('regular')
-                    setExamDate(new Date().toISOString().split('T')[0])
-                    setSessionError('')
-                    setIsCreateSessionOpen(true)
-                  }}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-500/20 transition-all cursor-pointer active:scale-95"
-                >
-                  <Plus className="size-4" />
-                  <span>+ Create Regular Session</span>
-                </button>
-              </div>
-            )}
-
-            {/* 2. Retake Session Card */}
-            {retakeExam ? (
-              <div
-                onClick={() => {
-                  setActiveExamId(retakeExam.id)
-                  setCurrentStep(3)
-                }}
-                className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-purple-500/60 transition-all shadow-sm flex flex-col justify-between space-y-5 cursor-pointer group"
-              >
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 text-xs font-extrabold uppercase">
-                      <Calendar className="size-3.5 text-purple-600 dark:text-purple-400" />
-                      <span>Retake Session (Rattrapage)</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setDeletingExam(retakeExam)
-                      }}
-                      title="Delete Retake Session"
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                    >
-                      <Trash2 className="size-4" />
-                    </button>
-                  </div>
-
-                  <div>
-                    <h4 className="text-base font-black text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
-                      {activeModule.module_name} — Retake Examination
+              ) : (
+                <div className="p-8 rounded-3xl bg-slate-50/50 dark:bg-slate-900/30 border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col justify-between items-center text-center space-y-5">
+                  <div className="space-y-2">
+                    <div className="size-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
+                      <Calendar className="size-6" />
+                    </div>
+                    <h4 className="text-base font-bold text-slate-900 dark:text-white">
+                      Regular Session Not Scheduled
                     </h4>
-                    <p className="text-xs text-slate-400 font-mono mt-1">
-                      Scheduled Date: {new Date(retakeExam.exam_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                    <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                      Schedule the primary OSCE examination session for &quot;{activeModule.module_name}&quot; to configure stations and author rubrics.
                     </p>
                   </div>
 
-                  {/* Stations & Weightage progress */}
-                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 space-y-2">
-                    <div className="flex items-center justify-between text-xs font-bold">
-                      <span className="text-slate-600 dark:text-slate-400">
-                        {retakeStations.length} Clinical Station{retakeStations.length !== 1 ? 's' : ''}
-                      </span>
-                      <span className={`font-mono ${retakeWeightage >= 100 ? 'text-purple-600 dark:text-purple-400' : 'text-amber-600 dark:text-amber-400'}`}>
-                        {retakeWeightage.toFixed(1)}% / 100%
-                      </span>
-                    </div>
-                    <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          retakeWeightage >= 100 ? 'bg-purple-500' : 'bg-amber-500'
-                        }`}
-                        style={{ width: `${Math.min(100, retakeWeightage)}%` }}
-                      />
-                    </div>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSessionType('regular')
+                      setExamDate(new Date().toISOString().split('T')[0])
+                      setSessionError('')
+                      setIsCreateSessionOpen(true)
+                    }}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-500/20 transition-all cursor-pointer active:scale-95"
+                  >
+                    <Plus className="size-4" />
+                    <span>+ Create Regular Session</span>
+                  </button>
                 </div>
+              )}
 
-                {/* Prominent CTA */}
-                <button
-                  type="button"
+              {/* 2. Retake Session Card */}
+              {retakeExam ? (
+                <div
                   onClick={() => {
                     setActiveExamId(retakeExam.id)
                     setCurrentStep(3)
                   }}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md shadow-purple-500/20 transition-all cursor-pointer active:scale-[0.99]"
+                  className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-purple-500/60 transition-all shadow-sm flex flex-col justify-between space-y-5 cursor-pointer group"
                 >
-                  <ClipboardCheck className="size-4" />
-                  <span>Manage Stations ({retakeStations.length})</span>
-                  <ArrowRight className="size-4 ml-1 group-hover:translate-x-1 transition-transform" />
-                </button>
-              </div>
-            ) : (
-              <div className="p-8 rounded-3xl bg-slate-50/50 dark:bg-slate-900/30 border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col justify-between items-center text-center space-y-5">
-                <div className="space-y-2">
-                  <div className="size-12 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center mx-auto">
-                    <Calendar className="size-6" />
-                  </div>
-                  <h4 className="text-base font-bold text-slate-900 dark:text-white">
-                    Retake Session Not Scheduled
-                  </h4>
-                  <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                    Schedule a retake (rattrapage) session for students eligible for OSCE makeup evaluations.
-                  </p>
-                </div>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 text-xs font-extrabold uppercase">
+                        <Calendar className="size-3.5 text-purple-600 dark:text-purple-400" />
+                        <span>Retake Session (Rattrapage)</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setDeletingExam(retakeExam)
+                        }}
+                        title="Delete Retake Session"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSessionType('retake')
-                    setExamDate(new Date().toISOString().split('T')[0])
-                    setSessionError('')
-                    setIsCreateSessionOpen(true)
-                  }}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md shadow-purple-500/20 transition-all cursor-pointer active:scale-95"
-                >
-                  <Plus className="size-4" />
-                  <span>+ Create Retake Session</span>
-                </button>
-              </div>
-            )}
-          </div>
+                    <div>
+                      <h4 className="text-base font-black text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                        {activeModule.module_name} — Retake Examination
+                      </h4>
+                      <p className="text-xs text-slate-400 font-mono mt-1">
+                        Scheduled Date: {new Date(retakeExam.exam_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                      </p>
+                    </div>
+
+                    {/* Stations & Weightage progress */}
+                    <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 space-y-2">
+                      <div className="flex items-center justify-between text-xs font-bold">
+                        <span className="text-slate-600 dark:text-slate-400">
+                          {retakeStations.length} Clinical Station{retakeStations.length !== 1 ? 's' : ''}
+                        </span>
+                        <span className={`font-mono ${retakeWeightage >= 100 ? 'text-purple-600 dark:text-purple-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                          {retakeWeightage.toFixed(1)}% / 100%
+                        </span>
+                      </div>
+                      <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${retakeWeightage >= 100 ? 'bg-purple-500' : 'bg-amber-500'
+                            }`}
+                          style={{ width: `${Math.min(100, retakeWeightage)}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Prominent CTA */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveExamId(retakeExam.id)
+                      setCurrentStep(3)
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md shadow-purple-500/20 transition-all cursor-pointer active:scale-[0.99]"
+                  >
+                    <ClipboardCheck className="size-4" />
+                    <span>Manage Stations ({retakeStations.length})</span>
+                    <ArrowRight className="size-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                  </button>
+                </div>
+              ) : (
+                <div className="p-8 rounded-3xl bg-slate-50/50 dark:bg-slate-900/30 border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col justify-between items-center text-center space-y-5">
+                  <div className="space-y-2">
+                    <div className="size-12 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center mx-auto">
+                      <Calendar className="size-6" />
+                    </div>
+                    <h4 className="text-base font-bold text-slate-900 dark:text-white">
+                      Retake Session Not Scheduled
+                    </h4>
+                    <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                      Schedule a retake (rattrapage) session for students eligible for OSCE makeup evaluations.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSessionType('retake')
+                      setExamDate(new Date().toISOString().split('T')[0])
+                      setSessionError('')
+                      setIsCreateSessionOpen(true)
+                    }}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md shadow-purple-500/20 transition-all cursor-pointer active:scale-95"
+                  >
+                    <Plus className="size-4" />
+                    <span>+ Create Retake Session</span>
+                  </button>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Informational Hierarchy Note */}
@@ -1337,11 +1327,10 @@ function DeanStationsContent() {
           <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
               <div
-                className={`size-11 rounded-2xl flex items-center justify-center shrink-0 ${
-                  isRetakeSession(activeExam.session_type)
+                className={`size-11 rounded-2xl flex items-center justify-center shrink-0 ${isRetakeSession(activeExam.session_type)
                     ? 'bg-purple-100 dark:bg-purple-950/80 text-purple-600 dark:text-purple-400'
                     : 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400'
-                }`}
+                  }`}
               >
                 <Calendar className="size-5" />
               </div>
@@ -1373,13 +1362,12 @@ function DeanStationsContent() {
                       key={ex.id}
                       type="button"
                       onClick={() => setActiveExamId(ex.id)}
-                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold capitalize transition-all cursor-pointer ${
-                        isCurrent
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold capitalize transition-all cursor-pointer ${isCurrent
                           ? isRetake
                             ? 'bg-purple-600 text-white shadow-sm'
                             : 'bg-emerald-600 text-white shadow-sm'
                           : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                      }`}
+                        }`}
                     >
                       {isRetake ? 'Retake' : 'Regular'} ({count})
                     </button>
@@ -1409,11 +1397,10 @@ function DeanStationsContent() {
               </div>
 
               <span
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border self-start sm:self-auto transition-colors ${
-                  isFullyAllocated
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border self-start sm:self-auto transition-colors ${isFullyAllocated
                     ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                     : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
-                }`}
+                  }`}
               >
                 {isFullyAllocated ? (
                   <CheckCircle2 className="size-3.5 text-emerald-500" />
@@ -1431,11 +1418,10 @@ function DeanStationsContent() {
             <div className="space-y-1.5">
               <div className="h-3 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden shadow-inner">
                 <div
-                  className={`h-full rounded-full transition-all duration-700 ease-out relative ${
-                    isFullyAllocated
+                  className={`h-full rounded-full transition-all duration-700 ease-out relative ${isFullyAllocated
                       ? 'bg-gradient-to-r from-emerald-500 via-emerald-400 to-teal-500 shadow-emerald-500/25'
                       : 'bg-gradient-to-r from-amber-500 via-orange-400 to-orange-500 shadow-amber-500/25'
-                  } shadow-sm`}
+                    } shadow-sm`}
                   style={{ width: `${Math.min(100, totalSessionWeightage)}%` }}
                 >
                   <div className="absolute inset-0 bg-white/10 rounded-full" />
@@ -1547,11 +1533,10 @@ function DeanStationsContent() {
                         <button
                           type="button"
                           onClick={(e) => handleTogglePublish(e, st.id)}
-                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all cursor-pointer ${
-                            isPublished
+                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all cursor-pointer ${isPublished
                               ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
                               : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20'
-                          }`}
+                            }`}
                           title="Click to toggle Draft / Published status"
                         >
                           <span className={`size-1.5 rounded-full ${isPublished ? 'bg-emerald-500' : 'bg-amber-500'}`} />
@@ -1658,14 +1643,6 @@ function DeanStationsContent() {
                           <Trash2 className="size-3.5" />
                         </button>
                       </div>
-
-                      <Link
-                        href={`/professor/stations/${st.id}`}
-                        className="flex items-center gap-1.5 font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 group-hover:translate-x-0.5 transition-all duration-150 text-xs"
-                      >
-                        <span>Open Checklist</span>
-                        <ArrowRight className="size-3.5" />
-                      </Link>
                     </div>
                   </div>
                 )
@@ -1742,13 +1719,12 @@ function DeanStationsContent() {
                     type="button"
                     disabled={hasRegularSession}
                     onClick={() => setSessionType('regular')}
-                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl border text-xs font-bold transition-all ${
-                      hasRegularSession
+                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl border text-xs font-bold transition-all ${hasRegularSession
                         ? 'bg-slate-100 dark:bg-slate-800/40 text-slate-400 cursor-not-allowed opacity-60'
                         : sessionType === 'regular'
-                        ? 'bg-emerald-500/10 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500/20'
-                        : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                    }`}
+                          ? 'bg-emerald-500/10 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500/20'
+                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                      }`}
                   >
                     <span>Regular Session</span>
                     {hasRegularSession && <span className="text-[9px] text-slate-400">(Created)</span>}
@@ -1758,13 +1734,12 @@ function DeanStationsContent() {
                     type="button"
                     disabled={hasRetakeSession}
                     onClick={() => setSessionType('retake')}
-                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl border text-xs font-bold transition-all ${
-                      hasRetakeSession
+                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl border text-xs font-bold transition-all ${hasRetakeSession
                         ? 'bg-slate-100 dark:bg-slate-800/40 text-slate-400 cursor-not-allowed opacity-60'
                         : sessionType === 'retake'
-                        ? 'bg-purple-500/10 border-purple-500 text-purple-700 dark:text-purple-300 ring-2 ring-purple-500/20'
-                        : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                    }`}
+                          ? 'bg-purple-500/10 border-purple-500 text-purple-700 dark:text-purple-300 ring-2 ring-purple-500/20'
+                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                      }`}
                   >
                     <span>Retake Session</span>
                     {hasRetakeSession && <span className="text-[9px] text-slate-400">(Created)</span>}
@@ -1831,11 +1806,10 @@ function DeanStationsContent() {
                       {activeModule?.module_name}
                     </span>
                     <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
-                        isRetakeSession(activeExam.session_type)
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${isRetakeSession(activeExam.session_type)
                           ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400 border-purple-200/60 dark:border-purple-800'
                           : 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border-blue-200/60 dark:border-blue-800'
-                      }`}
+                        }`}
                     >
                       {isRetakeSession(activeExam.session_type) ? 'Retake Session' : 'Regular Session'}
                     </span>
@@ -1871,11 +1845,10 @@ function DeanStationsContent() {
                           Session Capacity
                         </span>
                         <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                            isFullyAllocated
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${isFullyAllocated
                               ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                               : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
-                          }`}
+                            }`}
                         >
                           {isFullyAllocated ? (
                             <CheckCircle2 className="size-3 text-emerald-500" />
@@ -1890,11 +1863,10 @@ function DeanStationsContent() {
                       <div className="space-y-1.5">
                         <div className="h-2.5 w-full bg-slate-200/80 dark:bg-slate-700 rounded-full overflow-hidden">
                           <div
-                            className={`h-full rounded-full transition-all duration-500 ${
-                              isFullyAllocated
+                            className={`h-full rounded-full transition-all duration-500 ${isFullyAllocated
                                 ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
                                 : 'bg-gradient-to-r from-amber-500 to-orange-500'
-                            }`}
+                              }`}
                             style={{ width: `${Math.min(100, totalSessionWeightage)}%` }}
                           />
                         </div>

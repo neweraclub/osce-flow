@@ -9,14 +9,12 @@ import {
   Calendar,
   Check,
   CheckCircle2,
-  ChevronRight,
   ClipboardCheck,
   Copy,
   Edit2,
   Eye,
   EyeOff,
   FileText,
-  Filter,
   GraduationCap,
   Hash,
   Key,
@@ -29,13 +27,10 @@ import {
   Search,
   Sliders,
   Sparkles,
-  Stethoscope,
   Trash2,
-  UserCheck,
   X,
 } from 'lucide-react'
 import { DatePicker } from '@/components/ui/date-picker'
-import { Select, SelectOption } from '@/components/ui/Select'
 import { useAcademicYear } from '@/context/AcademicYearContext'
 import { useToast } from '@/context/ToastContext'
 import { getModuleIcon } from '@/utils/getModuleIcon'
@@ -50,15 +45,6 @@ export interface StationItem {
   access_pin: string
   weightage_percentage: number
   question_count?: number
-  invigilator_prof_id?: string | null
-  invigilator_prof_name?: string
-  invigilator_professor?: {
-    id: string
-    first_name: string
-    last_name: string
-    full_name: string
-    email?: string
-  } | null
   created_at?: string
   linked_exam?: {
     id: string
@@ -75,15 +61,6 @@ export interface ModuleItem {
   module_name: string
   level_id: string
   level_name: string
-  responsible_prof_id?: string | null
-  responsible_prof_name?: string
-  responsible_professor?: {
-    id: string
-    first_name: string
-    last_name: string
-    full_name: string
-    email?: string
-  } | null
   station_count?: number
 }
 
@@ -95,15 +72,6 @@ export interface ExamSessionItem {
   session_type: 'regular' | 'retake' | string
   exam_date: string
   display_label?: string
-}
-
-export interface ProfessorOption {
-  id: string
-  user_id: string
-  first_name: string
-  last_name: string
-  full_name: string
-  email?: string
 }
 
 export interface StudyLevelItem {
@@ -133,7 +101,6 @@ function DeanStationsContent() {
   const [exams, setExams] = useState<ExamSessionItem[]>([])
   const [activeExamId, setActiveExamId] = useState<string | null>(null)
   const [stations, setStations] = useState<StationItem[]>([])
-  const [professors, setProfessors] = useState<ProfessorOption[]>([])
 
   // Search & Filtering within active session
   const [search, setSearch] = useState('')
@@ -168,7 +135,6 @@ function DeanStationsContent() {
   const [formAccessPin, setFormAccessPin] = useState('')
   const [formShowPin, setFormShowPin] = useState(true)
   const [formWeightage, setFormWeightage] = useState<number>(50)
-  const [formInvigilatorProfId, setFormInvigilatorProfId] = useState<string>('')
   const [submittingStation, setSubmittingStation] = useState(false)
   const [stationError, setStationError] = useState('')
 
@@ -179,7 +145,6 @@ function DeanStationsContent() {
   const [editAccessPin, setEditAccessPin] = useState('')
   const [editShowPin, setEditShowPin] = useState(true)
   const [editWeightage, setEditWeightage] = useState<number>(50)
-  const [editInvigilatorProfId, setEditInvigilatorProfId] = useState<string>('')
   const [submittingEdit, setSubmittingEdit] = useState(false)
   const [editError, setEditError] = useState('')
 
@@ -216,7 +181,7 @@ function DeanStationsContent() {
     }
   }, [searchParams])
 
-  // Fetch all modules, exams, stations, and professors
+  // Fetch all modules, exams, and stations
   const fetchData = async (yearId?: string | null, isManual = false) => {
     if (isManual) setRefreshing(true)
     else setLoading(true)
@@ -244,7 +209,6 @@ function DeanStationsContent() {
         setModules(fetchedModules)
         setExams(stationsJson.exams || [])
         setStations(stationsJson.stations || [])
-        setProfessors(stationsJson.professors || [])
 
         // If no module currently selected or selected module is not in new list, pick the first
         setSelectedModuleId((prev) => {
@@ -351,20 +315,9 @@ function DeanStationsContent() {
       (s) =>
         s.title.toLowerCase().includes(q) ||
         String(s.station_number).includes(q) ||
-        s.access_pin.includes(q) ||
-        (s.invigilator_prof_name && s.invigilator_prof_name.toLowerCase().includes(q))
+        s.access_pin.includes(q)
     )
   }, [activeSessionStations, search])
-
-  // Professor select options for dropdowns
-  const professorSelectOptions: SelectOption[] = useMemo(() => {
-    const list = professors.map((p) => ({
-      value: p.id,
-      label: p.full_name,
-      description: p.email,
-    }))
-    return [{ value: '', label: 'Unassigned (Select later)' }, ...list]
-  }, [professors])
 
   // --- PIN Handlers ---
   const togglePinReveal = (e: React.MouseEvent, stationId: string) => {
@@ -420,7 +373,6 @@ function DeanStationsContent() {
     setFormAccessPin(Math.floor(100000 + Math.random() * 900000).toString())
     setFormShowPin(true)
     setFormWeightage(Math.min(50, availableWeightage > 0 ? availableWeightage : 50))
-    setFormInvigilatorProfId('')
     setStationError('')
     setIsCreateStationOpen(true)
   }
@@ -433,7 +385,6 @@ function DeanStationsContent() {
     setEditAccessPin(st.access_pin)
     setEditShowPin(true)
     setEditWeightage(st.weightage_percentage || 50)
-    setEditInvigilatorProfId(st.invigilator_prof_id || '')
     setEditError('')
   }
 
@@ -523,7 +474,7 @@ function DeanStationsContent() {
           title: formTitle.trim(),
           access_pin: formAccessPin.trim(),
           weightage_percentage: formWeightage,
-          invigilator_prof_id: formInvigilatorProfId || null,
+          invigilator_prof_id: null,
         }),
       })
 
@@ -570,7 +521,7 @@ function DeanStationsContent() {
           station_number: editStationNumber,
           access_pin: editAccessPin.trim(),
           weightage_percentage: editWeightage,
-          invigilator_prof_id: editInvigilatorProfId || null,
+          invigilator_prof_id: null,
         }),
       })
 
@@ -1092,7 +1043,7 @@ function DeanStationsContent() {
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search stations by number, title, PIN, or evaluator..."
+                    placeholder="Search stations by number, title, or PIN..."
                     className="w-full pl-10 pr-4 py-2 rounded-xl text-xs bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/40 focus:border-emerald-500 transition-all shadow-xs"
                   />
                 </div>
@@ -1206,23 +1157,6 @@ function DeanStationsContent() {
                             </div>
                           </div>
 
-                          {/* Evaluator Professor Badge */}
-                          <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-[#0B1612] border border-slate-200/60 dark:border-emerald-500/15 flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <Stethoscope className="size-3.5 text-emerald-500 shrink-0" />
-                              <div className="flex flex-col min-w-0">
-                                <span className="text-[9px] uppercase font-bold text-slate-400">
-                                  Evaluator Examiner
-                                </span>
-                                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
-                                  {st.invigilator_prof_name && st.invigilator_prof_name !== 'Unassigned'
-                                    ? st.invigilator_prof_name
-                                    : 'Unassigned (Assign in Edit)'}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
                           {/* Live Scoring PIN Card with 1-click clipboard toggle */}
                           <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-[#0B1612] border border-slate-200/60 dark:border-emerald-500/15 flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 min-w-0">
@@ -1272,7 +1206,7 @@ function DeanStationsContent() {
                               type="button"
                               onClick={(e) => handleOpenEditStation(e, st)}
                               className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-all font-semibold cursor-pointer"
-                              title="Edit Station Details & Evaluator"
+                              title="Edit Station Details"
                             >
                               <Edit2 className="size-3" />
                               <span>Edit</span>
@@ -1645,24 +1579,6 @@ function DeanStationsContent() {
                       </div>
                     </div>
 
-                    {/* Evaluator Professor Dropdown */}
-                    <div className="space-y-1.5">
-                      <label className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
-                        <Stethoscope className="size-3 text-slate-400" />
-                        Evaluator Professor / Teacher
-                      </label>
-                      <Select
-                        options={professorSelectOptions}
-                        value={formInvigilatorProfId}
-                        onChange={(val) => setFormInvigilatorProfId(val)}
-                        placeholder="Select Evaluator Examiner (Optional)..."
-                        searchable={true}
-                      />
-                      <p className="text-[10px] text-slate-400">
-                        Assign an evaluator examiner now or configure later in station edit.
-                      </p>
-                    </div>
-
                     {/* Live Scoring Access PIN */}
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
@@ -1724,16 +1640,6 @@ function DeanStationsContent() {
                             </span>
                           </div>
                         </div>
-                        {formInvigilatorProfId && (
-                          <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                            <Stethoscope className="size-3 shrink-0" />
-                            <span className="truncate">
-                              Evaluator:{' '}
-                              {professors.find((p) => p.id === formInvigilatorProfId)?.full_name ||
-                                'Selected'}
-                            </span>
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>
@@ -1858,21 +1764,6 @@ function DeanStationsContent() {
                     onChange={(e) => setEditTitle(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
                     required
-                  />
-                </div>
-
-                {/* Evaluator Professor Dropdown */}
-                <div className="space-y-1.5">
-                  <label className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
-                    <Stethoscope className="size-3 text-slate-400" />
-                    Evaluator Professor / Teacher
-                  </label>
-                  <Select
-                    options={professorSelectOptions}
-                    value={editInvigilatorProfId}
-                    onChange={(val) => setEditInvigilatorProfId(val)}
-                    placeholder="Select Evaluator Examiner..."
-                    searchable={true}
                   />
                 </div>
 

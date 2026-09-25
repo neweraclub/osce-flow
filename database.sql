@@ -131,12 +131,15 @@ CREATE TABLE public.exam_attempts (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   station_id uuid NOT NULL,
   student_id uuid NOT NULL,
-  status text NOT NULL DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'completed'::text])),
+  status text NOT NULL DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'completed'::text, 'submitted'::text, 'certified'::text, 'graded'::text])),
   created_at timestamp with time zone NOT NULL DEFAULT clock_timestamp(),
   CONSTRAINT exam_attempts_pkey PRIMARY KEY (id),
   CONSTRAINT exam_attempts_station_id_fkey FOREIGN KEY (station_id) REFERENCES public.stations(id),
   CONSTRAINT exam_attempts_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id)
 );
+-- Migration helper for live database:
+-- ALTER TABLE public.exam_attempts DROP CONSTRAINT IF EXISTS exam_attempts_status_check;
+-- ALTER TABLE public.exam_attempts ADD CONSTRAINT exam_attempts_status_check CHECK (status = ANY (ARRAY['pending'::text, 'completed'::text, 'submitted'::text, 'certified'::text, 'graded'::text]));
 CREATE TABLE public.student_answers (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   attempt_id uuid NOT NULL,

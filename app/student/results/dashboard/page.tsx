@@ -54,7 +54,7 @@ import { getModuleVisual } from '@/utils/getModuleIcon'
 function StudentResultsDashboardContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const studentId = searchParams.get('student_id')
+  const studentId = searchParams.get('student_id') || searchParams.get('candidate_id') || searchParams.get('id')
 
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<StudentResultsDashboardData | null>(null)

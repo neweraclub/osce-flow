@@ -9,7 +9,7 @@ import { getStudentResultsDashboardDataAction } from '@/app/actions/studentResul
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
-    const studentId = searchParams.get('student_id')
+    const studentId = searchParams.get('student_id') || searchParams.get('candidate_id') || searchParams.get('id')
 
     if (!studentId || !studentId.trim()) {
       return NextResponse.json(

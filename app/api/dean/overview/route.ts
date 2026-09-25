@@ -119,7 +119,7 @@ export async function GET(req: NextRequest) {
           .from('exam_attempts')
           .select('id, student_id, station_id, created_at')
           .in('station_id', stationIds)
-          .eq('status', 'completed')
+          .in('status', ['submitted', 'completed', 'certified', 'graded', 'passed'])
 
         const attemptList = attempts || []
         const attemptIds = attemptList.map((a) => a.id)

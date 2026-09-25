@@ -265,7 +265,7 @@ export async function GET(req: NextRequest) {
           created_at
         `)
         .in('station_id', stationIds)
-        .in('status', ['completed', 'passed'])
+        .in('status', ['submitted', 'completed', 'certified', 'graded', 'passed'])
 
       attemptsList = rawAttempts || []
     }

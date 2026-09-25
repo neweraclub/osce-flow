@@ -199,37 +199,88 @@ export async function getStudentResultsDashboardDataAction(
       return { success: false, error: 'Valid Student ID is required.' }
     }
 
-    // 1. Fetch student and academic path
-    const { data: student, error: studentErr } = await supabaseAdmin
-      .from('students')
-      .select(`
-        id,
-        matricule,
-        first_name,
-        last_name,
-        group_id,
-        groups (
+    // 1. Fetch student and academic path (support lookup by ID or matricule)
+    const cleanId = studentId.trim()
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId)
+
+    let student = null
+    let studentErr = null
+
+    if (isUuid) {
+      const { data: sById, error: errById } = await supabaseAdmin
+        .from('students')
+        .select(`
           id,
-          group_name,
-          section_id,
-          sections (
+          matricule,
+          first_name,
+          last_name,
+          group_id,
+          groups (
             id,
-            section_name,
-            level_id,
-            study_levels (
+            group_name,
+            section_id,
+            sections (
               id,
-              level_name,
-              academic_year_id,
-              academic_years (
+              section_name,
+              level_id,
+              study_levels (
                 id,
-                year_label
+                level_name,
+                academic_year_id,
+                academic_years (
+                  id,
+                  year_label
+                )
               )
             )
           )
-        )
-      `)
-      .eq('id', studentId.trim())
-      .maybeSingle()
+        `)
+        .eq('id', cleanId)
+        .maybeSingle()
+
+      student = sById
+      studentErr = errById
+    }
+
+    if (!student) {
+      const { data: sByMat, error: errByMat } = await supabaseAdmin
+        .from('students')
+        .select(`
+          id,
+          matricule,
+          first_name,
+          last_name,
+          group_id,
+          groups (
+            id,
+            group_name,
+            section_id,
+            sections (
+              id,
+              section_name,
+              level_id,
+              study_levels (
+                id,
+                level_name,
+                academic_year_id,
+                academic_years (
+                  id,
+                  year_label
+                )
+              )
+            )
+          )
+        `)
+        .ilike('matricule', cleanId)
+        .maybeSingle()
+
+      if (sByMat) {
+        student = sByMat
+        studentErr = null
+      } else if (!studentErr) {
+        studentErr = errByMat
+      }
+    }
 
     if (studentErr || !student) {
       console.error('Error fetching student profile:', studentErr)
@@ -242,6 +293,9 @@ export async function getStudentResultsDashboardDataAction(
     const academicYearData: any = studyLevelData?.academic_years
 
     // 2. Fetch all exam attempts for this student with stations, exams, and modules
+    // Permissive statuses: allows immediate review upon completion/submission without manual lock
+    const ALLOWED_STATUSES = ['submitted', 'completed', 'certified', 'graded', 'passed']
+
     const { data: attempts, error: attErr } = await supabaseAdmin
       .from('exam_attempts')
       .select(`
@@ -269,7 +323,7 @@ export async function getStudentResultsDashboardDataAction(
         )
       `)
       .eq('student_id', student.id)
-      .in('status', ['completed', 'passed'])
+      .in('status', ALLOWED_STATUSES)
       .order('created_at', { ascending: false })
 
     if (attErr) {
@@ -277,6 +331,43 @@ export async function getStudentResultsDashboardDataAction(
     }
 
     let attemptList: any[] = attempts || []
+
+    // Resilient fallback: if no attempts found with exact allowed status, check non-absent records
+    if (attemptList.length === 0) {
+      const { data: nonAbsentAttempts } = await supabaseAdmin
+        .from('exam_attempts')
+        .select(`
+          id,
+          station_id,
+          status,
+          created_at,
+          stations (
+            id,
+            station_number,
+            title,
+            weightage_percentage,
+            exam_id,
+            exams (
+              id,
+              session_type,
+              exam_date,
+              module_id,
+              modules (
+                id,
+                module_name,
+                level_id
+              )
+            )
+          )
+        `)
+        .eq('student_id', student.id)
+        .neq('status', 'absent')
+        .order('created_at', { ascending: false })
+
+      if (nonAbsentAttempts && nonAbsentAttempts.length > 0) {
+        attemptList = nonAbsentAttempts
+      }
+    }
 
     // Fallback for legacy attempts where exam_id was used
     if (attemptList.length === 0) {
@@ -307,11 +398,45 @@ export async function getStudentResultsDashboardDataAction(
           )
         `)
         .eq('student_id', student.id)
-        .in('status', ['completed', 'passed'])
+        .in('status', ALLOWED_STATUSES)
         .order('created_at', { ascending: false })
 
-      if (legacyAttempts) {
+      if (legacyAttempts && legacyAttempts.length > 0) {
         attemptList = legacyAttempts
+      } else {
+        const { data: anyLegacy } = await supabaseAdmin
+          .from('exam_attempts')
+          .select(`
+            id,
+            exam_id,
+            status,
+            created_at,
+            exams (
+              id,
+              session_type,
+              exam_date,
+              station_id,
+              stations (
+                id,
+                station_number,
+                title,
+                weightage_percentage,
+                module_id,
+                modules (
+                  id,
+                  module_name,
+                  level_id
+                )
+              )
+            )
+          `)
+          .eq('student_id', student.id)
+          .neq('status', 'absent')
+          .order('created_at', { ascending: false })
+
+        if (anyLegacy) {
+          attemptList = anyLegacy
+        }
       }
     }
 
@@ -412,14 +537,20 @@ export async function getStudentResultsDashboardDataAction(
     }>()
 
     attemptList.forEach((att: any) => {
-      const station = att.stations || att.exams?.stations
-      const exam = att.stations?.exams || att.exams
-      const mod = exam?.modules || station?.modules
+      const station = Array.isArray(att.stations)
+        ? att.stations[0]
+        : att.stations || (Array.isArray(att.exams?.stations) ? att.exams?.stations[0] : att.exams?.stations)
+      const exam = Array.isArray(station?.exams)
+        ? station.exams[0]
+        : station?.exams || (Array.isArray(att.exams) ? att.exams[0] : att.exams)
+      const mod = Array.isArray(exam?.modules)
+        ? exam.modules[0]
+        : exam?.modules || (Array.isArray(station?.modules) ? station.modules[0] : station?.modules)
 
-      if (!station || !mod) return
+      if (!station) return
 
-      const moduleId = mod.id
-      const moduleName = mod.module_name
+      const moduleId = mod?.id || exam?.module_id || `station-module-${station.id}`
+      const moduleName = mod?.module_name || 'Clinical Examination Module'
       const rawSession = exam?.session_type || 'regular'
       const sessionType = (rawSession === 'retake' || rawSession === 'makeup') ? 'retake' : 'regular'
       const groupKey = `${moduleId}_${sessionType}`

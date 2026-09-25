@@ -138,7 +138,7 @@ export async function GET(req: NextRequest) {
         .from('exam_attempts')
         .select('id, station_id, status')
         .in('station_id', stationIds)
-        .eq('status', 'completed')
+        .in('status', ['submitted', 'completed', 'certified', 'graded', 'passed'])
 
       // Total students in cohorts
       let totalCohortStudents = 0

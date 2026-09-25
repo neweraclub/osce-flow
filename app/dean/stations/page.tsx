@@ -1,13 +1,10 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, Suspense } from 'react'
-import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   AlertCircle,
   AlertTriangle,
-  ArrowLeft,
-  ArrowRight,
   BookOpen,
   Calendar,
   Check,
@@ -23,40 +20,54 @@ import {
   GraduationCap,
   Hash,
   Key,
+  KeyRound,
   Layers,
   Loader2,
   Percent,
   Plus,
   RefreshCw,
   Search,
-  ShieldCheck,
   Sliders,
   Sparkles,
   Stethoscope,
   Trash2,
-  Unlink,
   UserCheck,
-  Users,
   X,
 } from 'lucide-react'
 import { DatePicker } from '@/components/ui/date-picker'
 import { Select, SelectOption } from '@/components/ui/Select'
 import { useAcademicYear } from '@/context/AcademicYearContext'
 import { useToast } from '@/context/ToastContext'
-import { ModuleSpecialtyBadge } from '@/components/dean/ModuleSpecialtyBadge'
-import { getModuleVisual } from '@/utils/getModuleIcon'
+import { getModuleIcon } from '@/utils/getModuleIcon'
 
-export interface AcademicYearItem {
+export interface StationItem {
   id: string
-  year_label: string
-  name: string
-  is_current: boolean
-}
-
-export interface StudyLevelItem {
-  id: string
-  level_name: string
-  academic_year_id: string
+  exam_id: string
+  module_id?: string
+  module_name?: string
+  station_number: number
+  title: string
+  access_pin: string
+  weightage_percentage: number
+  question_count?: number
+  invigilator_prof_id?: string | null
+  invigilator_prof_name?: string
+  invigilator_professor?: {
+    id: string
+    first_name: string
+    last_name: string
+    full_name: string
+    email?: string
+  } | null
+  created_at?: string
+  linked_exam?: {
+    id: string
+    module_name: string
+    level_name: string
+    session_type: string
+    exam_date: string
+    display_label: string
+  } | null
 }
 
 export interface ModuleItem {
@@ -86,43 +97,6 @@ export interface ExamSessionItem {
   display_label?: string
 }
 
-export const isRegularSession = (type?: string | null) =>
-  String(type || '').trim().toLowerCase() === 'regular'
-
-export const isRetakeSession = (type?: string | null) => {
-  const t = String(type || '').trim().toLowerCase()
-  return t === 'retake' || t === 'makeup'
-}
-
-export interface StationItem {
-  id: string
-  exam_id: string
-  module_id?: string
-  module_name?: string
-  station_number: number
-  title: string
-  access_pin: string
-  weightage_percentage: number
-  invigilator_prof_id?: string | null
-  invigilator_prof_name?: string
-  invigilator_professor?: {
-    id: string
-    first_name: string
-    last_name: string
-    full_name: string
-    email?: string
-  } | null
-  created_at?: string
-  linked_exam?: {
-    id: string
-    module_name: string
-    level_name: string
-    session_type: string
-    exam_date: string
-    display_label: string
-  } | null
-}
-
 export interface ProfessorOption {
   id: string
   user_id: string
@@ -132,6 +106,12 @@ export interface ProfessorOption {
   email?: string
 }
 
+export interface StudyLevelItem {
+  id: string
+  level_name: string
+  academic_year_id: string
+}
+
 function DeanStationsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -139,38 +119,26 @@ function DeanStationsContent() {
   const {
     selectedYearId,
     selectedYear,
-    years: contextYears,
-    setSelectedYearId,
     isLoading: isYearLoading,
   } = useAcademicYear()
-
-  // Navigation Step:
-  // 1: Clinical Modules Directory
-  // 2: Exam Sessions (Regular / Retake) for Selected Module
-  // 3: Stations Management for Selected Exam Session
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1)
 
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
   // Core Data
-  const [academicYears, setAcademicYears] = useState<AcademicYearItem[]>([])
-  const [studyLevels, setStudyLevels] = useState<StudyLevelItem[]>([])
   const [modules, setModules] = useState<ModuleItem[]>([])
+  const [studyLevels, setStudyLevels] = useState<StudyLevelItem[]>([])
+  const [selectedLevelId, setSelectedLevelId] = useState<string>('ALL')
+  const [selectedModuleId, setSelectedModuleId] = useState<string>('')
   const [exams, setExams] = useState<ExamSessionItem[]>([])
+  const [activeExamId, setActiveExamId] = useState<string | null>(null)
   const [stations, setStations] = useState<StationItem[]>([])
   const [professors, setProfessors] = useState<ProfessorOption[]>([])
 
-  // Drilldown Pointers
-  const [selectedLevelId, setSelectedLevelId] = useState<string>('ALL')
-  const [selectedModuleId, setSelectedModuleId] = useState<string>('')
-  const [activeExamId, setActiveExamId] = useState<string | null>(null)
+  // Search & Filtering within active session
+  const [search, setSearch] = useState('')
 
-  // Search & Filtering
-  const [moduleSearch, setModuleSearch] = useState('')
-  const [stationSearch, setStationSearch] = useState('')
-
-  // PIN Visibility toggles and copy feedback
+  // PIN Visibility toggles, copy feedback, and publish status
   const [revealedPins, setRevealedPins] = useState<Record<string, boolean>>({})
   const [copiedPinId, setCopiedPinId] = useState<string | null>(null)
   const [publishedMap, setPublishedMap] = useState<Record<string, boolean>>({})
@@ -239,24 +207,17 @@ function DeanStationsContent() {
   useEffect(() => {
     const queryModuleId = searchParams.get('module_id')
     const queryExamId = searchParams.get('exam_id')
-    const queryStep = searchParams.get('step')
 
-    if (queryModuleId && queryExamId) {
+    if (queryModuleId) {
       setSelectedModuleId(queryModuleId)
+    }
+    if (queryExamId) {
       setActiveExamId(queryExamId)
-      setCurrentStep(3)
-    } else if (queryModuleId) {
-      setSelectedModuleId(queryModuleId)
-      setCurrentStep(2)
-    } else if (queryStep === '2') {
-      setCurrentStep(2)
-    } else if (queryStep === '3') {
-      setCurrentStep(3)
     }
   }, [searchParams])
 
-  // Fetch all scoped faculty data (academic years, levels, modules, exams, stations, professors)
-  const fetchAllFacultyData = async (yearId?: string | null, isManual = false) => {
+  // Fetch all modules, exams, stations, and professors
+  const fetchData = async (yearId?: string | null, isManual = false) => {
     if (isManual) setRefreshing(true)
     else setLoading(true)
 
@@ -264,34 +225,37 @@ function DeanStationsContent() {
 
     try {
       const yearQuery = targetYearId ? `?academic_year_id=${targetYearId}` : ''
-      const [modulesRes, examsRes, stationsRes] = await Promise.all([
-        fetch(`/api/dean/modules${yearQuery}`),
-        fetch(`/api/dean/exams${yearQuery}`),
+      const [stationsRes, modulesRes] = await Promise.all([
         fetch(`/api/dean/stations${yearQuery}`),
+        fetch(`/api/dean/modules${yearQuery}`),
       ])
 
-      const [modulesJson, examsJson, stationsJson] = await Promise.all([
-        modulesRes.json(),
-        examsRes.json(),
+      const [stationsJson, modulesJson] = await Promise.all([
         stationsRes.json(),
+        modulesRes.json(),
       ])
 
       if (modulesRes.ok && modulesJson.success) {
-        setModules(modulesJson.modules || [])
         setStudyLevels(modulesJson.studyLevels || [])
-        setProfessors(modulesJson.professors || [])
-        setAcademicYears(modulesJson.academicYears || [])
-      }
-
-      if (examsRes.ok && examsJson.success) {
-        setExams(examsJson.exams || [])
       }
 
       if (stationsRes.ok && stationsJson.success) {
+        const fetchedModules: ModuleItem[] = stationsJson.modules || []
+        setModules(fetchedModules)
+        setExams(stationsJson.exams || [])
         setStations(stationsJson.stations || [])
+        setProfessors(stationsJson.professors || [])
+
+        // If no module currently selected or selected module is not in new list, pick the first
+        setSelectedModuleId((prev) => {
+          if (prev && fetchedModules.some((m) => m.id === prev)) return prev
+          return fetchedModules.length > 0 ? fetchedModules[0].id : ''
+        })
+      } else {
+        showError(stationsJson.error || 'Failed to fetch clinical stations.')
       }
     } catch (err: any) {
-      showError(err?.message || 'Error loading faculty stations data.')
+      showError(err?.message || 'Error connecting to server.')
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -300,102 +264,89 @@ function DeanStationsContent() {
 
   useEffect(() => {
     if (selectedYearId) {
-      fetchAllFacultyData(selectedYearId)
+      fetchData(selectedYearId)
     } else if (!isYearLoading) {
-      fetchAllFacultyData(null)
+      fetchData(null)
     }
   }, [selectedYearId, isYearLoading])
 
+  // Filter modules by study level if multiple levels exist
+  const filteredModules = useMemo(() => {
+    if (selectedLevelId === 'ALL') return modules
+    return modules.filter((m) => m.level_id === selectedLevelId)
+  }, [modules, selectedLevelId])
+
   // Active module object
   const activeModule = useMemo(() => {
-    return modules.find((m) => m.id === selectedModuleId) || null
+    return modules.find((m) => m.id === selectedModuleId) || modules[0] || null
   }, [modules, selectedModuleId])
 
-  // Exams for the active module (max 2: 1 regular, 1 retake)
-  const activeModuleExams = useMemo(() => {
+  // Exams for the selected module (max 2: 1 regular, 1 retake)
+  const currentModuleExams = useMemo(() => {
     if (!selectedModuleId) return []
     return exams.filter((e) => e.module_id === selectedModuleId)
   }, [exams, selectedModuleId])
 
-  const hasRegularSession = activeModuleExams.some((e) => isRegularSession(e.session_type))
-  const hasRetakeSession = activeModuleExams.some((e) => isRetakeSession(e.session_type))
+  const hasRegularSession = currentModuleExams.some(
+    (e) => String(e.session_type || '').toLowerCase() === 'regular'
+  )
+  const hasRetakeSession = currentModuleExams.some((e) => {
+    const t = String(e.session_type || '').toLowerCase()
+    return t === 'retake' || t === 'makeup'
+  })
   const isMaxSessionsReached = hasRegularSession && hasRetakeSession
 
-  const regularExam = useMemo(
-    () => activeModuleExams.find((e) => isRegularSession(e.session_type)) || null,
-    [activeModuleExams]
-  )
-  const retakeExam = useMemo(
-    () => activeModuleExams.find((e) => isRetakeSession(e.session_type)) || null,
-    [activeModuleExams]
-  )
-
-  const regularStations = useMemo(() => {
-    if (!regularExam) return []
-    return stations.filter((s) => s.exam_id === regularExam.id)
-  }, [stations, regularExam])
-
-  const retakeStations = useMemo(() => {
-    if (!retakeExam) return []
-    return stations.filter((s) => s.exam_id === retakeExam.id)
-  }, [stations, retakeExam])
-
-  const regularWeightage = useMemo(() => {
-    return (
-      Math.round(
-        regularStations.reduce((sum, s) => sum + Number(s.weightage_percentage || 0), 0) * 100
-      ) / 100
-    )
-  }, [regularStations])
-
-  const retakeWeightage = useMemo(() => {
-    return (
-      Math.round(
-        retakeStations.reduce((sum, s) => sum + Number(s.weightage_percentage || 0), 0) * 100
-      ) / 100
-    )
-  }, [retakeStations])
-
-  // Automatically sync activeExamId when active module or its exams change
+  // Automatically sync activeExamId when module or exams change
   useEffect(() => {
-    if (activeModuleExams.length === 0) {
+    if (currentModuleExams.length === 0) {
       setActiveExamId(null)
       return
     }
 
-    if (!activeExamId || !activeModuleExams.some((e) => e.id === activeExamId)) {
-      const reg = activeModuleExams.find((e) => isRegularSession(e.session_type))
-      setActiveExamId(reg ? reg.id : activeModuleExams[0].id)
+    if (!activeExamId || !currentModuleExams.some((e) => e.id === activeExamId)) {
+      // Prioritize regular session, else first available
+      const reg = currentModuleExams.find(
+        (e) => String(e.session_type || '').toLowerCase() === 'regular'
+      )
+      setActiveExamId(reg ? reg.id : currentModuleExams[0].id)
     }
-  }, [activeModuleExams, activeExamId])
+  }, [currentModuleExams, activeExamId])
 
-  // Active exam session
+  // Currently selected active exam session
   const activeExam = useMemo(() => {
-    return activeModuleExams.find((e) => e.id === activeExamId) || null
-  }, [activeModuleExams, activeExamId])
+    return currentModuleExams.find((e) => e.id === activeExamId) || null
+  }, [currentModuleExams, activeExamId])
 
-  // Stations for active exam session
+  // Stations belonging to the active exam session
   const activeSessionStations = useMemo(() => {
     if (!activeExam) return []
-    return stations.filter((s) => s.exam_id === activeExam.id)
-  }, [stations, activeExam])
+    return stations.filter(
+      (s) => s.exam_id === activeExam.id || (!s.exam_id && s.module_id === selectedModuleId)
+    )
+  }, [stations, activeExam, selectedModuleId])
 
-  // Total session weightage (towards 100.00%)
+  // Curriculum Modules Weightage Allocation progress for active session (towards 100%)
   const totalSessionWeightage = useMemo(() => {
     return (
       Math.round(
-        activeSessionStations.reduce((sum, s) => sum + Number(s.weightage_percentage || 0), 0) * 100
+        activeSessionStations.reduce(
+          (sum, s) => sum + Number(s.weightage_percentage || 0),
+          0
+        ) * 100
       ) / 100
     )
   }, [activeSessionStations])
 
-  const availableWeightage = Math.max(0, Math.round((100 - totalSessionWeightage) * 100) / 100)
+  const availableWeightage = Math.max(
+    0,
+    Math.round((100 - totalSessionWeightage) * 100) / 100
+  )
   const isFullyAllocated = totalSessionWeightage >= 100
 
-  // Filtered stations for display in Step 3
+  // Filtered stations by search text
   const displayedStations = useMemo(() => {
-    if (!stationSearch.trim()) return activeSessionStations
-    const q = stationSearch.toLowerCase().trim()
+    if (!search.trim()) return activeSessionStations
+    const q = search.toLowerCase().trim()
     return activeSessionStations.filter(
       (s) =>
         s.title.toLowerCase().includes(q) ||
@@ -403,22 +354,17 @@ function DeanStationsContent() {
         s.access_pin.includes(q) ||
         (s.invigilator_prof_name && s.invigilator_prof_name.toLowerCase().includes(q))
     )
-  }, [activeSessionStations, stationSearch])
+  }, [activeSessionStations, search])
 
-  // Filtered modules for Step 2
-  const displayedModules = useMemo(() => {
-    return modules.filter((m) => {
-      if (selectedLevelId !== 'ALL' && m.level_id !== selectedLevelId) return false
-      if (moduleSearch.trim()) {
-        const q = moduleSearch.toLowerCase().trim()
-        const matchName = m.module_name.toLowerCase().includes(q)
-        const matchLevel = m.level_name.toLowerCase().includes(q)
-        const matchProf = m.responsible_prof_name?.toLowerCase().includes(q)
-        if (!matchName && !matchLevel && !matchProf) return false
-      }
-      return true
-    })
-  }, [modules, selectedLevelId, moduleSearch])
+  // Professor select options for dropdowns
+  const professorSelectOptions: SelectOption[] = useMemo(() => {
+    const list = professors.map((p) => ({
+      value: p.id,
+      label: p.full_name,
+      description: p.email,
+    }))
+    return [{ value: '', label: 'Unassigned (Select later)' }, ...list]
+  }, [professors])
 
   // --- PIN Handlers ---
   const togglePinReveal = (e: React.MouseEvent, stationId: string) => {
@@ -442,9 +388,19 @@ function DeanStationsContent() {
     setFormAccessPin(code)
   }
 
+  const generateRandomEditPin = () => {
+    const code = Math.floor(100000 + Math.random() * 900000).toString()
+    setEditAccessPin(code)
+  }
+
   // --- Modal Openers ---
   const handleOpenCreateSession = () => {
-    setSessionType(hasRegularSession ? 'retake' : 'regular')
+    if (isMaxSessionsReached) return
+    if (!hasRegularSession) {
+      setSessionType('regular')
+    } else {
+      setSessionType('retake')
+    }
     setExamDate(new Date().toISOString().split('T')[0])
     setSessionError('')
     setIsCreateSessionOpen(true)
@@ -452,41 +408,53 @@ function DeanStationsContent() {
 
   const handleOpenCreateStation = () => {
     if (!activeExam) {
-      showError('Please schedule or select an exam session first.')
+      showError('Please create or select an exam session first.')
       return
     }
-    const nextNumber =
+    const nextNum =
       activeSessionStations.length > 0
         ? Math.max(...activeSessionStations.map((s) => s.station_number)) + 1
         : 1
-
-    setFormStationNumber(nextNumber)
-    setFormTitle(`Station ${nextNumber}: Clinical Case Assessment`)
+    setFormStationNumber(nextNum)
+    setFormTitle(`Station ${nextNum}: Clinical Skills Assessment`)
     setFormAccessPin(Math.floor(100000 + Math.random() * 900000).toString())
     setFormShowPin(true)
-    setFormWeightage(availableWeightage > 0 ? availableWeightage : 50)
+    setFormWeightage(Math.min(50, availableWeightage > 0 ? availableWeightage : 50))
     setFormInvigilatorProfId('')
     setStationError('')
     setIsCreateStationOpen(true)
   }
 
-  const handleOpenEditStation = (e: React.MouseEvent, station: StationItem) => {
+  const handleOpenEditStation = (e: React.MouseEvent, st: StationItem) => {
     e.stopPropagation()
-    setEditingStation(station)
-    setEditTitle(station.title)
-    setEditStationNumber(station.station_number)
-    setEditAccessPin(station.access_pin)
+    setEditingStation(st)
+    setEditTitle(st.title)
+    setEditStationNumber(st.station_number)
+    setEditAccessPin(st.access_pin)
     setEditShowPin(true)
-    setEditWeightage(station.weightage_percentage || 50)
-    setEditInvigilatorProfId(station.invigilator_prof_id || '')
+    setEditWeightage(st.weightage_percentage || 50)
+    setEditInvigilatorProfId(st.invigilator_prof_id || '')
     setEditError('')
   }
 
-  // --- Submit Handlers ---
+  // --- Create Exam Session Handler ---
   const handleCreateSessionSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedModuleId) {
       setSessionError('Please select a curriculum module.')
+      return
+    }
+    if (!examDate) {
+      setSessionError('Please select an exam date.')
+      return
+    }
+
+    if (sessionType === 'regular' && hasRegularSession) {
+      setSessionError('A Regular Session already exists for this module.')
+      return
+    }
+    if (sessionType === 'retake' && hasRetakeSession) {
+      setSessionError('A Retake Session already exists for this module.')
       return
     }
 
@@ -505,36 +473,40 @@ function DeanStationsContent() {
       })
 
       const json = await res.json()
-      if (res.ok && json.success) {
-        showSuccess(`${sessionType === 'retake' ? 'Retake' : 'Regular'} exam session created.`)
+      if (res.ok && json.success && json.exam) {
+        showSuccess(
+          `${sessionType === 'regular' ? 'Regular' : 'Retake'} Exam Session created successfully.`
+        )
+        setExams((prev) => [...prev, json.exam])
+        setActiveExamId(json.exam.id)
         setIsCreateSessionOpen(false)
-        await fetchAllFacultyData(selectedYearId)
-        if (json.exam?.id) {
-          setActiveExamId(json.exam.id)
-          setCurrentStep(3)
-        }
       } else {
         setSessionError(json.error || 'Failed to create exam session.')
       }
     } catch (err: any) {
-      setSessionError(err?.message || 'Error connecting to server.')
+      setSessionError(err?.message || 'Error communicating with server.')
     } finally {
       setSubmittingSession(false)
     }
   }
 
+  // --- Create Clinical Station Handler ---
   const handleCreateStationSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!activeExam) {
-      setStationError('No exam session selected.')
+      setStationError('No active exam session selected.')
       return
     }
     if (!formTitle.trim()) {
-      setStationError('Station title is required.')
+      setStationError('Please provide a station title.')
       return
     }
     if (!formAccessPin || formAccessPin.trim().length < 4) {
-      setStationError('Access PIN must be at least 4 characters.')
+      setStationError('PIN must be at least 4 characters.')
+      return
+    }
+    if (formWeightage > availableWeightage) {
+      setStationError(`Weightage exceeds available capacity (${availableWeightage}% remaining).`)
       return
     }
 
@@ -546,40 +518,42 @@ function DeanStationsContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: formTitle.trim(),
+          exam_id: activeExam.id,
           station_number: formStationNumber,
+          title: formTitle.trim(),
           access_pin: formAccessPin.trim(),
           weightage_percentage: formWeightage,
           invigilator_prof_id: formInvigilatorProfId || null,
-          exam_id: activeExam.id,
         }),
       })
 
       const json = await res.json()
       if (res.ok && json.success) {
-        showSuccess('Clinical station created successfully.')
+        showSuccess(`Station #${formStationNumber} created successfully.`)
         setIsCreateStationOpen(false)
-        fetchAllFacultyData(selectedYearId)
+        await fetchData(selectedYearId, false)
       } else {
         setStationError(json.error || 'Failed to create station.')
       }
     } catch (err: any) {
-      setStationError(err?.message || 'Error connecting to server.')
+      setStationError(err?.message || 'Error communicating with server.')
     } finally {
       setSubmittingStation(false)
     }
   }
 
+  // --- Edit Station Handler ---
   const handleEditStationSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingStation) return
 
-    if (!editTitle.trim()) {
-      setEditError('Station title cannot be empty.')
-      return
-    }
-    if (!editAccessPin || editAccessPin.trim().length < 4) {
-      setEditError('Access PIN must be at least 4 characters.')
+    const otherWeightage = activeSessionStations
+      .filter((s) => s.id !== editingStation.id)
+      .reduce((sum, s) => sum + Number(s.weightage_percentage || 0), 0)
+    const maxAllowed = Math.max(0, Math.round((100 - otherWeightage) * 100) / 100)
+
+    if (editWeightage > maxAllowed) {
+      setEditError(`Weightage cannot exceed ${maxAllowed}% for this session.`)
       return
     }
 
@@ -587,1099 +561,752 @@ function DeanStationsContent() {
     setEditError('')
 
     try {
-      const res = await fetch(`/api/dean/stations/${editingStation.id}`, {
-        method: 'PATCH',
+      const res = await fetch('/api/dean/stations', {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          id: editingStation.id,
           title: editTitle.trim(),
           station_number: editStationNumber,
           access_pin: editAccessPin.trim(),
           weightage_percentage: editWeightage,
           invigilator_prof_id: editInvigilatorProfId || null,
-          exam_id: editingStation.exam_id,
         }),
       })
 
       const json = await res.json()
       if (res.ok && json.success) {
-        showSuccess('Clinical station updated.')
+        showSuccess('Station details updated.')
         setEditingStation(null)
-        fetchAllFacultyData(selectedYearId)
+        await fetchData(selectedYearId, false)
       } else {
         setEditError(json.error || 'Failed to update station.')
       }
     } catch (err: any) {
-      setEditError(err?.message || 'Error connecting to server.')
+      setEditError(err?.message || 'Error communicating with server.')
     } finally {
       setSubmittingEdit(false)
     }
   }
 
-  const handleDeleteStationConfirm = async () => {
+  // --- Delete Handlers ---
+  const handleDeleteStation = async () => {
     if (!deletingStation) return
     setIsDeleting(true)
-
     try {
-      const res = await fetch(`/api/dean/stations/${deletingStation.id}`, {
+      const res = await fetch(`/api/dean/stations?id=${deletingStation.id}`, {
         method: 'DELETE',
       })
       const json = await res.json()
-
       if (res.ok && json.success) {
-        showSuccess('Clinical station removed.')
+        showSuccess('Station removed.')
+        setStations((prev) => prev.filter((s) => s.id !== deletingStation.id))
         setDeletingStation(null)
-        fetchAllFacultyData(selectedYearId)
       } else {
         showError(json.error || 'Failed to delete station.')
       }
-    } catch (err: any) {
-      showError(err?.message || 'Error communicating with server.')
+    } catch {
+      showError('Network error deleting station.')
     } finally {
       setIsDeleting(false)
     }
   }
 
-  const handleDeleteExamConfirm = async () => {
+  const handleDeleteExamSession = async () => {
     if (!deletingExam) return
     setIsDeleting(true)
-
     try {
       const res = await fetch(`/api/dean/exams?id=${deletingExam.id}`, {
         method: 'DELETE',
       })
       const json = await res.json()
-
       if (res.ok && json.success) {
-        showSuccess('Exam session removed.')
+        showSuccess('Exam session deleted.')
+        setExams((prev) => prev.filter((e) => e.id !== deletingExam.id))
+        setStations((prev) => prev.filter((s) => s.exam_id !== deletingExam.id))
         setDeletingExam(null)
-        await fetchAllFacultyData(selectedYearId)
-        if (currentStep === 3) {
-          setCurrentStep(2)
-        }
       } else {
         showError(json.error || 'Failed to delete exam session.')
       }
-    } catch (err: any) {
-      showError(err?.message || 'Error communicating with server.')
+    } catch {
+      showError('Network error deleting exam session.')
     } finally {
       setIsDeleting(false)
     }
   }
 
-  // Professor selection dropdown options
-  const professorSelectOptions: SelectOption[] = useMemo(() => {
-    const list: SelectOption[] = [
-      {
-        value: '',
-        label: 'Unassigned (Assign Later)',
-        subLabel: 'Dean or professor can assign later',
-        icon: UserCheck,
-      },
-    ]
-
-    professors.forEach((p) => {
-      list.push({
-        value: p.id,
-        label: p.full_name,
-        subLabel: p.email || 'Faculty Evaluator',
-        icon: Stethoscope,
-      })
-    })
-
-    return list
-  }, [professors])
-
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* ========================================================================= */}
-      {/* FIXED STICKY WIZARD STEPPER SUB-HEADER (STEPS 1, 2, 3)                     */}
-      {/* ========================================================================= */}
-      <div className="sticky top-16 z-20 rounded-xl bg-white/90 dark:bg-[#0F121C]/90 backdrop-blur-md border border-slate-200/80 dark:border-white/[0.08] shadow-sm p-3.5 sm:px-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          {/* Connecting Chevron Wizard Steps */}
-          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-            {/* Step 1 */}
-            <button
-              type="button"
-              onClick={() => {
-                setCurrentStep(1)
-                setSelectedModuleId('')
-              }}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${currentStep === 1
-                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/25'
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#161B2A]'
-                }`}
-            >
-              <span className={`size-5 rounded-full flex items-center justify-center text-[10px] font-bold ${currentStep > 1 ? 'bg-emerald-500 text-white' : currentStep === 1 ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-white/[0.08]'
-                }`}>
-                {currentStep > 1 ? <Check className="size-3" /> : '1'}
-              </span>
-              <span>Clinical Modules</span>
-            </button>
-
-            {/* Chevron connector line */}
-            <div className="flex items-center gap-1 text-slate-300 dark:text-white/[0.15]">
-              <div className="w-3 sm:w-6 h-[1px] bg-slate-200 dark:bg-white/[0.1]" />
-              <ChevronRight className="size-3.5" />
+      {/* Top Header & Refresh Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
+            <div className="flex size-9 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-md shadow-emerald-500/20">
+              <Layers className="size-5" />
             </div>
-
-            {/* Step 2 */}
-            <button
-              type="button"
-              disabled={!activeModule}
-              onClick={() => activeModule && setCurrentStep(2)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${!activeModule
-                  ? 'opacity-40 cursor-not-allowed text-slate-400'
-                  : currentStep === 2
-                    ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/25 cursor-pointer'
-                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#161B2A] cursor-pointer'
-                }`}
-            >
-              <span className={`size-5 rounded-full flex items-center justify-center text-[10px] font-bold ${currentStep > 2 ? 'bg-emerald-500 text-white' : currentStep === 2 ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-white/[0.08]'
-                }`}>
-                {currentStep > 2 ? <Check className="size-3" /> : '2'}
-              </span>
-              <span className="truncate max-w-[140px] sm:max-w-none">
-                {activeModule ? activeModule.module_name : 'Exam Sessions'}
-              </span>
-            </button>
-
-            {/* Chevron connector line */}
-            <div className="flex items-center gap-1 text-slate-300 dark:text-white/[0.15]">
-              <div className="w-3 sm:w-6 h-[1px] bg-slate-200 dark:bg-white/[0.1]" />
-              <ChevronRight className="size-3.5" />
-            </div>
-
-            {/* Step 3 */}
-            <button
-              type="button"
-              disabled={!activeExam}
-              onClick={() => activeExam && setCurrentStep(3)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${!activeExam
-                  ? 'opacity-40 cursor-not-allowed text-slate-400'
-                  : currentStep === 3
-                    ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-500/25 cursor-pointer'
-                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#161B2A] cursor-pointer'
-                }`}
-            >
-              <span className={`size-5 rounded-full flex items-center justify-center text-[10px] font-bold ${currentStep === 3 ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-white/[0.08]'
-                }`}>
-                3
-              </span>
-              <span>Stations Hub</span>
-            </button>
-          </div>
-
-          {/* Action Tools in Sticky Header */}
-          <div className="flex items-center gap-2 self-end sm:self-auto">
-            {currentStep === 2 && (
-              <button
-                type="button"
-                onClick={() => {
-                  setCurrentStep(1)
-                  setSelectedModuleId('')
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200/80 dark:border-white/[0.08] bg-white dark:bg-[#161B2A] text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-all cursor-pointer"
-              >
-                <ArrowLeft className="size-3.5" />
-                <span>Modules</span>
-              </button>
-            )}
-
-            {currentStep === 3 && (
-              <button
-                type="button"
-                onClick={() => setCurrentStep(2)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200/80 dark:border-white/[0.08] bg-white dark:bg-[#161B2A] text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-all cursor-pointer"
-              >
-                <ArrowLeft className="size-3.5" />
-                <span>Sessions</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() => fetchAllFacultyData(selectedYearId, true)}
-              disabled={refreshing || loading}
-              className="p-2 rounded-lg border border-slate-200/80 dark:border-white/[0.08] bg-white dark:bg-[#161B2A] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-all disabled:opacity-50 cursor-pointer"
-              title="Refresh records"
-            >
-              <RefreshCw className={`size-3.5 ${refreshing ? 'animate-spin text-indigo-500' : ''}`} />
-            </button>
-          </div>
+            <span>Clinical Stations Management</span>
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Exam First workflow: Select a curriculum module, choose a Regular or Retake session, and author clinical stations.
+          </p>
         </div>
+
+        <button
+          onClick={() => fetchData(selectedYearId, true)}
+          disabled={refreshing || loading}
+          className="flex items-center justify-center gap-2 px-4 py-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-xs disabled:opacity-50 self-start sm:self-auto cursor-pointer"
+        >
+          <RefreshCw className={`size-3.5 ${refreshing ? 'animate-spin text-emerald-500' : ''}`} />
+          <span>Refresh</span>
+        </button>
       </div>
 
-      {/* ========================================================================= */}
-      {/* STEP 1: CLINICAL MODULES DIRECTORY                                        */}
-      {/* ========================================================================= */}
-      {currentStep === 1 && (
-        <div className="space-y-6 animate-in fade-in">
-          {/* Controls Bar: Study Level Filter & Search */}
-          <div className="p-4 sm:p-5 rounded-3xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-            {/* Study Level Filter Pills */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-              <button
-                type="button"
-                onClick={() => setSelectedLevelId('ALL')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${selectedLevelId === 'ALL'
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-              >
-                All Levels ({loading ? '...' : modules.length})
-              </button>
+      {loading ? (
+        <div className="flex flex-col items-center justify-center p-16 rounded-3xl bg-white/50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800">
+          <Loader2 className="size-8 text-emerald-500 animate-spin mb-3" />
+          <p className="text-xs font-bold text-slate-500">Loading module sessions and clinical stations...</p>
+        </div>
+      ) : modules.length === 0 ? (
+        /* No Modules in Academic Year */
+        <div className="p-12 rounded-3xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 text-center space-y-3">
+          <GraduationCap className="size-10 text-slate-400 mx-auto" />
+          <h3 className="text-base font-bold text-slate-900 dark:text-white">No Clinical Modules Found</h3>
+          <p className="text-xs text-slate-400 max-w-md mx-auto">
+            No curriculum modules are configured for the active academic year. Create study levels and modules in the curriculum section.
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* ========================================================================= */}
+          {/* STEP 1: MODULE SELECTION LEVEL (Segmented control pill bar)               */}
+          {/* ========================================================================= */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-emerald-500/70 flex items-center gap-1.5">
+                <BookOpen className="size-3.5 text-emerald-500" />
+                <span>Step 1: Select Curriculum Module</span>
+              </span>
+              <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">
+                {filteredModules.length} Module{filteredModules.length !== 1 ? 's' : ''} Available
+              </span>
+            </div>
 
-              {studyLevels.map((lvl) => {
-                const lvlCount = modules.filter((m) => m.level_id === lvl.id).length
+            {/* Optional Study Level Filter Chips if multiple levels exist */}
+            {studyLevels.length > 1 && (
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                <button
+                  type="button"
+                  onClick={() => setSelectedLevelId('ALL')}
+                  className={`px-3 py-1 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                    selectedLevelId === 'ALL'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  All Levels ({modules.length})
+                </button>
+                {studyLevels.map((lvl) => {
+                  const count = modules.filter((m) => m.level_id === lvl.id).length
+                  return (
+                    <button
+                      key={lvl.id}
+                      type="button"
+                      onClick={() => setSelectedLevelId(lvl.id)}
+                      className={`px-3 py-1 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                        selectedLevelId === lvl.id
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      {lvl.level_name} ({count})
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Scrollable horizontal segmented control pill bar */}
+            <div className="flex items-center gap-2 overflow-x-auto p-1.5 rounded-2xl bg-slate-100/80 dark:bg-[#0B1612] border border-slate-200/80 dark:border-emerald-500/15 scrollbar-none">
+              {filteredModules.map((mod) => {
+                const isSelected = mod.id === selectedModuleId
+                const modStationsCount = stations.filter((s) => s.module_id === mod.id).length
+                const moduleVisual = getModuleIcon(mod.module_name)
+                const FallbackIcon = moduleVisual.fallbackIcon
 
                 return (
                   <button
-                    key={lvl.id}
-                    type="button"
-                    onClick={() => setSelectedLevelId(lvl.id)}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${selectedLevelId === lvl.id
-                        ? 'bg-indigo-600 text-white shadow-sm'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                      }`}
+                    key={mod.id}
+                    onClick={() => {
+                      setSelectedModuleId(mod.id)
+                      setSearch('')
+                    }}
+                    className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-left transition-all shrink-0 cursor-pointer ${
+                      isSelected
+                        ? 'bg-emerald-800 text-white dark:bg-[#0E281F] dark:text-emerald-100 border border-emerald-600/50 shadow-sm ring-1 ring-emerald-500/30 font-bold'
+                        : 'bg-white/60 dark:bg-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white dark:hover:bg-[#12221C] border border-transparent font-medium'
+                    }`}
                   >
-                    {lvl.level_name} ({lvlCount})
+                    <div
+                      className={`size-6 rounded-lg flex items-center justify-center shrink-0 ${
+                        isSelected
+                          ? 'bg-emerald-600/40 text-lime-300'
+                          : 'bg-slate-100 dark:bg-emerald-950/60 text-slate-500 dark:text-emerald-400'
+                      }`}
+                    >
+                      <FallbackIcon className="size-3.5" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs leading-none line-clamp-1">{mod.module_name}</span>
+                      {/* Lime badge counter showing total stations */}
+                      <span
+                        className={`text-[10px] font-mono font-black px-1.5 py-0.5 rounded-md leading-none ${
+                          isSelected
+                            ? 'bg-lime-400 text-emerald-950 shadow-xs'
+                            : 'bg-slate-200 dark:bg-emerald-950/80 text-slate-600 dark:text-emerald-300'
+                        }`}
+                        title={`${modStationsCount} stations`}
+                      >
+                        {modStationsCount}
+                      </span>
+                    </div>
                   </button>
                 )
               })}
             </div>
+          </section>
 
-            {/* Search Input */}
-            <div className="relative w-full md:w-72">
-              <Search className="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={moduleSearch}
-                onChange={(e) => setModuleSearch(e.target.value)}
-                placeholder="Search module by name or professor..."
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-              />
-              {moduleSearch && (
-                <button
-                  type="button"
-                  onClick={() => setModuleSearch('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
-                  <X className="size-3.5" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Module Cards Grid */}
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-pulse">
-              {Array.from({ length: 6 }).map((_, idx) => (
-                <div
-                  key={`module-skel-${idx}`}
-                  className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-5"
-                >
-                  <div className="space-y-3.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="size-10 rounded-2xl bg-slate-200 dark:bg-slate-800" />
-                      <div className="h-6 w-20 rounded-full bg-slate-200 dark:bg-slate-800" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <div className="h-6 w-3/4 rounded-xl bg-slate-200 dark:bg-slate-800" />
-                      <div className="h-3 w-1/2 rounded bg-slate-200/70 dark:bg-slate-800/70" />
-                    </div>
-                    <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60 flex items-center gap-2.5">
-                      <div className="size-8 rounded-xl bg-slate-200 dark:bg-slate-800 shrink-0" />
-                      <div className="space-y-1 flex-1">
-                        <div className="h-2.5 w-20 rounded bg-slate-200 dark:bg-slate-800" />
-                        <div className="h-3 w-32 rounded bg-slate-200 dark:bg-slate-800" />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 pt-1">
-                      <div className="h-12 rounded-xl bg-slate-100 dark:bg-slate-800/40" />
-                      <div className="h-12 rounded-xl bg-slate-100 dark:bg-slate-800/40" />
-                    </div>
-                  </div>
-                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    <div className="h-3 w-24 rounded bg-slate-200 dark:bg-slate-800" />
-                    <div className="size-4 rounded bg-slate-200 dark:bg-slate-800" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : displayedModules.length === 0 ? (
-            <div className="p-12 rounded-3xl bg-white/70 dark:bg-slate-900/70 border border-dashed border-slate-200 dark:border-slate-800 text-center space-y-3">
-              <BookOpen className="size-10 text-slate-400 mx-auto" />
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                No Clinical Modules Found
-              </h3>
-              <p className="text-xs text-slate-400 max-w-md mx-auto">
-                No clinical modules match your current filter. Try selecting another study level or clearing search.
-              </p>
-              <Link
-                href="/dean/modules"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold shadow-md shadow-indigo-500/25 hover:bg-indigo-700 transition-all"
-              >
-                <Plus className="size-4" />
-                <span>Configure Modules</span>
-              </Link>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {displayedModules.map((mod) => {
-                const modExams = exams.filter((e) => e.module_id === mod.id)
-                const regExam = modExams.find((e) => isRegularSession(e.session_type))
-                const retkExam = modExams.find((e) => isRetakeSession(e.session_type))
-                const modStations = stations.filter(
-                  (s) => s.module_id === mod.id || modExams.some((e) => e.id === s.exam_id)
-                )
-
-                return (
-                  <div
-                    key={mod.id}
-                    onClick={() => {
-                      setSelectedModuleId(mod.id)
-                      setCurrentStep(2)
-                    }}
-                    className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-indigo-500/50 transition-all cursor-pointer flex flex-col justify-between space-y-5 group"
-                  >
-                    <div className="space-y-3.5">
-                      {/* Top Badges */}
-                      <div className="flex items-center justify-between gap-2">
-                        <ModuleSpecialtyBadge moduleName={mod.module_name} size="md" />
-                        <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                          {mod.level_name}
-                        </span>
-                      </div>
-
-                      {/* Module Title */}
-                      <div>
-                        <h3 className="text-lg font-black text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                          {mod.module_name}
-                        </h3>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          {getModuleVisual(mod.module_name).specialty}
-                        </p>
-                      </div>
-
-                      {/* Responsible Professor */}
-                      <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 flex items-center gap-2.5">
-                        <div className="size-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                          <Stethoscope className="size-4" />
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                            Responsible Professor
-                          </span>
-                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
-                            {mod.responsible_prof_name || 'Unassigned Professor'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Key Metrics Grid */}
-                      <div className="grid grid-cols-2 gap-2 pt-1 text-xs">
-                        <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-700/50">
-                          <span className="text-[10px] text-slate-400 font-bold uppercase block">
-                            Exam Sessions
-                          </span>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="font-extrabold text-slate-900 dark:text-white">
-                              {modExams.length}/2
-                            </span>
-                            <div className="flex items-center gap-1">
-                              {regExam && (
-                                <span className="size-2 rounded-full bg-emerald-500" title="Regular Session active" />
-                              )}
-                              {retkExam && (
-                                <span className="size-2 rounded-full bg-purple-500" title="Retake Session active" />
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-700/50">
-                          <span className="text-[10px] text-slate-400 font-bold uppercase block">
-                            Stations
-                          </span>
-                          <span className="font-extrabold text-slate-900 dark:text-white mt-0.5 block">
-                            {modStations.length} Configured
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Card Footer Button */}
-                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold text-indigo-600 dark:text-indigo-400">
-                      <span>Select Module & View Sessions</span>
-                      <ArrowRight className="size-4 group-hover:translate-x-1.5 transition-transform" />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* STEP 2: EXAM SESSIONS VIEW FOR SELECTED MODULE (Regular / Retake)         */}
-      {/* ========================================================================= */}
-      {currentStep === 2 && activeModule && (
-        <div className="space-y-6 animate-in fade-in">
-          {/* Module Summary Banner */}
-          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <ModuleSpecialtyBadge moduleName={activeModule.module_name} size="lg" />
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-black text-slate-900 dark:text-white">
-                    {activeModule.module_name}
-                  </h2>
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                    {activeModule.level_name}
-                  </span>
-                  <span className="text-xs text-slate-400 font-medium">
-                    • {getModuleVisual(activeModule.module_name).specialty}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-400">
-                  Responsible Professor: <strong className="text-slate-700 dark:text-slate-300">{activeModule.responsible_prof_name || 'Unassigned'}</strong>
+          {/* ========================================================================= */}
+          {/* STEP 2: SESSION SELECTION LEVEL (Segmented Slider Mode Switcher)           */}
+          {/* ========================================================================= */}
+          <section className="space-y-3 pt-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200/80 dark:border-emerald-500/15">
+              <div>
+                <span className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-emerald-500/70 flex items-center gap-1.5">
+                  <Calendar className="size-3.5 text-emerald-500" />
+                  <span>Step 2: Choose Exam Session ({currentModuleExams.length}/2)</span>
+                </span>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Each module permits 1 Regular Session (Normale) and 1 Retake Session (Rattrapage) per academic cycle.
                 </p>
               </div>
-            </div>
 
-            <div className="flex items-center gap-3 self-start md:self-auto">
-              {isMaxSessionsReached ? (
-                <div className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                  <ShieldCheck className="size-4 text-emerald-500" />
-                  <span>All Sessions Created (2/2)</span>
-                </div>
-              ) : (
+              {!isMaxSessionsReached && (
                 <button
                   type="button"
                   onClick={handleOpenCreateSession}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 hover:from-emerald-700 hover:to-teal-700 transition-all cursor-pointer active:scale-95"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition-all self-start sm:self-auto active:scale-95 cursor-pointer"
                 >
                   <Plus className="size-4" />
                   <span>+ Create Exam Session</span>
                 </button>
               )}
             </div>
-          </div>
 
-          {/* Step 2 Section Header */}
-          <div className="space-y-1">
-            <h3 className="text-sm font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-              <Calendar className="size-4 text-indigo-500" />
-              <span>Step 2: Choose Exam Session to Manage Stations ({activeModuleExams.length}/2 Configured)</span>
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Each module supports 1 Regular Session and 1 Retake Session per academic cycle. Select an active session below to author and inspect its clinical stations.
-            </p>
-          </div>
-
-          {/* Exam Sessions Grid (Regular & Retake Cards) */}
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-pulse">
-              {Array.from({ length: 2 }).map((_, idx) => (
-                <div
-                  key={`session-skel-${idx}`}
-                  className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-5 h-72"
-                >
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="h-6 w-36 rounded-xl bg-slate-200 dark:bg-slate-800" />
-                      <div className="size-6 rounded-lg bg-slate-200 dark:bg-slate-800" />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="h-5 w-48 rounded bg-slate-200 dark:bg-slate-800" />
-                      <div className="h-3 w-32 rounded bg-slate-200/70 dark:bg-slate-800/70" />
-                    </div>
-                    <div className="h-14 rounded-2xl bg-slate-100 dark:bg-slate-800/50" />
-                  </div>
-                  <div className="h-11 rounded-2xl bg-slate-200 dark:bg-slate-800" />
+            {/* Segmented Slider Session Switcher */}
+            {currentModuleExams.length === 0 ? (
+              <div className="p-8 rounded-2xl bg-white dark:bg-[#0B1612] border border-dashed border-slate-200 dark:border-emerald-500/20 text-center space-y-3">
+                <div className="size-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
+                  <Calendar className="size-6" />
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* 1. Regular Session Card */}
-              {regularExam ? (
-                <div
-                  onClick={() => {
-                    setActiveExamId(regularExam.id)
-                    setCurrentStep(3)
-                  }}
-                  className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500/60 transition-all shadow-sm flex flex-col justify-between space-y-5 cursor-pointer group"
-                >
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-extrabold uppercase">
-                        <Calendar className="size-3.5 text-emerald-600 dark:text-emerald-400" />
-                        <span>Regular Exam Session</span>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setDeletingExam(regularExam)
-                        }}
-                        title="Delete Regular Session"
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                      >
-                        <Trash2 className="size-4" />
-                      </button>
-                    </div>
-
-                    <div>
-                      <h4 className="text-base font-black text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                        {activeModule.module_name} — Regular Examination
-                      </h4>
-                      <p className="text-xs text-slate-400 font-mono mt-1">
-                        Scheduled Date: {new Date(regularExam.exam_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                      </p>
-                    </div>
-
-                    {/* Stations & Weightage progress */}
-                    <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 space-y-2">
-                      <div className="flex items-center justify-between text-xs font-bold">
-                        <span className="text-slate-600 dark:text-slate-400">
-                          {regularStations.length} Clinical Station{regularStations.length !== 1 ? 's' : ''}
-                        </span>
-                        <span className={`font-mono ${regularWeightage >= 100 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
-                          {regularWeightage.toFixed(1)}% / 100%
-                        </span>
-                      </div>
-                      <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${regularWeightage >= 100 ? 'bg-emerald-500' : 'bg-amber-500'
-                            }`}
-                          style={{ width: `${Math.min(100, regularWeightage)}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Prominent CTA */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveExamId(regularExam.id)
-                      setCurrentStep(3)
-                    }}
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-500/20 transition-all cursor-pointer active:scale-[0.99]"
-                  >
-                    <ClipboardCheck className="size-4" />
-                    <span>Manage Stations ({regularStations.length})</span>
-                    <ArrowRight className="size-4 ml-1 group-hover:translate-x-1 transition-transform" />
-                  </button>
-                </div>
-              ) : (
-                <div className="p-8 rounded-3xl bg-slate-50/50 dark:bg-slate-900/30 border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col justify-between items-center text-center space-y-5">
-                  <div className="space-y-2">
-                    <div className="size-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
-                      <Calendar className="size-6" />
-                    </div>
-                    <h4 className="text-base font-bold text-slate-900 dark:text-white">
-                      Regular Session Not Scheduled
-                    </h4>
-                    <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                      Schedule the primary OSCE examination session for &quot;{activeModule.module_name}&quot; to configure stations and author rubrics.
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSessionType('regular')
-                      setExamDate(new Date().toISOString().split('T')[0])
-                      setSessionError('')
-                      setIsCreateSessionOpen(true)
-                    }}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-500/20 transition-all cursor-pointer active:scale-95"
-                  >
-                    <Plus className="size-4" />
-                    <span>+ Create Regular Session</span>
-                  </button>
-                </div>
-              )}
-
-              {/* 2. Retake Session Card */}
-              {retakeExam ? (
-                <div
-                  onClick={() => {
-                    setActiveExamId(retakeExam.id)
-                    setCurrentStep(3)
-                  }}
-                  className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-purple-500/60 transition-all shadow-sm flex flex-col justify-between space-y-5 cursor-pointer group"
-                >
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 text-xs font-extrabold uppercase">
-                        <Calendar className="size-3.5 text-purple-600 dark:text-purple-400" />
-                        <span>Retake Session (Rattrapage)</span>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setDeletingExam(retakeExam)
-                        }}
-                        title="Delete Retake Session"
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                      >
-                        <Trash2 className="size-4" />
-                      </button>
-                    </div>
-
-                    <div>
-                      <h4 className="text-base font-black text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
-                        {activeModule.module_name} — Retake Examination
-                      </h4>
-                      <p className="text-xs text-slate-400 font-mono mt-1">
-                        Scheduled Date: {new Date(retakeExam.exam_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                      </p>
-                    </div>
-
-                    {/* Stations & Weightage progress */}
-                    <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 space-y-2">
-                      <div className="flex items-center justify-between text-xs font-bold">
-                        <span className="text-slate-600 dark:text-slate-400">
-                          {retakeStations.length} Clinical Station{retakeStations.length !== 1 ? 's' : ''}
-                        </span>
-                        <span className={`font-mono ${retakeWeightage >= 100 ? 'text-purple-600 dark:text-purple-400' : 'text-amber-600 dark:text-amber-400'}`}>
-                          {retakeWeightage.toFixed(1)}% / 100%
-                        </span>
-                      </div>
-                      <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${retakeWeightage >= 100 ? 'bg-purple-500' : 'bg-amber-500'
-                            }`}
-                          style={{ width: `${Math.min(100, retakeWeightage)}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Prominent CTA */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveExamId(retakeExam.id)
-                      setCurrentStep(3)
-                    }}
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md shadow-purple-500/20 transition-all cursor-pointer active:scale-[0.99]"
-                  >
-                    <ClipboardCheck className="size-4" />
-                    <span>Manage Stations ({retakeStations.length})</span>
-                    <ArrowRight className="size-4 ml-1 group-hover:translate-x-1 transition-transform" />
-                  </button>
-                </div>
-              ) : (
-                <div className="p-8 rounded-3xl bg-slate-50/50 dark:bg-slate-900/30 border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col justify-between items-center text-center space-y-5">
-                  <div className="space-y-2">
-                    <div className="size-12 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center mx-auto">
-                      <Calendar className="size-6" />
-                    </div>
-                    <h4 className="text-base font-bold text-slate-900 dark:text-white">
-                      Retake Session Not Scheduled
-                    </h4>
-                    <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                      Schedule a retake (rattrapage) session for students eligible for OSCE makeup evaluations.
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSessionType('retake')
-                      setExamDate(new Date().toISOString().split('T')[0])
-                      setSessionError('')
-                      setIsCreateSessionOpen(true)
-                    }}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md shadow-purple-500/20 transition-all cursor-pointer active:scale-95"
-                  >
-                    <Plus className="size-4" />
-                    <span>+ Create Retake Session</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Informational Hierarchy Note */}
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60 flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-            <ShieldCheck className="size-4 text-emerald-500 shrink-0" />
-            <span>
-              <strong>OSCE Examination Flow:</strong> Clinical Stations belong exclusively to an Exam Session. Click <strong>&quot;Manage Stations&quot;</strong> on an active session card above to view, create, and author stations tied to that session.
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* STEP 3: STATIONS MANAGEMENT VIEW (For the selected active exam)            */}
-      {/* ========================================================================= */}
-      {currentStep === 3 && activeModule && activeExam && (
-        <div className="space-y-6 animate-in fade-in">
-          {/* Active Exam Session Context Bar with Quick Session Switcher */}
-          <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <div
-                className={`size-11 rounded-2xl flex items-center justify-center shrink-0 ${isRetakeSession(activeExam.session_type)
-                    ? 'bg-purple-100 dark:bg-purple-950/80 text-purple-600 dark:text-purple-400'
-                    : 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400'
-                  }`}
-              >
-                <Calendar className="size-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-base font-black capitalize text-slate-900 dark:text-white">
-                    {isRetakeSession(activeExam.session_type) ? 'Retake Examination' : 'Regular Examination'}
-                  </h2>
-                  <span className="text-xs text-slate-400 font-mono">
-                    • {new Date(activeExam.exam_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-400">
-                  {activeModule.module_name} • {activeModule.level_name} • {activeSessionStations.length} Clinical Stations
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  No Exam Sessions Created for &quot;{activeModule?.module_name}&quot;
+                </h3>
+                <p className="text-xs text-slate-400 max-w-md mx-auto">
+                  To author clinical stations, schedule your first Regular or Retake exam session.
                 </p>
+                <button
+                  onClick={handleOpenCreateSession}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-sm hover:bg-emerald-700 transition-all cursor-pointer"
+                >
+                  <Plus className="size-4" />
+                  <span>Create First Exam Session</span>
+                </button>
               </div>
-            </div>
-
-            {/* Quick Session Switcher if both regular & retake exist */}
-            {activeModuleExams.length > 1 && (
-              <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800 self-start sm:self-auto">
-                {activeModuleExams.map((ex) => {
-                  const isCurrent = ex.id === activeExam.id
-                  const isRetake = isRetakeSession(ex.session_type)
-                  const count = stations.filter((s) => s.exam_id === ex.id).length
-
-                  return (
-                    <button
-                      key={ex.id}
-                      type="button"
-                      onClick={() => setActiveExamId(ex.id)}
-                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold capitalize transition-all cursor-pointer ${isCurrent
-                          ? isRetake
-                            ? 'bg-purple-600 text-white shadow-sm'
-                            : 'bg-emerald-600 text-white shadow-sm'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                        }`}
-                    >
-                      {isRetake ? 'Retake' : 'Regular'} ({count})
-                    </button>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl">
+                {/* Session Normale Tile */}
+                {(() => {
+                  const regEx = currentModuleExams.find(
+                    (e) => String(e.session_type || '').toLowerCase() === 'regular'
                   )
-                })}
-              </div>
-            )}
-          </div>
+                  const isActive = regEx && regEx.id === activeExamId
+                  const regStations = regEx ? stations.filter((s) => s.exam_id === regEx.id).length : 0
 
-          {/* Weightage Allocation Card towards 100% */}
-          <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-bl from-emerald-500/5 to-transparent rounded-bl-full pointer-events-none" />
-
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 relative">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 shrink-0 ring-1 ring-emerald-200/60 dark:ring-emerald-800/60 shadow-sm">
-                  <Layers className="size-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    Curriculum Stations Weightage Allocation
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Total station weightages for this {isRetakeSession(activeExam.session_type) ? 'Retake' : 'Regular'} session must equal 100.00%.
-                  </p>
-                </div>
-              </div>
-
-              <span
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border self-start sm:self-auto transition-colors ${isFullyAllocated
-                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-                    : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
-                  }`}
-              >
-                {isFullyAllocated ? (
-                  <CheckCircle2 className="size-3.5 text-emerald-500" />
-                ) : (
-                  <AlertCircle className="size-3.5 text-amber-500" />
-                )}
-                <span>
-                  {totalSessionWeightage}% / 100%{' '}
-                  {isFullyAllocated ? '— Fully Allocated' : `— ${availableWeightage}% Remaining`}
-                </span>
-              </span>
-            </div>
-
-            {/* Animated Progress Bar */}
-            <div className="space-y-1.5">
-              <div className="h-3 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden shadow-inner">
-                <div
-                  className={`h-full rounded-full transition-all duration-700 ease-out relative ${isFullyAllocated
-                      ? 'bg-gradient-to-r from-emerald-500 via-emerald-400 to-teal-500 shadow-emerald-500/25'
-                      : 'bg-gradient-to-r from-amber-500 via-orange-400 to-orange-500 shadow-amber-500/25'
-                    } shadow-sm`}
-                  style={{ width: `${Math.min(100, totalSessionWeightage)}%` }}
-                >
-                  <div className="absolute inset-0 bg-white/10 rounded-full" />
-                </div>
-              </div>
-              <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
-                <span>
-                  {activeSessionStations.length} Station{activeSessionStations.length !== 1 ? 's' : ''} Configured
-                </span>
-                <span className="font-mono">{totalSessionWeightage.toFixed(1)}%</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Station Actions Bar */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={stationSearch}
-                onChange={(e) => setStationSearch(e.target.value)}
-                placeholder="Search stations by number, title, or PIN..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-2xl text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all shadow-xs"
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={handleOpenCreateStation}
-              className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold shadow-md shadow-emerald-500/25 hover:from-emerald-700 hover:to-teal-700 transition-all active:scale-[0.98] cursor-pointer"
-            >
-              <Plus className="size-4" />
-              <span>+ Create Clinical Station</span>
-            </button>
-          </div>
-
-          {/* Stations Grid */}
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-pulse">
-              {Array.from({ length: 3 }).map((_, idx) => (
-                <div
-                  key={`station-skel-${idx}`}
-                  className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4 flex flex-col justify-between"
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="h-6 w-24 rounded-xl bg-slate-200 dark:bg-slate-800" />
-                      <div className="h-6 w-16 rounded-xl bg-slate-200 dark:bg-slate-800" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <div className="h-5 w-40 rounded bg-slate-200 dark:bg-slate-800" />
-                      <div className="h-3 w-28 rounded bg-slate-200/70 dark:bg-slate-800/70" />
-                    </div>
-                    <div className="h-16 rounded-2xl bg-slate-100 dark:bg-slate-800/50" />
-                  </div>
-                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    <div className="h-8 w-24 rounded-xl bg-slate-200 dark:bg-slate-800" />
-                    <div className="flex gap-2">
-                      <div className="size-8 rounded-xl bg-slate-200 dark:bg-slate-800" />
-                      <div className="size-8 rounded-xl bg-slate-200 dark:bg-slate-800" />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : displayedStations.length === 0 ? (
-            <div className="p-10 rounded-3xl bg-white/70 dark:bg-slate-900/70 border border-dashed border-slate-200 dark:border-slate-800 text-center space-y-3">
-              <ClipboardCheck className="size-8 text-slate-400 mx-auto" />
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                No Clinical Stations Added Yet
-              </h3>
-              <p className="text-xs text-slate-400 max-w-md mx-auto">
-                Click &quot;+ Create Clinical Station&quot; above to add Station #1 to this{' '}
-                {isRetakeSession(activeExam.session_type) ? 'Retake' : 'Regular'} exam session.
-              </p>
-              <button
-                type="button"
-                onClick={handleOpenCreateStation}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-sm hover:bg-emerald-700 transition-all cursor-pointer"
-              >
-                <Plus className="size-4" />
-                <span>Create Station #1</span>
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {displayedStations.map((st) => {
-                const isPinRevealed = !!revealedPins[st.id]
-                const isCopied = copiedPinId === st.id
-                const isPublished = publishedMap[st.id] ?? true
-
-                return (
-                  <div
-                    key={st.id}
-                    className="p-4 rounded-xl bg-white dark:bg-[#161B2A] border border-slate-200/80 dark:border-white/[0.08] shadow-xs space-y-3.5 flex flex-col justify-between hover:shadow-md hover:border-indigo-500/40 dark:hover:border-indigo-500/40 transition-all group"
-                  >
-                    <div className="space-y-3">
-                      {/* Station Header Pill, Weightage & Draft/Published Toggle */}
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#4F46E5] text-white text-xs font-bold shadow-xs">
-                            <ClipboardCheck className="size-3" />
-                            Station #{st.station_number}
+                  if (!regEx) {
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSessionType('regular')
+                          setIsCreateSessionOpen(true)
+                        }}
+                        className="p-4 rounded-xl border border-dashed border-slate-200 dark:border-emerald-500/25 bg-slate-50/50 dark:bg-[#0B1612]/50 hover:bg-emerald-50/50 dark:hover:bg-[#12221C] text-left transition-all group cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-600 dark:text-slate-400 group-hover:text-emerald-500">
+                            Session Normale
+                          </span>
+                          <span className="text-[10px] text-emerald-600 dark:text-lime-400 font-bold flex items-center gap-1">
+                            <Plus className="size-3" /> Schedule
                           </span>
                         </div>
+                        <p className="text-[11px] text-slate-400 mt-1">Not created yet. Click to schedule.</p>
+                      </button>
+                    )
+                  }
 
-                        {/* Toggle switch for Draft / Published */}
-                        <button
-                          type="button"
-                          onClick={(e) => handleTogglePublish(e, st.id)}
-                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all cursor-pointer ${isPublished
-                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
-                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20'
-                            }`}
-                          title="Click to toggle Draft / Published status"
+                  const formattedDate = new Date(regEx.exam_date).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })
+
+                  return (
+                    <div
+                      onClick={() => setActiveExamId(regEx.id)}
+                      className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                        isActive
+                          ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-500/40 border-emerald-500'
+                          : 'bg-white dark:bg-[#0B1612] border-slate-200/80 dark:border-emerald-500/20 text-slate-700 dark:text-slate-300 hover:border-emerald-500/40'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className={`size-9 rounded-xl flex items-center justify-center shrink-0 ${
+                            isActive ? 'bg-white/15 text-white' : 'bg-emerald-500/10 text-emerald-500'
+                          }`}
                         >
-                          <span className={`size-1.5 rounded-full ${isPublished ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                          <span>{isPublished ? 'Published' : 'Draft'}</span>
-                        </button>
-                      </div>
-
-                      {/* Station Title & Weightage */}
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                            {st.title}
-                          </h3>
-                          <p className="text-[11px] text-slate-400 mt-0.5 font-medium">
-                            {activeModule.module_name} • {activeModule.level_name}
-                          </p>
+                          <Calendar className="size-4" />
                         </div>
-                        <span className="px-2 py-0.5 rounded-full text-[11px] font-mono font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 shrink-0">
-                          {st.weightage_percentage}% Weight
-                        </span>
-                      </div>
-
-                      {/* Evaluator Professor Badge */}
-                      <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-[#0F121C] border border-slate-200/60 dark:border-white/[0.06] flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Stethoscope className="size-3.5 text-indigo-500 shrink-0" />
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-[9px] uppercase font-bold text-slate-400">
-                              Evaluator Examiner
-                            </span>
-                            <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
-                              {st.invigilator_prof_name && st.invigilator_prof_name !== 'Unassigned'
-                                ? st.invigilator_prof_name
-                                : 'Unassigned (Select in Edit)'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Interactive Examiner PIN Mono Chip with Tooltip Feedback */}
-                      <div
-                        onClick={(e) => handleCopyPin(e, st.id, st.access_pin)}
-                        className="relative p-2.5 rounded-lg bg-slate-50 dark:bg-[#0F121C] border border-slate-200/80 dark:border-white/[0.08] hover:border-indigo-500/40 flex items-center justify-between gap-2 transition-all cursor-pointer group/pin"
-                        title="Click to copy Examiner PIN"
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Key className="size-3.5 text-amber-500 shrink-0" />
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                              Examiner PIN:
-                            </span>
-                            <span className="font-mono text-xs font-bold tracking-widest text-slate-900 dark:text-white bg-slate-200/60 dark:bg-white/[0.08] px-2 py-0.5 rounded">
-                              {isPinRevealed ? st.access_pin : '••••••'}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              togglePinReveal(e, st.id)
-                            }}
-                            className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
-                            aria-label="Toggle PIN Visibility"
-                          >
-                            {isPinRevealed ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                          </button>
-
-                          {/* 1-click clipboard feedback tooltip */}
-                          <div className="relative flex items-center">
-                            <Copy className="size-3.5 text-slate-400 group-hover/pin:text-indigo-500 transition-colors" />
-                            {isCopied && (
-                              <span className="absolute -top-7 right-0 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-600 text-white shadow-md animate-in fade-in zoom-in-95 duration-150 whitespace-nowrap z-10">
-                                Copied!
-                              </span>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold truncate">Session Normale</span>
+                            {isActive && (
+                              <span className="size-2 rounded-full bg-lime-400 animate-pulse shrink-0" />
                             )}
                           </div>
+                          <p
+                            className={`text-[11px] font-mono mt-0.5 truncate ${
+                              isActive ? 'text-emerald-100' : 'text-slate-400'
+                            }`}
+                          >
+                            {formattedDate} • {regStations} station{regStations !== 1 ? 's' : ''}
+                          </p>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Card Footer Actions */}
-                    <div className="pt-2.5 border-t border-slate-100 dark:border-white/[0.06] flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-1 text-slate-400">
-                        <button
-                          type="button"
-                          onClick={(e) => handleOpenEditStation(e, st)}
-                          className="p-1.5 rounded-lg hover:text-indigo-600 hover:bg-indigo-500/10 transition-all cursor-pointer"
-                          title="Edit Station Details & Evaluator"
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setDeletingExam(regEx)
+                        }}
+                        title="Delete Regular Session"
+                        className={`p-1.5 rounded-lg transition-colors shrink-0 ${
+                          isActive
+                            ? 'text-emerald-200 hover:text-white hover:bg-white/10'
+                            : 'text-slate-400 hover:text-rose-500 hover:bg-rose-500/10'
+                        }`}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
+                  )
+                })()}
+
+                {/* Session Rattrapage Tile */}
+                {(() => {
+                  const retEx = currentModuleExams.find((e) => {
+                    const t = String(e.session_type || '').toLowerCase()
+                    return t === 'retake' || t === 'makeup'
+                  })
+                  const isActive = retEx && retEx.id === activeExamId
+                  const retStations = retEx ? stations.filter((s) => s.exam_id === retEx.id).length : 0
+
+                  if (!retEx) {
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSessionType('retake')
+                          setIsCreateSessionOpen(true)
+                        }}
+                        className="p-4 rounded-xl border border-dashed border-slate-200 dark:border-emerald-500/25 bg-slate-50/50 dark:bg-[#0B1612]/50 hover:bg-amber-50/50 dark:hover:bg-[#12221C] text-left transition-all group cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-600 dark:text-slate-400 group-hover:text-amber-500">
+                            Session Rattrapage
+                          </span>
+                          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1">
+                            <Plus className="size-3" /> Schedule
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-1">Not created yet. Click to schedule.</p>
+                      </button>
+                    )
+                  }
+
+                  const formattedDate = new Date(retEx.exam_date).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })
+
+                  return (
+                    <div
+                      onClick={() => setActiveExamId(retEx.id)}
+                      className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                        isActive
+                          ? 'border-2 border-amber-500 ring-2 ring-amber-500/30 bg-amber-500/15 text-amber-300 shadow-md'
+                          : 'bg-white dark:bg-[#0B1612] border-slate-200/80 dark:border-emerald-500/20 text-slate-700 dark:text-slate-300 hover:border-amber-500/40'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className={`size-9 rounded-xl flex items-center justify-center shrink-0 ${
+                            isActive ? 'bg-amber-500/30 text-amber-300' : 'bg-amber-500/10 text-amber-500'
+                          }`}
                         >
-                          <Edit2 className="size-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setDeletingStation(st)
-                          }}
-                          className="p-1.5 rounded-lg hover:text-rose-500 hover:bg-rose-500/10 transition-all cursor-pointer"
-                          title="Delete Station"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
+                          <Layers className="size-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold truncate">Session Rattrapage</span>
+                            {isActive && (
+                              <span className="size-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                            )}
+                          </div>
+                          <p className="text-[11px] font-mono mt-0.5 text-slate-400 truncate">
+                            {formattedDate} • {retStations} station{retStations !== 1 ? 's' : ''}
+                          </p>
+                        </div>
                       </div>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setDeletingExam(retEx)
+                        }}
+                        title="Delete Retake Session"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors shrink-0"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
+                  )
+                })()}
+              </div>
+            )}
+          </section>
+
+          {/* ========================================================================= */}
+          {/* STEP 3: STATIONS MANAGEMENT LEVEL (For the active session)                 */}
+          {/* ========================================================================= */}
+          {activeExam && (
+            <section className="space-y-4 pt-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-emerald-500/70 flex items-center gap-1.5">
+                  <ClipboardCheck className="size-3.5 text-emerald-500" />
+                  <span>
+                    Step 3: Stations for{' '}
+                    {String(activeExam.session_type || '').toLowerCase() === 'retake'
+                      ? 'Retake'
+                      : 'Regular'}{' '}
+                    Session
+                  </span>
+                </span>
+                <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">
+                  {activeSessionStations.length} Station
+                  {activeSessionStations.length !== 1 ? 's' : ''} Configured
+                </span>
+              </div>
+
+              {/* Curriculum Modules Weightage Allocation Progress Bar Card towards 100% */}
+              <div className="p-5 sm:p-6 rounded-xl bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 shadow-sm space-y-3 relative overflow-hidden">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 relative">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500 shrink-0 ring-1 ring-emerald-500/20">
+                      <Layers className="size-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        Curriculum Modules Weightage Allocation
+                      </h3>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Total station weightages for this{' '}
+                        {String(activeExam.session_type || '').toLowerCase() === 'retake'
+                          ? 'Retake'
+                          : 'Regular'}{' '}
+                        session must equal 100.00%.
+                      </p>
                     </div>
                   </div>
-                )
-              })}
-            </div>
+
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border self-start sm:self-auto transition-colors ${
+                      isFullyAllocated
+                        ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                        : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30'
+                    }`}
+                  >
+                    {isFullyAllocated ? (
+                      <CheckCircle2 className="size-3.5 text-emerald-500" />
+                    ) : (
+                      <AlertCircle className="size-3.5 text-amber-500" />
+                    )}
+                    <span>
+                      {totalSessionWeightage}% / 100%{' '}
+                      {isFullyAllocated ? '— Fully Allocated' : `— ${availableWeightage}% Remaining`}
+                    </span>
+                  </span>
+                </div>
+
+                {/* Animated Progress Bar with percentage labels */}
+                <div className="space-y-1.5">
+                  <div className="h-2.5 w-full bg-slate-100 dark:bg-[#0B1612] rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ease-out relative ${
+                        isFullyAllocated
+                          ? 'bg-gradient-to-r from-emerald-500 to-lime-400'
+                          : 'bg-gradient-to-r from-amber-500 to-orange-400'
+                      }`}
+                      style={{ width: `${Math.min(100, totalSessionWeightage)}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
+                    <span>
+                      {activeSessionStations.length} Station
+                      {activeSessionStations.length !== 1 ? 's' : ''} Configured
+                    </span>
+                    <span className="font-mono">{totalSessionWeightage.toFixed(1)}%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Station Actions Bar */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search stations by number, title, PIN, or evaluator..."
+                    className="w-full pl-10 pr-4 py-2 rounded-xl text-xs bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/40 focus:border-emerald-500 transition-all shadow-xs"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleOpenCreateStation}
+                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/25 transition-all active:scale-[0.98] cursor-pointer"
+                >
+                  <Plus className="size-4" />
+                  <span>+ Create Clinical Station</span>
+                </button>
+              </div>
+
+              {/* Stations Grid */}
+              {displayedStations.length === 0 ? (
+                <div className="p-10 rounded-2xl bg-white dark:bg-[#0B1612] border border-dashed border-slate-200 dark:border-emerald-500/20 text-center space-y-3">
+                  <ClipboardCheck className="size-8 text-slate-400 mx-auto" />
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    No Clinical Stations Added Yet
+                  </h3>
+                  <p className="text-xs text-slate-400 max-w-md mx-auto">
+                    Click &quot;+ Create Clinical Station&quot; above to add Station #1 to this{' '}
+                    {String(activeExam.session_type || '').toLowerCase() === 'retake'
+                      ? 'Retake'
+                      : 'Regular'}{' '}
+                    exam session.
+                  </p>
+                  <button
+                    onClick={handleOpenCreateStation}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-sm hover:bg-emerald-700 transition-all cursor-pointer"
+                  >
+                    <Plus className="size-4" />
+                    <span>Create Station #1</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {displayedStations.map((st) => {
+                    const isPinRevealed = !!revealedPins[st.id]
+                    const isCopied = copiedPinId === st.id
+                    const isPublished = publishedMap[st.id] ?? true
+
+                    return (
+                      <div
+                        key={st.id}
+                        className="p-5 rounded-xl bg-white dark:bg-[#12221C] border border-slate-200/80 dark:border-emerald-500/15 shadow-sm space-y-4 flex flex-col justify-between hover:shadow-lg hover:border-emerald-500/40 dark:hover:border-emerald-500/40 hover:ring-1 hover:ring-emerald-500/30 transition-all group"
+                      >
+                        <div className="space-y-3.5">
+                          {/* Station Header Pill & Big Monospace Number */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="space-y-1 min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[11px] font-bold">
+                                  <ClipboardCheck className="size-3" />
+                                  <span>Station</span>
+                                </span>
+
+                                {/* Status Toggle (Published / Draft) */}
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleTogglePublish(e, st.id)}
+                                  className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all cursor-pointer ${
+                                    isPublished
+                                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
+                                      : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20'
+                                  }`}
+                                  title="Click to toggle Draft / Published status"
+                                >
+                                  <span
+                                    className={`size-1.5 rounded-full ${
+                                      isPublished ? 'bg-emerald-500' : 'bg-amber-500'
+                                    }`}
+                                  />
+                                  <span>{isPublished ? 'Published' : 'Draft'}</span>
+                                </button>
+                              </div>
+
+                              <h3 className="text-base font-bold text-slate-900 dark:text-white leading-snug group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors line-clamp-2">
+                                {st.title}
+                              </h3>
+                              <p className="text-xs text-slate-400 truncate">
+                                {activeModule?.module_name} • {activeModule?.level_name}
+                              </p>
+                            </div>
+
+                            {/* Big Station Number Indicator stamped in bold monospace */}
+                            <span className="font-mono text-2xl sm:text-3xl font-black text-emerald-600/80 dark:text-lime-400/90 tracking-tight shrink-0">
+                              #{String(st.station_number).padStart(2, '0')}
+                            </span>
+                          </div>
+
+                          {/* Weightage Gauge: Visual horizontal percentage bar depicting the station's weight */}
+                          <div className="p-3 rounded-lg bg-slate-50 dark:bg-[#0B1612] border border-slate-200/60 dark:border-emerald-500/15 space-y-1.5">
+                            <div className="flex items-center justify-between text-xs font-semibold">
+                              <span className="text-slate-500 dark:text-slate-400">Weightage Gauge</span>
+                              <span className="font-mono font-bold text-emerald-600 dark:text-lime-400 tabular-nums">
+                                {Number(st.weightage_percentage || 0).toFixed(1)}%
+                              </span>
+                            </div>
+                            <div className="h-2 w-full bg-slate-200 dark:bg-emerald-950/60 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-emerald-500 to-lime-400 rounded-full transition-all duration-500"
+                                style={{
+                                  width: `${Math.min(
+                                    100,
+                                    Math.max(0, Number(st.weightage_percentage || 0))
+                                  )}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Evaluator Professor Badge */}
+                          <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-[#0B1612] border border-slate-200/60 dark:border-emerald-500/15 flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Stethoscope className="size-3.5 text-emerald-500 shrink-0" />
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-[9px] uppercase font-bold text-slate-400">
+                                  Evaluator Examiner
+                                </span>
+                                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
+                                  {st.invigilator_prof_name && st.invigilator_prof_name !== 'Unassigned'
+                                    ? st.invigilator_prof_name
+                                    : 'Unassigned (Assign in Edit)'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Live Scoring PIN Card with 1-click clipboard toggle */}
+                          <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-[#0B1612] border border-slate-200/60 dark:border-emerald-500/15 flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Key className="size-3.5 text-amber-500 shrink-0" />
+                              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                                Tablet PIN:
+                              </span>
+                              <span className="font-mono text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-500/20 tracking-widest">
+                                {isPinRevealed ? st.access_pin : '••••••'}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={(e) => togglePinReveal(e, st.id)}
+                                className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                                aria-label="Toggle PIN Visibility"
+                              >
+                                {isPinRevealed ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => handleCopyPin(e, st.id, st.access_pin)}
+                                className="p-1 rounded text-slate-400 hover:text-emerald-600 transition-colors relative cursor-pointer"
+                                aria-label="Copy Access PIN"
+                              >
+                                {isCopied ? (
+                                  <Check className="size-3.5 text-lime-400" />
+                                ) : (
+                                  <Copy className="size-3.5" />
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Card Footer: Clean Edit & Delete Actions (No Checklist Editor or Live Monitor) */}
+                        <div className="pt-3 border-t border-slate-100 dark:border-emerald-500/15 flex items-center justify-between text-xs text-slate-400">
+                          <span className="text-[11px] font-mono">
+                            {typeof st.question_count === 'number'
+                              ? `${st.question_count} Criteria Items`
+                              : 'Rubric Configured'}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={(e) => handleOpenEditStation(e, st)}
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-all font-semibold cursor-pointer"
+                              title="Edit Station Details & Evaluator"
+                            >
+                              <Edit2 className="size-3" />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setDeletingStation(st)
+                              }}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all cursor-pointer"
+                              title="Delete Station"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </section>
           )}
-        </div>
-      )}
-
-      {/* Fallback if on Step 3 but activeExam is missing */}
-      {currentStep === 3 && (!activeExam || !activeModule) && (
-        <div className="p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center space-y-4">
-          <Calendar className="size-10 text-slate-400 mx-auto" />
-          <h3 className="text-base font-bold text-slate-900 dark:text-white">
-            No Active Exam Session Selected
-          </h3>
-          <p className="text-xs text-slate-400 max-w-md mx-auto">
-            Please select a valid exam session to manage clinical stations.
-          </p>
-          <button
-            type="button"
-            onClick={() => setCurrentStep(2)}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-bold shadow-md hover:bg-indigo-700 transition-all cursor-pointer"
-          >
-            <ArrowLeft className="size-4" />
-            <span>Return to Exam Sessions</span>
-          </button>
-        </div>
+        </>
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 1: CREATE EXAM SESSION MODAL                                        */}
+      {/* MODAL 1: CREATE EXAM SESSION MODAL (Max 2: Regular vs Retake)             */}
       {/* ========================================================================= */}
-      {isCreateSessionOpen && activeModule && (
+      {isCreateSessionOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4 animate-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div className="relative w-full max-w-md max-h-[85vh] rounded-2xl bg-white dark:bg-[#0B1612] border border-slate-200/80 dark:border-emerald-500/20 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="flex size-9 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-500/20">
                   <Calendar className="size-4" />
@@ -1689,83 +1316,121 @@ function DeanStationsContent() {
                     Create Exam Session
                   </h3>
                   <p className="text-[11px] font-semibold text-slate-400">
-                    Module: {activeModule.module_name}
+                    Module: {activeModule?.module_name}
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsCreateSessionOpen(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                aria-label="Close"
               >
                 <X className="size-5" />
               </button>
             </div>
 
-            {sessionError && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-bold flex items-center gap-2">
-                <AlertTriangle className="size-4 shrink-0" />
-                <span>{sessionError}</span>
-              </div>
-            )}
+            <form onSubmit={handleCreateSessionSubmit} noValidate className="flex flex-col flex-1 min-h-0">
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 custom-scrollbar min-h-0">
+                {sessionError && (
+                  <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-bold flex items-center gap-2">
+                    <AlertTriangle className="size-4 shrink-0" />
+                    <span>{sessionError}</span>
+                  </div>
+                )}
 
-            <form onSubmit={handleCreateSessionSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Session Type *
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    disabled={hasRegularSession}
-                    onClick={() => setSessionType('regular')}
-                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl border text-xs font-bold transition-all ${hasRegularSession
-                        ? 'bg-slate-100 dark:bg-slate-800/40 text-slate-400 cursor-not-allowed opacity-60'
-                        : sessionType === 'regular'
-                          ? 'bg-emerald-500/10 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500/20'
-                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                      }`}
-                  >
-                    <span>Regular Session</span>
-                    {hasRegularSession && <span className="text-[9px] text-slate-400">(Created)</span>}
-                  </button>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Session Type *
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-semibold">
+                      1 Regular + 1 Retake max
+                    </span>
+                  </div>
 
-                  <button
-                    type="button"
-                    disabled={hasRetakeSession}
-                    onClick={() => setSessionType('retake')}
-                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl border text-xs font-bold transition-all ${hasRetakeSession
-                        ? 'bg-slate-100 dark:bg-slate-800/40 text-slate-400 cursor-not-allowed opacity-60'
-                        : sessionType === 'retake'
-                          ? 'bg-purple-500/10 border-purple-500 text-purple-700 dark:text-purple-300 ring-2 ring-purple-500/20'
-                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      disabled={hasRegularSession}
+                      onClick={() => setSessionType('regular')}
+                      className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl border text-xs font-bold transition-all relative cursor-pointer ${
+                        hasRegularSession
+                          ? 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60'
+                          : sessionType === 'regular'
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500/20'
+                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
                       }`}
-                  >
-                    <span>Retake Session</span>
-                    {hasRetakeSession && <span className="text-[9px] text-slate-400">(Created)</span>}
-                  </button>
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle2
+                          className={`size-4 ${
+                            hasRegularSession ? 'text-slate-400' : 'text-emerald-500'
+                          }`}
+                        />
+                        <span>Regular Session</span>
+                      </div>
+                      {hasRegularSession && (
+                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
+                          (Already Created)
+                        </span>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={hasRetakeSession}
+                      onClick={() => setSessionType('retake')}
+                      className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl border text-xs font-bold transition-all relative cursor-pointer ${
+                        hasRetakeSession
+                          ? 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60'
+                          : sessionType === 'retake'
+                          ? 'bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-purple-300 ring-2 ring-purple-500/20'
+                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <Layers
+                          className={`size-4 ${
+                            hasRetakeSession ? 'text-slate-400' : 'text-purple-500'
+                          }`}
+                        />
+                        <span>Retake Session</span>
+                      </div>
+                      {hasRetakeSession && (
+                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
+                          (Already Created)
+                        </span>
+                      )}
+                    </button>
+                  </div>
                 </div>
+
+                {/* Exam Date Picker */}
+                <DatePicker
+                  label="Exam Date"
+                  required
+                  value={examDate}
+                  onChange={(newDate) => setExamDate(newDate)}
+                  disablePastDates={true}
+                  placeholder="Select upcoming exam date..."
+                  variant="emerald"
+                  format="MMM DD, YYYY"
+                />
               </div>
 
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Exam Date *
-                </label>
-                <DatePicker value={examDate} onChange={(date) => setExamDate(date)} />
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-slate-100 dark:border-slate-800 shrink-0 bg-slate-50/50 dark:bg-slate-900/50">
                 <button
                   type="button"
                   onClick={() => setIsCreateSessionOpen(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submittingSession}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/25 hover:bg-emerald-700 transition-all disabled:opacity-50"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/25 hover:bg-emerald-700 transition-all disabled:opacity-50 cursor-pointer"
                 >
                   {submittingSession ? (
                     <>
@@ -1783,16 +1448,16 @@ function DeanStationsContent() {
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 2: CREATE CLINICAL STATION MODAL                                    */}
+      {/* MODAL 2: CREATE CLINICAL STATION MODAL (With Dedicated Capacity Sidebar)  */}
       {/* ========================================================================= */}
-      {isCreateStationOpen && activeExam && (
+      {isCreateStationOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-3xl max-h-[85vh] rounded-2xl bg-white dark:bg-[#161B2A] border border-slate-200/80 dark:border-white/[0.08] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95">
+          <div className="relative w-full max-w-3xl max-h-[85vh] rounded-2xl bg-white dark:bg-[#0B1612] border border-slate-200/80 dark:border-emerald-500/20 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95">
             {/* Decorative top gradient bar */}
-            <div className="h-1 w-full bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-600 shrink-0" />
+            <div className="h-1 w-full bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 shrink-0" />
 
             {/* Fixed Header */}
-            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-white/[0.06] shrink-0">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25 shrink-0">
                   <ClipboardCheck className="size-5" />
@@ -1806,12 +1471,15 @@ function DeanStationsContent() {
                       {activeModule?.module_name}
                     </span>
                     <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${isRetakeSession(activeExam.session_type)
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                        String(activeExam?.session_type || '').toLowerCase() === 'retake'
                           ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400 border-purple-200/60 dark:border-purple-800'
                           : 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border-blue-200/60 dark:border-blue-800'
-                        }`}
+                      }`}
                     >
-                      {isRetakeSession(activeExam.session_type) ? 'Retake Session' : 'Regular Session'}
+                      {String(activeExam?.session_type || '').toLowerCase() === 'retake'
+                        ? 'Retake Session'
+                        : 'Regular Session'}
                     </span>
                   </div>
                 </div>
@@ -1845,10 +1513,11 @@ function DeanStationsContent() {
                           Session Capacity
                         </span>
                         <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${isFullyAllocated
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                            isFullyAllocated
                               ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                               : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
-                            }`}
+                          }`}
                         >
                           {isFullyAllocated ? (
                             <CheckCircle2 className="size-3 text-emerald-500" />
@@ -1863,10 +1532,11 @@ function DeanStationsContent() {
                       <div className="space-y-1.5">
                         <div className="h-2.5 w-full bg-slate-200/80 dark:bg-slate-700 rounded-full overflow-hidden">
                           <div
-                            className={`h-full rounded-full transition-all duration-500 ${isFullyAllocated
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              isFullyAllocated
                                 ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
                                 : 'bg-gradient-to-r from-amber-500 to-orange-500'
-                              }`}
+                            }`}
                             style={{ width: `${Math.min(100, totalSessionWeightage)}%` }}
                           />
                         </div>
@@ -1989,7 +1659,7 @@ function DeanStationsContent() {
                         searchable={true}
                       />
                       <p className="text-[10px] text-slate-400">
-                        Assign an evaluator examiner now or configure later in station details.
+                        Assign an evaluator examiner now or configure later in station edit.
                       </p>
                     </div>
 
@@ -1997,20 +1667,20 @@ function DeanStationsContent() {
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <label className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
-                          <Key className="size-3 text-slate-400" />
+                          <KeyRound className="size-3 text-slate-400" />
                           Live Scoring Tablet PIN *
                         </label>
                         <button
                           type="button"
                           onClick={generateRandomPin}
-                          className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
+                          className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors cursor-pointer"
                         >
                           <Sparkles className="size-3" />
                           <span>Generate Random</span>
                         </button>
                       </div>
                       <div className="relative">
-                        <Key className="size-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <KeyRound className="size-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input
                           type={formShowPin ? 'text' : 'password'}
                           value={formAccessPin}
@@ -2022,7 +1692,7 @@ function DeanStationsContent() {
                         <button
                           type="button"
                           onClick={() => setFormShowPin(!formShowPin)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
                         >
                           {formShowPin ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                         </button>
@@ -2032,7 +1702,9 @@ function DeanStationsContent() {
                     {/* Live Station Preview Card */}
                     {formTitle.trim() && (
                       <div className="p-3.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 space-y-2">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Preview</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Preview
+                        </span>
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[10px] font-black shadow-sm shrink-0">
@@ -2048,15 +1720,17 @@ function DeanStationsContent() {
                               {formWeightage}%
                             </span>
                             <span className="font-mono text-[10px] text-slate-400">
-                              PIN: {formShowPin ? (formAccessPin || '—') : '••••••'}
+                              PIN: {formShowPin ? formAccessPin || '—' : '••••••'}
                             </span>
                           </div>
                         </div>
                         {formInvigilatorProfId && (
-                          <div className="flex items-center gap-1.5 text-[11px] text-indigo-600 dark:text-indigo-400 font-medium">
+                          <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
                             <Stethoscope className="size-3 shrink-0" />
                             <span className="truncate">
-                              Evaluator: {professors.find((p) => p.id === formInvigilatorProfId)?.full_name || 'Selected'}
+                              Evaluator:{' '}
+                              {professors.find((p) => p.id === formInvigilatorProfId)?.full_name ||
+                                'Selected'}
                             </span>
                           </div>
                         )}
@@ -2078,7 +1752,7 @@ function DeanStationsContent() {
                 <button
                   type="submit"
                   disabled={submittingStation}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/30 transition-all disabled:opacity-50 active:scale-[0.98] cursor-pointer"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/30 hover:from-emerald-700 hover:to-teal-700 transition-all disabled:opacity-50 active:scale-[0.98] cursor-pointer"
                 >
                   {submittingStation ? (
                     <>
@@ -2086,7 +1760,10 @@ function DeanStationsContent() {
                       <span>Creating...</span>
                     </>
                   ) : (
-                    <span>Create Station</span>
+                    <>
+                      <Plus className="size-4" />
+                      <span>Create Station</span>
+                    </>
                   )}
                 </button>
               </div>
@@ -2096,58 +1773,82 @@ function DeanStationsContent() {
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 3: EDIT CLINICAL STATION MODAL                                      */}
+      {/* MODAL 3: EDIT STATION MODAL                                               */}
       {/* ========================================================================= */}
       {editingStation && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-lg rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4 animate-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <div className="relative w-full max-w-lg max-h-[85vh] rounded-2xl bg-white dark:bg-[#0B1612] border border-slate-200/80 dark:border-emerald-500/20 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="flex size-9 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-500/20">
+                <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/20">
                   <Edit2 className="size-4" />
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    Edit Clinical Station #{editingStation.station_number}
+                    Edit Station Details
                   </h3>
-                  <p className="text-[11px] font-semibold text-slate-400">
-                    Modify title, access PIN, weightage, or evaluator assignment
-                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-[11px] font-semibold text-slate-400">
+                      {activeModule?.module_name}
+                    </span>
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800">
+                      Station #{editingStation.station_number}
+                    </span>
+                  </div>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setEditingStation(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                aria-label="Close"
               >
                 <X className="size-5" />
               </button>
             </div>
 
-            {editError && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-bold flex items-center gap-2">
-                <AlertTriangle className="size-4 shrink-0" />
-                <span>{editError}</span>
-              </div>
-            )}
+            <form onSubmit={handleEditStationSubmit} noValidate className="flex flex-col flex-1 min-h-0">
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 custom-scrollbar min-h-0">
+                {editError && (
+                  <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-bold flex items-center gap-2">
+                    <AlertTriangle className="size-4 shrink-0" />
+                    <span>{editError}</span>
+                  </div>
+                )}
 
-            <form onSubmit={handleEditStationSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <div className="space-y-1 sm:col-span-1">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Station # *
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={editStationNumber}
-                    onChange={(e) => setEditStationNumber(parseInt(e.target.value) || 1)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    required
-                  />
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Station # *
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={editStationNumber}
+                      onChange={(e) => setEditStationNumber(Number(e.target.value) || 1)}
+                      className="w-full px-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold"
+                      required
+                    />
+                  </div>
+
+                  <div className="col-span-2 space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Weightage % *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min={0.01}
+                      max={100}
+                      value={editWeightage}
+                      onChange={(e) => setEditWeightage(Number(e.target.value) || 0)}
+                      className="w-full px-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold"
+                      required
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-1 sm:col-span-3">
+                <div className="space-y-1.5">
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                     Station Title *
                   </label>
@@ -2155,95 +1856,75 @@ function DeanStationsContent() {
                     type="text"
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
-                    placeholder="e.g. Cardiovascular Examination"
-                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3.5 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
                     required
                   />
                 </div>
-              </div>
 
-              {/* Access PIN */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Tablet Access PIN * (4+ characters)
+                {/* Evaluator Professor Dropdown */}
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
+                    <Stethoscope className="size-3 text-slate-400" />
+                    Evaluator Professor / Teacher
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const code = Math.floor(100000 + Math.random() * 900000).toString()
-                      setEditAccessPin(code)
-                    }}
-                    className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
-                  >
-                    <Sparkles className="size-3" />
-                    <span>Generate New PIN</span>
-                  </button>
-                </div>
-                <div className="relative">
-                  <Key className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
-                  <input
-                    type={editShowPin ? 'text' : 'password'}
-                    value={editAccessPin}
-                    onChange={(e) => setEditAccessPin(e.target.value)}
-                    className="w-full pl-10 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold tracking-widest text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setEditShowPin(!editShowPin)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  >
-                    {editShowPin ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Weightage Percentage */}
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Weightage Percentage (%)
-                </label>
-                <div className="relative">
-                  <Percent className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    step={0.5}
-                    value={editWeightage}
-                    onChange={(e) => setEditWeightage(parseFloat(e.target.value) || 50)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  <Select
+                    options={professorSelectOptions}
+                    value={editInvigilatorProfId}
+                    onChange={(val) => setEditInvigilatorProfId(val)}
+                    placeholder="Select Evaluator Examiner..."
+                    searchable={true}
                   />
                 </div>
+
+                {/* Live Scoring Access PIN */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
+                      <KeyRound className="size-3 text-slate-400" />
+                      Live Scoring Tablet PIN *
+                    </label>
+                    <button
+                      type="button"
+                      onClick={generateRandomEditPin}
+                      className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors cursor-pointer"
+                    >
+                      <Sparkles className="size-3" />
+                      <span>Generate Random</span>
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <KeyRound className="size-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type={editShowPin ? 'text' : 'password'}
+                      value={editAccessPin}
+                      onChange={(e) => setEditAccessPin(e.target.value)}
+                      placeholder="e.g. 748291"
+                      className="w-full pl-9 pr-10 py-2.5 rounded-2xl text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold tracking-wider focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setEditShowPin(!editShowPin)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                    >
+                      {editShowPin ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              {/* Evaluator Professor */}
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Evaluator Professor (Optional)
-                </label>
-                <Select
-                  options={professorSelectOptions}
-                  value={editInvigilatorProfId}
-                  onChange={(val) => setEditInvigilatorProfId(val)}
-                  placeholder="Select Evaluator Professor..."
-                  searchable={true}
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-slate-100 dark:border-slate-800 shrink-0 bg-slate-50/50 dark:bg-slate-900/50">
                 <button
                   type="button"
                   onClick={() => setEditingStation(null)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submittingEdit}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/25 hover:bg-emerald-700 transition-all disabled:opacity-50"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/25 hover:bg-emerald-700 transition-all disabled:opacity-50 cursor-pointer"
                 >
                   {submittingEdit ? (
                     <>
@@ -2265,45 +1946,33 @@ function DeanStationsContent() {
       {/* ========================================================================= */}
       {deletingStation && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4 animate-in zoom-in-95 text-center">
+          <div className="relative w-full max-w-sm rounded-2xl bg-white dark:bg-[#0B1612] border border-slate-200/80 dark:border-emerald-500/20 shadow-2xl p-6 space-y-4 animate-in zoom-in-95 text-center">
             <div className="flex size-14 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-600 mx-auto">
               <Trash2 className="size-7" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Delete Station #{deletingStation.station_number}?
-              </h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Delete Station?</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Are you sure you want to remove clinical station{' '}
-                <strong className="text-slate-800 dark:text-slate-200">
-                  {deletingStation.title}
-                </strong>
-                ? All questions and criteria linked to this station will be permanently deleted.
+                Are you sure you want to delete{' '}
+                <strong className="text-slate-800 dark:text-slate-200">{deletingStation.title}</strong>? All
+                authoring and scoring data for this station will be removed.
               </p>
             </div>
-
             <div className="flex items-center justify-center gap-2.5 pt-3">
               <button
                 type="button"
                 onClick={() => setDeletingStation(null)}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={handleDeleteStationConfirm}
+                onClick={handleDeleteStation}
                 disabled={isDeleting}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-500/25 transition-all disabled:opacity-50"
+                className="px-5 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold shadow-md shadow-rose-500/25 hover:bg-rose-700 transition-all disabled:opacity-50 cursor-pointer"
               >
-                {isDeleting ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" />
-                    <span>Removing...</span>
-                  </>
-                ) : (
-                  <span>Yes, Delete Station</span>
-                )}
+                {isDeleting ? 'Deleting...' : 'Yes, Delete'}
               </button>
             </div>
           </div>
@@ -2312,41 +1981,38 @@ function DeanStationsContent() {
 
       {deletingExam && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4 animate-in zoom-in-95 text-center">
+          <div className="relative w-full max-w-sm rounded-2xl bg-white dark:bg-[#0B1612] border border-slate-200/80 dark:border-emerald-500/20 shadow-2xl p-6 space-y-4 animate-in zoom-in-95 text-center">
             <div className="flex size-14 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-600 mx-auto">
               <Trash2 className="size-7" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Delete {isRetakeSession(deletingExam.session_type) ? 'Retake' : 'Regular'} Session?
-              </h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Delete Exam Session?</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Removing this session will remove all child stations and criteria authored for it. This action cannot be undone.
+                Are you sure you want to delete this{' '}
+                <strong className="text-slate-800 dark:text-slate-200">
+                  {String(deletingExam.session_type || '').toLowerCase() === 'retake'
+                    ? 'Retake'
+                    : 'Regular'}{' '}
+                  Session
+                </strong>
+                ? All associated clinical stations will also be removed.
               </p>
             </div>
-
             <div className="flex items-center justify-center gap-2.5 pt-3">
               <button
                 type="button"
                 onClick={() => setDeletingExam(null)}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={handleDeleteExamConfirm}
+                onClick={handleDeleteExamSession}
                 disabled={isDeleting}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-500/25 transition-all disabled:opacity-50"
+                className="px-5 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold shadow-md shadow-rose-500/25 hover:bg-rose-700 transition-all disabled:opacity-50 cursor-pointer"
               >
-                {isDeleting ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" />
-                    <span>Removing...</span>
-                  </>
-                ) : (
-                  <span>Yes, Delete Session</span>
-                )}
+                {isDeleting ? 'Deleting...' : 'Yes, Delete Session'}
               </button>
             </div>
           </div>

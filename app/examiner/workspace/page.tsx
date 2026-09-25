@@ -1991,7 +1991,7 @@ function ExaminerWorkspaceContent() {
                                   type="range"
                                   min={0}
                                   max={maxVal}
-                                  step={0.5}
+                                  step={0.25}
                                   value={state.evaluation_score ?? 0}
                                   onChange={(e) => handleRatingScoreChange(q.id, Number(e.target.value))}
                                   className="w-full accent-amber-500 cursor-pointer"

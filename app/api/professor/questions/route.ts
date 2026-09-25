@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const scaleVal = Math.max(1, Number(max_scale_value) || 10)
+    const scaleVal = Math.max(0.25, Math.round((Number(max_scale_value) || 10) * 100) / 100)
     const qType = ['MCQ', 'SCQ', 'Q&A'].includes(question_type) ? question_type : 'Q&A'
 
     // Format options jsonb array
@@ -127,7 +127,7 @@ export async function PUT(req: NextRequest) {
       updatePayload.question_type = ['MCQ', 'SCQ', 'Q&A'].includes(question_type) ? question_type : 'Q&A'
     }
     if (max_scale_value !== undefined) {
-      updatePayload.max_scale_value = Math.max(1, Number(max_scale_value) || 10)
+      updatePayload.max_scale_value = Math.max(0.25, Math.round((Number(max_scale_value) || 10) * 100) / 100)
     }
     if (options !== undefined) {
       if (Array.isArray(options)) {

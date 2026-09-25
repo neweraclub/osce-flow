@@ -252,7 +252,7 @@ export async function bulkImportQuestionsAction(
       .filter((q) => q.question_text && q.question_text.trim())
       .map((q) => {
         const qType = ['MCQ', 'SCQ', 'Q&A'].includes(q.question_type) ? q.question_type : 'Q&A'
-        const scaleVal = Math.max(1, Number(q.max_scale_value) || 10)
+        const scaleVal = Math.max(0.25, Math.round((Number(q.max_scale_value) || 10) * 100) / 100)
         let sanitizedOptions: any[] = []
 
         if ((qType === 'MCQ' || qType === 'SCQ') && Array.isArray(q.options)) {

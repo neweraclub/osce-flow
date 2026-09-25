@@ -110,7 +110,7 @@ CREATE TABLE public.questions (
   station_id uuid NOT NULL,
   question_text text NOT NULL,
   question_type text NOT NULL,
-  max_scale_value integer DEFAULT 10 CHECK (max_scale_value >= 1),
+  max_scale_value numeric DEFAULT 10 CHECK (max_scale_value >= 0.25::numeric),
   options jsonb NOT NULL DEFAULT '[]'::jsonb,
   created_at timestamp with time zone NOT NULL DEFAULT clock_timestamp(),
   CONSTRAINT questions_pkey PRIMARY KEY (id),
@@ -180,16 +180,4 @@ CREATE TABLE public.candidate_bonuses (
   CONSTRAINT candidate_bonuses_pkey PRIMARY KEY (id),
   CONSTRAINT candidate_bonuses_criteria_id_fkey FOREIGN KEY (criteria_id) REFERENCES public.station_bonuses(id),
   CONSTRAINT candidate_bonuses_exam_attempt_id_fkey FOREIGN KEY (exam_attempt_id) REFERENCES public.exam_attempts(id)
-);
-CREATE TABLE public.penalty_bonus_templates (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  professor_id uuid,
-  type text NOT NULL CHECK (type = ANY (ARRAY['bonus'::text, 'penalty'::text])),
-  title text NOT NULL,
-  default_value numeric NOT NULL,
-  default_note text,
-  created_at timestamp with time zone NOT NULL DEFAULT clock_timestamp(),
-  updated_at timestamp with time zone NOT NULL DEFAULT clock_timestamp(),
-  CONSTRAINT penalty_bonus_templates_pkey PRIMARY KEY (id),
-  CONSTRAINT penalty_bonus_templates_professor_id_fkey FOREIGN KEY (professor_id) REFERENCES public.professors(id) ON DELETE CASCADE
 );

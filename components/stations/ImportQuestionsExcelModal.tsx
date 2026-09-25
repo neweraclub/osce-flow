@@ -316,7 +316,7 @@ export function ImportQuestionsExcelModal({
                       max_scale_value
                     </span>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
-                      Maximum points awarded (e.g. 1, 5, 10). Also accepts: <code className="text-[10px]">points, score, scale</code>.
+                      Maximum points awarded. Fully supports <strong>0.25 decimal steps</strong> (e.g. 0.25, 0.5, 0.75, 1.25, 2.5). Also accepts: <code className="text-[10px]">points, score, scale</code>.
                     </p>
                   </div>
 

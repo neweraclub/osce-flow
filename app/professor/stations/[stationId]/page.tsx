@@ -1094,15 +1094,37 @@ export default function ProfessorStationDetailPage({
                     <div className="relative">
                       <input
                         type="number"
-                        min={1}
-                        max={100}
+                        step="0.25"
+                        min="0.25"
+                        max="100"
                         value={formMaxScale}
-                        onChange={(e) => setFormMaxScale(parseInt(e.target.value) || 10)}
-                        className="w-full pl-3.5 pr-11 py-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value)
+                          setFormMaxScale(isNaN(val) ? 0.25 : val)
+                        }}
+                        className="w-full pl-3.5 pr-11 py-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-mono"
                       />
                       <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                         PTS
                       </span>
+                    </div>
+
+                    {/* Quick 0.25 step presets */}
+                    <div className="flex items-center gap-1 pt-1 flex-wrap">
+                      {[0.25, 0.5, 0.75, 1, 2, 5, 10].map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => setFormMaxScale(preset)}
+                          className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold transition-all cursor-pointer ${
+                            formMaxScale === preset
+                              ? 'bg-emerald-600 text-white shadow-xs'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                          }`}
+                        >
+                          {preset}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>

@@ -305,15 +305,17 @@ export function parseRawQuestionRows(rawRows: any[], headers: string[]): {
       }
     }
 
-    // 4. Max Scale Value
+    // 4. Max Scale Value (Supports 0.25 decimal steps: e.g. 0.25, 0.5, 0.75, 1.0, 1.25, etc.)
     let max_scale_value = 10
     if (rawScale !== undefined && rawScale !== null && rawScale !== '') {
-      const parsedNum = Number(rawScale)
+      const sanitizedScaleStr = String(rawScale).trim().replace(',', '.')
+      const parsedNum = parseFloat(sanitizedScaleStr)
       if (isNaN(parsedNum) || parsedNum <= 0) {
         warnings.push(`Invalid scale value "${rawScale}"; defaulted to 10 points.`)
         max_scale_value = 10
       } else {
-        max_scale_value = Math.max(1, Math.round(parsedNum))
+        // Round to nearest 0.25 step or 2 decimal places, min 0.25
+        max_scale_value = Math.max(0.25, Math.round(parsedNum * 100) / 100)
       }
     } else {
       max_scale_value = question_type === 'SCQ' ? 1 : 10
@@ -346,26 +348,26 @@ export function downloadQuestionsExcelTemplate() {
     {
       question_text: 'Confirm patient consent and identity',
       question_type: 'SCQ',
-      max_scale_value: 1,
-      options: '["Yes", "No"]',
+      max_scale_value: 0.5,
+      options: '["Yes*", "No"]',
     },
     {
-      question_text: 'Select the single best primary diagnosis',
+      question_text: 'Select the clinical signs associated with severe aortic stenosis',
       question_type: 'MCQ',
-      max_scale_value: 5,
-      options: '["Anemia", "Leukemia", "Lymphoma"]',
+      max_scale_value: 1.25,
+      options: '["Slow rising pulse*", "Systolic thrill*", "Early diastolic murmur"]',
     },
     {
-      question_text: 'Describe the emergency management steps',
+      question_text: 'Describe the emergency management steps for acute respiratory distress',
       question_type: 'Q&A',
       max_scale_value: 10,
       options: '[]',
     },
     {
-      question_text: 'Demonstrate proper aseptic sterile glove technique',
-      question_type: 'SCQ',
-      max_scale_value: 2,
-      options: '["Satisfactory*", "Needs Improvement", "Unsatisfactory"]',
+      question_text: 'Demonstrate proper aseptic sterile glove technique without breaches',
+      question_type: 'Q&A',
+      max_scale_value: 0.75,
+      options: '[]',
     },
   ]
 

@@ -216,10 +216,20 @@ function DeanStationsContent() {
           return fetchedModules.length > 0 ? fetchedModules[0].id : ''
         })
       } else {
+        setModules([])
+        setExams([])
+        setStations([])
+        setSelectedModuleId('')
+        setActiveExamId(null)
         showError(stationsJson.error || 'Failed to fetch clinical stations.')
       }
     } catch (err: any) {
       showError(err?.message || 'Error connecting to server.')
+      setModules([])
+      setExams([])
+      setStations([])
+      setSelectedModuleId('')
+      setActiveExamId(null)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -227,6 +237,12 @@ function DeanStationsContent() {
   }
 
   useEffect(() => {
+    // Purge stale selections immediately when switching academic session
+    setSelectedModuleId('')
+    setActiveExamId(null)
+    setStations([])
+    setExams([])
+    setModules([])
     if (selectedYearId) {
       fetchData(selectedYearId)
     } else if (!isYearLoading) {

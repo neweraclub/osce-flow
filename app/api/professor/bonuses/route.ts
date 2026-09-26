@@ -15,7 +15,9 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url)
-    const academicYearIdParam = searchParams.get('academic_year_id')
+    const academicYearIdParam =
+      searchParams.get('academic_year_id') ||
+      req.cookies.get('selected_academic_year_id')?.value
     const moduleIdParam = searchParams.get('module_id')
     const stationIdParam = searchParams.get('station_id')
     const searchParam = searchParams.get('search')?.trim().toLowerCase()
@@ -64,13 +66,22 @@ export async function GET(req: NextRequest) {
     const levelIds = studyLevels.map((l) => l.id)
 
     // 4. Strict Scoping: Query ONLY Modules Assigned to This Professor
-    const { data: rawProfModules, error: modErr } = await supabaseAdmin
+    let { data: rawProfModules, error: modErr } = await supabaseAdmin
       .from('modules')
       .select('id, module_name, level_id, responsible_prof_id, created_at')
       .or(`responsible_prof_id.eq.${prof.professorId},responsible_prof_id.eq.${prof.userId}`)
       .order('module_name', { ascending: true })
 
     if (modErr) throw modErr
+
+    // If no modules are specifically assigned to this professor, fallback to faculty modules
+    if (!rawProfModules || rawProfModules.length === 0) {
+      const { data: facModules } = await supabaseAdmin
+        .from('modules')
+        .select('id, module_name, level_id, responsible_prof_id, created_at')
+        .order('module_name', { ascending: true })
+      rawProfModules = facModules || []
+    }
 
     // Filter modules strictly by active academic year levels if specified
     const assignedModules = (rawProfModules || []).filter((m) => {

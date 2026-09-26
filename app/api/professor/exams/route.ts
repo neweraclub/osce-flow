@@ -13,31 +13,52 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const moduleId = searchParams.get('module_id')
     const stationId = searchParams.get('station_id')
-    const academicYearIdParam = searchParams.get('academic_year_id')
+    const academicYearIdParam =
+      searchParams.get('academic_year_id') ||
+      req.cookies.get('selected_academic_year_id')?.value ||
+      null
 
     // Find professor assigned modules
-    let modQuery = supabaseAdmin
-      .from('modules')
-      .select('id, level_id')
-      .or(`responsible_prof_id.eq.${prof.professorId},responsible_prof_id.eq.${prof.userId}`)
-
+    let levelIds: string[] = []
     if (academicYearIdParam) {
       const { data: levels } = await supabaseAdmin
         .from('study_levels')
         .select('id')
         .eq('academic_year_id', academicYearIdParam)
 
-      const levelIds = (levels || []).map((l) => l.id)
+      levelIds = (levels || []).map((l) => l.id)
       if (levelIds.length === 0) {
         return NextResponse.json({ success: true, exams: [] })
       }
+    }
+
+    let modQuery = supabaseAdmin
+      .from('modules')
+      .select('id, level_id')
+      .or(`responsible_prof_id.eq.${prof.professorId},responsible_prof_id.eq.${prof.userId}`)
+
+    if (levelIds.length > 0) {
       modQuery = modQuery.in('level_id', levelIds)
     }
 
-    const { data: profModules } = await modQuery
+    let { data: profModules } = await modQuery
+
+    // If professor has no specific assigned modules in these levels, fallback to faculty modules
+    if (!profModules || profModules.length === 0) {
+      let facModQuery = supabaseAdmin
+        .from('modules')
+        .select('id, level_id')
+
+      if (levelIds.length > 0) {
+        facModQuery = facModQuery.in('level_id', levelIds)
+      }
+      const { data: facModules } = await facModQuery
+      profModules = facModules || []
+    }
+
     const profModuleIds = (profModules || []).map((m) => m.id)
 
-    if (profModuleIds.length === 0 && !stationId) {
+    if (academicYearIdParam && profModuleIds.length === 0 && !stationId) {
       return NextResponse.json({ success: true, exams: [] })
     }
 

@@ -11,7 +11,10 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url)
-    const academicYearIdParam = searchParams.get('academic_year_id')
+    const academicYearIdParam =
+      searchParams.get('academic_year_id') ||
+      req.cookies.get('selected_academic_year_id')?.value ||
+      null
 
     // 1. Fetch academic years
     const { data: rawYears } = await supabaseAdmin
@@ -42,6 +45,7 @@ export async function GET(req: NextRequest) {
         .from('study_levels')
         .select('id, level_name, academic_year_id')
         .eq('academic_year_id', activeYearId)
+        .order('level_name', { ascending: true })
 
       studyLevels = levels || []
     }
@@ -49,14 +53,36 @@ export async function GET(req: NextRequest) {
     const levelIds = studyLevels.map((l) => l.id)
     const levelMap = new Map(studyLevels.map((l) => [l.id, l.level_name]))
 
-    // 3. Query ONLY modules where responsible_prof_id matches current professor (by professorId or userId)
-    const { data: rawModules, error: modErr } = await supabaseAdmin
+    if (activeYearId && levelIds.length === 0) {
+      return NextResponse.json({
+        success: true,
+        modules: [],
+        activeYearId,
+      })
+    }
+
+    // 3. Query modules assigned to this professor (by professorId or userId)
+    let { data: rawModules, error: modErr } = await supabaseAdmin
       .from('modules')
       .select('id, module_name, level_id, responsible_prof_id, created_at')
       .or(`responsible_prof_id.eq.${prof.professorId},responsible_prof_id.eq.${prof.userId}`)
       .order('module_name', { ascending: true })
 
     if (modErr) throw modErr
+
+    // If no modules specifically assigned to this professor, fallback to faculty modules for these levels
+    if (!rawModules || rawModules.length === 0) {
+      let facModQuery = supabaseAdmin
+        .from('modules')
+        .select('id, module_name, level_id, responsible_prof_id, created_at')
+        .order('module_name', { ascending: true })
+
+      if (levelIds.length > 0) {
+        facModQuery = facModQuery.in('level_id', levelIds)
+      }
+      const { data: facModules } = await facModQuery
+      rawModules = facModules || []
+    }
 
     // Scope strictly to active levels if activeYearId was provided
     const finalModules = (rawModules || []).filter((m) => {

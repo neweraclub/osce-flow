@@ -11,7 +11,9 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url)
-    const academicYearIdParam = searchParams.get('academic_year_id')
+    const academicYearIdParam =
+      searchParams.get('academic_year_id') ||
+      req.cookies.get('selected_academic_year_id')?.value
 
     // 1. Fetch academic years for this faculty
     const { data: rawYears } = await supabaseAdmin

@@ -74,7 +74,14 @@ export async function GET(
       .or(`responsible_prof_id.eq.${prof.professorId},responsible_prof_id.eq.${prof.userId}`)
       .order('module_name', { ascending: true })
 
-    const assignedModulesList = profModules || []
+    let assignedModulesList = profModules || []
+    if (assignedModulesList.length === 0) {
+      const { data: facModules } = await supabaseAdmin
+        .from('modules')
+        .select('id, module_name, level_id')
+        .order('module_name', { ascending: true })
+      assignedModulesList = facModules || []
+    }
     const levelIds = Array.from(
       new Set(assignedModulesList.map((m) => m.level_id).filter(Boolean))
     )

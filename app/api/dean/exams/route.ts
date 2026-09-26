@@ -12,7 +12,9 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url)
-    const academicYearIdParam = searchParams.get('academic_year_id')
+    const academicYearIdParam =
+      searchParams.get('academic_year_id') ||
+      req.cookies.get('selected_academic_year_id')?.value
 
     // 1. Fetch academic years for faculty
     const { data: rawYears } = await supabaseAdmin
@@ -141,15 +143,19 @@ export async function GET(req: NextRequest) {
     // 6. Fetch exams belonging to these modules (verified via foreign key exams.module_id -> modules.id)
     let examsList: any[] = []
     if (moduleIdParam) {
-      let examsQuery = supabaseAdmin
-        .from('exams')
-        .select('*')
-        .eq('module_id', moduleIdParam)
-        .order('exam_date', { ascending: false })
+      if (moduleIds.includes(moduleIdParam)) {
+        let examsQuery = supabaseAdmin
+          .from('exams')
+          .select('*')
+          .eq('module_id', moduleIdParam)
+          .order('exam_date', { ascending: false })
 
-      const { data: rawExams, error: examsErr } = await examsQuery
-      if (examsErr) throw examsErr
-      examsList = rawExams || []
+        const { data: rawExams, error: examsErr } = await examsQuery
+        if (examsErr) throw examsErr
+        examsList = rawExams || []
+      } else {
+        examsList = []
+      }
     } else if (moduleIds.length > 0) {
       let examsQuery = supabaseAdmin
         .from('exams')

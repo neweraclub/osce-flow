@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedDean } from '@/lib/deanAuth'
 import { supabaseAdmin } from '@/lib/auth'
+import { isAcademicYearCurrent } from '@/lib/academicYearUtils'
 import { randomUUID } from 'crypto'
 
 export async function GET(req: NextRequest) {
@@ -11,7 +12,9 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url)
-    const reqYearId = searchParams.get('academic_year_id')
+    const reqYearId =
+      searchParams.get('academic_year_id') ||
+      req.cookies.get('selected_academic_year_id')?.value
     const reqLevelId = searchParams.get('level_id')
     const reqSectionId = searchParams.get('section_id')
     const reqGroupId = searchParams.get('group_id')
@@ -35,7 +38,8 @@ export async function GET(req: NextRequest) {
     if (reqYearId && facultyYearIds.includes(reqYearId)) {
       targetYearId = reqYearId
     } else {
-      targetYearId = facultyYearIds[0]
+      const currentYear = years.find((y: any) => isAcademicYearCurrent(y.year_label))
+      targetYearId = currentYear ? currentYear.id : facultyYearIds[0]
     }
 
     // 2. Get study levels for the target academic year

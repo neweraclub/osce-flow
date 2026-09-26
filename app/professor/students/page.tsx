@@ -326,6 +326,12 @@ function ProfessorStudentsContent() {
     }
   }
 
+  // Reset selectedModuleId and selectedStudentId when academic year changes to prevent cross-session leakage
+  useEffect(() => {
+    setSelectedModuleId('all')
+    setSelectedStudentId(null)
+  }, [selectedYearId])
+
   // Reload directory when filters or academic year change
   useEffect(() => {
     if (!selectedStudentId) {

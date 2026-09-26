@@ -15,7 +15,9 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url)
-    const academicYearIdParam = searchParams.get('academic_year_id')
+    const academicYearIdParam =
+      searchParams.get('academic_year_id') ||
+      req.cookies.get('selected_academic_year_id')?.value
 
     // 1. Fetch academic years for faculty
     const { data: rawYears } = await supabaseAdmin
@@ -73,12 +75,23 @@ export async function GET(req: NextRequest) {
     if (modErr) throw modErr
 
     // Scope strictly to active study levels if activeYearId was provided
-    const assignedModules = (rawProfModules || []).filter((m) => {
+    let assignedModules = (rawProfModules || []).filter((m) => {
       if (activeYearId) {
         return levelIds.includes(m.level_id)
       }
       return true
     })
+
+    // Fallback: If no modules directly assigned via responsible_prof_id, include modules belonging to the faculty's study levels for the active year
+    if (assignedModules.length === 0 && levelIds.length > 0) {
+      const { data: facultyModules } = await supabaseAdmin
+        .from('modules')
+        .select('id, module_name, level_id, responsible_prof_id, created_at')
+        .in('level_id', levelIds)
+        .order('module_name', { ascending: true })
+
+      assignedModules = facultyModules || []
+    }
 
     const assignedModuleIds = assignedModules.map((m) => m.id)
     const assignedModuleMap = new Map(assignedModules.map((m) => [m.id, m]))

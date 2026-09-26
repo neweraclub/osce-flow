@@ -78,7 +78,15 @@ export function AcademicYearProvider({ children }: { children: React.ReactNode }
       const sortedData = sortAcademicYears(data)
       setYears(sortedData)
 
-      const savedId = typeof window !== 'undefined' ? localStorage.getItem('selected_academic_year_id') : null
+      const cookieMatch = typeof document !== 'undefined'
+        ? document.cookie.match(/selected_academic_year_id=([^;]+)/)
+        : null
+      const cookieYearId = cookieMatch ? cookieMatch[1] : null
+
+      const savedId = typeof window !== 'undefined'
+        ? localStorage.getItem('selected_academic_year_id') || cookieYearId
+        : cookieYearId
+
       const savedYear = sortedData.find((y) => y.id === savedId)
       const currentYear = sortedData.find((y) => y.is_current)
       const defaultYear = savedYear || currentYear || sortedData[0]
@@ -87,6 +95,7 @@ export function AcademicYearProvider({ children }: { children: React.ReactNode }
         setSelectedYearIdState(defaultYear.id)
         if (typeof window !== 'undefined') {
           localStorage.setItem('selected_academic_year_id', defaultYear.id)
+          document.cookie = `selected_academic_year_id=${defaultYear.id}; path=/; max-age=31536000; SameSite=Lax`
         }
       }
     } catch (err) {
@@ -105,6 +114,9 @@ export function AcademicYearProvider({ children }: { children: React.ReactNode }
     function handleStorage(e: StorageEvent) {
       if (e.key === 'selected_academic_year_id' && e.newValue) {
         setSelectedYearIdState(e.newValue)
+        if (typeof document !== 'undefined') {
+          document.cookie = `selected_academic_year_id=${e.newValue}; path=/; max-age=31536000; SameSite=Lax`
+        }
       }
     }
     window.addEventListener('storage', handleStorage)
@@ -115,6 +127,8 @@ export function AcademicYearProvider({ children }: { children: React.ReactNode }
     setSelectedYearIdState(id)
     if (typeof window !== 'undefined') {
       localStorage.setItem('selected_academic_year_id', id)
+      document.cookie = `selected_academic_year_id=${id}; path=/; max-age=31536000; SameSite=Lax`
+      window.dispatchEvent(new CustomEvent('academicYearChanged', { detail: { yearId: id } }))
     }
   }
 

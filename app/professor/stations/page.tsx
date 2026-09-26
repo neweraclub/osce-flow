@@ -188,17 +188,29 @@ export default function ProfessorStationsPage() {
         } else {
           setSelectedModuleId('')
         }
+      } else {
+        setAssignedModules([])
+        setSelectedModuleId('')
       }
 
       if (examsRes.ok && examsJson.success) {
         setExams(examsJson.exams || [])
+      } else {
+        setExams([])
       }
 
       if (stationsRes.ok && stationsJson.success) {
         setStations(stationsJson.stations || [])
+      } else {
+        setStations([])
       }
     } catch (err: any) {
       showError(err?.message || 'Error connecting to server.')
+      setAssignedModules([])
+      setExams([])
+      setStations([])
+      setSelectedModuleId('')
+      setActiveExamId(null)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -206,6 +218,12 @@ export default function ProfessorStationsPage() {
   }
 
   useEffect(() => {
+    // Purge stale selections immediately when switching academic session
+    setSelectedModuleId('')
+    setActiveExamId(null)
+    setStations([])
+    setExams([])
+    setAssignedModules([])
     if (selectedYearId) {
       fetchData(selectedYearId)
     } else if (!isYearLoading) {

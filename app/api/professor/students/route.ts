@@ -17,7 +17,9 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url)
-    const academicYearIdParam = searchParams.get('academic_year_id')
+    const academicYearIdParam =
+      searchParams.get('academic_year_id') ||
+      req.cookies.get('selected_academic_year_id')?.value
     const moduleIdParam = searchParams.get('module_id')
     const searchParam = searchParams.get('search')?.trim().toLowerCase()
     const statusParam = searchParams.get('status')?.trim().toLowerCase() || 'all'
@@ -87,7 +89,7 @@ export async function GET(req: NextRequest) {
 
     // Filter modules by active academic year level if specified
     const assignedModules = (rawProfModules || []).filter((m) => {
-      if (activeYearId && levelIds.length > 0) {
+      if (activeYearId) {
         return levelIds.includes(m.level_id)
       }
       return true

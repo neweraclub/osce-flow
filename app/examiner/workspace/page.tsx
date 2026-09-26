@@ -1389,7 +1389,14 @@ function ExaminerWorkspaceContent() {
                             {st.full_name}
                           </td>
                           <td className="py-3 px-4 text-slate-500 dark:text-slate-400">
-                            {st.section_name} · {st.group_name}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {st.level_name && (
+                                <span className="text-[9px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/60 dark:border-blue-900/40">
+                                  {st.level_name}
+                                </span>
+                              )}
+                              <span>{st.section_name} · {st.group_name}</span>
+                            </div>
                           </td>
                           <td className="py-3 px-4">
                             {st.status === 'completed' ? (
@@ -1720,6 +1727,11 @@ function ExaminerWorkspaceContent() {
 
                               {/* Section & Group Badges */}
                               <div className="flex flex-wrap items-center gap-1 mt-1">
+                                {st.level_name && (
+                                  <span className="text-[10px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/60 dark:border-blue-900/40">
+                                    {st.level_name}
+                                  </span>
+                                )}
                                 {st.academic_year_label && (
                                   <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
                                     {st.academic_year_label}
@@ -1913,9 +1925,21 @@ function ExaminerWorkspaceContent() {
                               {activeStudent.matricule}
                             </span>
                           </div>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                            Section: {activeStudent.section_name} · Group: {activeStudent.group_name}
-                          </p>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            {activeStudent.level_name && (
+                              <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-md border border-blue-200/60 dark:border-blue-900/40">
+                                {activeStudent.level_name}
+                              </span>
+                            )}
+                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                              Section: {activeStudent.section_name} · Group: {activeStudent.group_name}
+                            </span>
+                            {activeStudent.academic_year_label && (
+                              <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">
+                                ({activeStudent.academic_year_label})
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
 

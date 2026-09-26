@@ -117,15 +117,15 @@ export async function GET(req: NextRequest) {
       }
 
       // Filter transcript strictly to modules assigned to this professor
-      let scopedModules = result.data.modules.filter((m) => assignedModuleIds.includes(m.module_id))
+      let scopedModules = result.data.modules.filter((m: any) => assignedModuleIds.includes(m.module_id))
       if (moduleIdParam) {
-        scopedModules = scopedModules.filter((m) => m.module_id === moduleIdParam)
+        scopedModules = scopedModules.filter((m: any) => m.module_id === moduleIdParam)
       }
 
       // If no modules matched the assigned filter, include all modules evaluated for the candidate
       if (scopedModules.length === 0) {
         scopedModules = moduleIdParam
-          ? result.data.modules.filter((m) => m.module_id === moduleIdParam)
+          ? result.data.modules.filter((m: any) => m.module_id === moduleIdParam)
           : result.data.modules
       }
 
@@ -133,7 +133,7 @@ export async function GET(req: NextRequest) {
         student: result.data.student,
         modules: scopedModules,
         total_modules_count: scopedModules.length,
-        passed_modules_count: scopedModules.filter((m) => m.is_passed).length,
+        passed_modules_count: scopedModules.filter((m: any) => m.is_passed).length,
       }
 
       return NextResponse.json({
@@ -632,14 +632,14 @@ export async function POST(req: NextRequest) {
           const result = await getStudentResultsDashboardDataAction(studentId)
           if (!result.success || !result.data) return null
 
-          let scopedModules = result.data.modules.filter((m) => assignedModuleIds.includes(m.module_id))
+          let scopedModules = result.data.modules.filter((m: any) => assignedModuleIds.includes(m.module_id))
           if (moduleIdParam) {
-            scopedModules = scopedModules.filter((m) => m.module_id === moduleIdParam)
+            scopedModules = scopedModules.filter((m: any) => m.module_id === moduleIdParam)
           }
 
           if (scopedModules.length === 0) {
             scopedModules = moduleIdParam
-              ? result.data.modules.filter((m) => m.module_id === moduleIdParam)
+              ? result.data.modules.filter((m: any) => m.module_id === moduleIdParam)
               : result.data.modules
           }
 
@@ -649,7 +649,7 @@ export async function POST(req: NextRequest) {
             student: result.data.student,
             modules: scopedModules,
             total_modules_count: scopedModules.length,
-            passed_modules_count: scopedModules.filter((m) => m.is_passed).length,
+            passed_modules_count: scopedModules.filter((m: any) => m.is_passed).length,
           } as StudentResultsDashboardData
         } catch {
           return null

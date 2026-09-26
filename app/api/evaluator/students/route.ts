@@ -14,10 +14,33 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // 1. Fetch station details
+    // 1. Fetch station details with joined exam, module, and study level hierarchy
     const { data: station, error: stErr } = await supabaseAdmin
       .from('stations')
-      .select('*')
+      .select(`
+        *,
+        exams (
+          id,
+          module_id,
+          session_type,
+          exam_date,
+          created_at,
+          modules (
+            id,
+            module_name,
+            level_id,
+            study_levels (
+              id,
+              level_name,
+              academic_year_id,
+              academic_years (
+                id,
+                year_label
+              )
+            )
+          )
+        )
+      `)
       .eq('id', stationId)
       .single()
 
@@ -28,56 +51,134 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // 2. Fetch linked exam & module
-    let linkedExam: any = null
-    if (station.exam_id) {
-      const { data: ex } = await supabaseAdmin
-        .from('exams')
-        .select('*')
-        .eq('id', station.exam_id)
-        .maybeSingle()
-      linkedExam = ex
-    }
+    // 2. Resolve active exam, module, and study level hierarchy
+    let activeExam: any = null
+    const stationExam = Array.isArray(station.exams) ? station.exams[0] : station.exams
 
-    const moduleId = linkedExam?.module_id || null
-    let mod: any = null
-    if (moduleId) {
-      const { data: modData } = await supabaseAdmin
-        .from('modules')
-        .select('id, module_name, level_id')
-        .eq('id', moduleId)
-        .maybeSingle()
-      mod = modData
-    }
-
-    const levelId = mod?.level_id
-
-    // Fetch study level and academic year details
-    let studyLevel: any = null
-    let academicYear: any = null
-
-    if (levelId) {
-      const { data: lvl } = await supabaseAdmin
-        .from('study_levels')
-        .select('id, level_name, academic_year_id')
-        .eq('id', levelId)
-        .single()
-
-      studyLevel = lvl
-
-      if (studyLevel?.academic_year_id) {
-        const { data: yr } = await supabaseAdmin
-          .from('academic_years')
-          .select('id, year_label')
-          .eq('id', studyLevel.academic_year_id)
-          .single()
-
-        academicYear = yr
+    if (examIdParam) {
+      if (stationExam?.id === examIdParam) {
+        activeExam = stationExam
+      } else {
+        const { data: exParamData } = await supabaseAdmin
+          .from('exams')
+          .select(`
+            id,
+            module_id,
+            session_type,
+            exam_date,
+            created_at,
+            modules (
+              id,
+              module_name,
+              level_id,
+              study_levels (
+                id,
+                level_name,
+                academic_year_id,
+                academic_years (
+                  id,
+                  year_label
+                )
+              )
+            )
+          `)
+          .eq('id', examIdParam)
+          .maybeSingle()
+        if (exParamData) {
+          activeExam = exParamData
+        }
       }
     }
 
-    const exams = linkedExam ? [linkedExam] : []
-    const activeExam = examIdParam ? exams.find((e) => e.id === examIdParam) || linkedExam : linkedExam
+    if (!activeExam) {
+      activeExam = stationExam
+    }
+
+    if (!activeExam && station.exam_id) {
+      const { data: directExam } = await supabaseAdmin
+        .from('exams')
+        .select(`
+          id,
+          module_id,
+          session_type,
+          exam_date,
+          created_at,
+          modules (
+            id,
+            module_name,
+            level_id,
+            study_levels (
+              id,
+              level_name,
+              academic_year_id,
+              academic_years (
+                id,
+                year_label
+              )
+            )
+          )
+        `)
+        .eq('id', station.exam_id)
+        .maybeSingle()
+      if (directExam) {
+        activeExam = directExam
+      }
+    }
+
+    const exams = activeExam ? [activeExam] : []
+
+    let mod = Array.isArray(activeExam?.modules) ? activeExam.modules[0] : activeExam?.modules
+    let moduleId = activeExam?.module_id || mod?.id || (station as any).module_id || null
+
+    if (!mod && moduleId) {
+      const { data: directMod } = await supabaseAdmin
+        .from('modules')
+        .select(`
+          id,
+          module_name,
+          level_id,
+          study_levels (
+            id,
+            level_name,
+            academic_year_id,
+            academic_years (
+              id,
+              year_label
+            )
+          )
+        `)
+        .eq('id', moduleId)
+        .maybeSingle()
+      if (directMod) {
+        mod = directMod
+      }
+    }
+
+    // Active Station's target study level ID from modules.level_id
+    const levelId: string | null = mod?.level_id || null
+
+    let studyLevel = Array.isArray(mod?.study_levels) ? mod.study_levels[0] : mod?.study_levels
+    let academicYear = Array.isArray(studyLevel?.academic_years) ? studyLevel.academic_years[0] : studyLevel?.academic_years
+
+    if (!studyLevel && levelId) {
+      const { data: lvl } = await supabaseAdmin
+        .from('study_levels')
+        .select(`
+          id,
+          level_name,
+          academic_year_id,
+          academic_years (
+            id,
+            year_label
+          )
+        `)
+        .eq('id', levelId)
+        .maybeSingle()
+      if (lvl) {
+        studyLevel = lvl
+        academicYear = Array.isArray(lvl.academic_years) ? lvl.academic_years[0] : lvl.academic_years
+      }
+    }
 
     // 3. Fetch questions strictly by station_id
     const { data: qData, error: qErr } = await supabaseAdmin
@@ -98,7 +199,20 @@ export async function GET(req: NextRequest) {
     if (levelId) {
       const { data: sections } = await supabaseAdmin
         .from('sections')
-        .select('id, section_name, level_id')
+        .select(`
+          id,
+          section_name,
+          level_id,
+          study_levels (
+            id,
+            level_name,
+            academic_year_id,
+            academic_years (
+              id,
+              year_label
+            )
+          )
+        `)
         .eq('level_id', levelId)
         .order('section_name', { ascending: true })
 
@@ -116,29 +230,80 @@ export async function GET(req: NextRequest) {
         rawGroups = grps || []
         rawGroups.forEach((g) => {
           const sec = sectionMap.get(g.section_id)
+          const sl = Array.isArray(sec?.study_levels) ? sec.study_levels[0] : sec?.study_levels
+          const yr = Array.isArray(sl?.academic_years) ? sl.academic_years[0] : sl?.academic_years
+
           groupMap.set(g.id, {
             ...g,
             section_name: sec?.section_name || '',
+            level_id: sec?.level_id || levelId,
+            level_name: sl?.level_name || studyLevel?.level_name || '',
+            academic_year_label: yr?.year_label || academicYear?.year_label || '',
           })
         })
         groupIds = rawGroups.map((g) => g.id)
       }
     }
 
-    // 5. Fetch students strictly enrolled in those scoped groups
+    // 5. Enforce Strict Relational Filtering:
+    // Traverse students -> groups -> sections -> study_levels matching levelId
     let studentList: any[] = []
-    if (groupIds.length > 0) {
+    if (groupIds.length > 0 && levelId) {
       const { data: rawStudents, error: stuErr } = await supabaseAdmin
         .from('students')
-        .select('*')
+        .select(`
+          id,
+          matricule,
+          first_name,
+          last_name,
+          group_id,
+          import_index,
+          created_at,
+          groups!inner (
+            id,
+            group_name,
+            section_id,
+            sections!inner (
+              id,
+              section_name,
+              level_id,
+              study_levels!inner (
+                id,
+                level_name,
+                academic_year_id,
+                academic_years (
+                  id,
+                  year_label
+                )
+              )
+            )
+          )
+        `)
         .in('group_id', groupIds)
         .order('import_index', { ascending: true })
         .order('created_at', { ascending: true })
 
       if (stuErr) {
-        console.error('Error fetching students:', stuErr)
+        console.error('Error fetching students with relational inner join:', stuErr)
+        const { data: fallbackStudents } = await supabaseAdmin
+          .from('students')
+          .select('id, matricule, first_name, last_name, group_id, import_index, created_at')
+          .in('group_id', groupIds)
+          .order('import_index', { ascending: true })
+          .order('created_at', { ascending: true })
+
+        studentList = fallbackStudents || []
+      } else {
+        // Defensive Hierarchical Filter: Eliminate Cross-Year Contamination
+        studentList = (rawStudents || []).filter((st: any) => {
+          const g = Array.isArray(st.groups) ? st.groups[0] : st.groups
+          const s = Array.isArray(g?.sections) ? g.sections[0] : g?.sections
+          const l = Array.isArray(s?.study_levels) ? s.study_levels[0] : s?.study_levels
+          const studentLevelId = s?.level_id || l?.id
+
+          return studentLevelId === levelId
+        })
       }
-      studentList = rawStudents || []
     }
 
     // 6. Fetch existing exam_attempts for these students on this station
@@ -183,10 +348,20 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    // 7. Format students with dynamic score calculation: GREATEST(0, SUM(points_awarded) + SUM(penalties.points))
+    // 7. Format students with dynamic score calculation and true database study level
     const formattedStudents = studentList.map((st) => {
-      const grp = groupMap.get(st.group_id)
-      const sec = grp ? sectionMap.get(grp.section_id) : null
+      const g = Array.isArray(st.groups) ? st.groups[0] : (st.groups || groupMap.get(st.group_id))
+      const sec = Array.isArray(g?.sections) ? g.sections[0] : (g?.sections || (g?.section_id ? sectionMap.get(g.section_id) : null))
+      const sl = Array.isArray(sec?.study_levels) ? sec.study_levels[0] : sec?.study_levels
+      const yr = Array.isArray(sl?.academic_years) ? sl.academic_years[0] : sl?.academic_years
+
+      const grpInfo = groupMap.get(st.group_id)
+
+      const studentLevelName = sl?.level_name || grpInfo?.level_name || studyLevel?.level_name || ''
+      const studentAcademicYearLabel = yr?.year_label || grpInfo?.academic_year_label || academicYear?.year_label || ''
+      const studentSectionName = sec?.section_name || grpInfo?.section_name || 'General'
+      const studentGroupName = g?.group_name || grpInfo?.group_name || 'Unassigned'
+
       const attempt = attemptMap.get(st.id)
       const savedAnswers = attempt ? answersMap.get(attempt.id) || [] : []
       const penalties = attempt ? penaltiesMap.get(attempt.id) || [] : []
@@ -206,11 +381,12 @@ export async function GET(req: NextRequest) {
         last_name: st.last_name,
         full_name: `${st.last_name} ${st.first_name}`.trim(),
         group_id: st.group_id,
-        group_name: grp ? grp.group_name : 'Unassigned',
+        group_name: studentGroupName,
         section_id: sec?.id || null,
-        section_name: sec ? sec.section_name : 'General',
-        level_name: studyLevel?.level_name || '',
-        academic_year_label: academicYear?.year_label || '',
+        section_name: studentSectionName,
+        level_id: sec?.level_id || sl?.id || levelId,
+        level_name: studentLevelName,
+        academic_year_label: studentAcademicYearLabel,
         import_index: typeof st.import_index === 'number' ? st.import_index : 0,
         attempt_id: attempt?.id || null,
         status,

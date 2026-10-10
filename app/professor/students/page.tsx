@@ -70,6 +70,7 @@ import {
   BulkExportReportOptions,
 } from '@/lib/exportUtils'
 import { PrintMarksheet } from '@/components/transcript/PrintMarksheet'
+import { PrintCohortGradebook } from '@/components/transcript/PrintCohortGradebook'
 import { calculateCohortStatistics } from '@/lib/gradeUtils'
 
 interface StudentDirectoryRecord {
@@ -78,6 +79,8 @@ interface StudentDirectoryRecord {
   first_name: string
   last_name: string
   full_name: string
+  import_index?: number | null
+  created_at?: string | null
   group_name: string
   section_name: string
   level_name: string
@@ -105,9 +108,10 @@ interface FilterModuleOption {
 }
 
 type StatusFilter = 'all' | 'pending' | 'passed' | 'failed' | 'completed'
-type SortOrder = 'name_asc' | 'name_desc' | 'score_desc' | 'score_asc' | 'matricule_asc'
+type SortOrder = 'default' | 'name_asc' | 'name_desc' | 'score_desc' | 'score_asc' | 'matricule_asc'
 
 const SORT_OPTIONS: { value: SortOrder; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { value: 'default', label: 'Default (Excel)', icon: FileSpreadsheet },
   { value: 'name_asc', label: 'Name (A to Z)', icon: Users },
   { value: 'name_desc', label: 'Name (Z to A)', icon: Users },
   { value: 'score_desc', label: 'Score (Highest First)', icon: TrendingUp },
@@ -130,6 +134,46 @@ function getStudentInitial(
 ): string {
   const candidate = firstName?.trim() || fullName?.trim() || lastName?.trim() || 'S'
   return candidate.charAt(0).toUpperCase() || 'S'
+}
+
+function sortStudentsList(items: StudentDirectoryRecord[], order: SortOrder): StudentDirectoryRecord[] {
+  const result = [...items]
+  result.sort((a, b) => {
+    switch (order) {
+      case 'default': {
+        const idxA = a.import_index !== null && a.import_index !== undefined ? a.import_index : null
+        const idxB = b.import_index !== null && b.import_index !== undefined ? b.import_index : null
+        if (idxA !== null && idxB !== null && idxA !== idxB) {
+          return idxA - idxB
+        }
+        if (idxA !== null && idxB === null) return -1
+        if (idxA === null && idxB !== null) return 1
+        if (a.created_at && b.created_at && a.created_at !== b.created_at) {
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        }
+        return a.matricule.localeCompare(b.matricule, undefined, { numeric: true })
+      }
+      case 'name_asc':
+        return a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name)
+      case 'name_desc':
+        return b.last_name.localeCompare(a.last_name) || b.first_name.localeCompare(a.first_name)
+      case 'score_desc': {
+        const scoreA = a.final_score !== null ? a.final_score : -1
+        const scoreB = b.final_score !== null ? b.final_score : -1
+        return scoreB - scoreA
+      }
+      case 'score_asc': {
+        const scoreA = a.final_score !== null ? a.final_score : 999
+        const scoreB = b.final_score !== null ? b.final_score : 999
+        return scoreA - scoreB
+      }
+      case 'matricule_asc':
+        return a.matricule.localeCompare(b.matricule, undefined, { numeric: true })
+      default:
+        return 0
+    }
+  })
+  return result
 }
 
 function ProfessorStudentsContent() {
@@ -163,7 +207,7 @@ function ProfessorStudentsContent() {
   const [selectedSection, setSelectedSection] = useState<string>('all')
   const [selectedGroup, setSelectedGroup] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [sortOrder, setSortOrder] = useState<SortOrder>('name_asc')
+  const [sortOrder, setSortOrder] = useState<SortOrder>('default')
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('grid')
 
   // Multi-Candidate Selection State
@@ -180,14 +224,21 @@ function ProfessorStudentsContent() {
     activeModule?: ModuleResultsGroup
     candidateIds?: string[]
     scopeTitle?: string
+    sortChoice?: SortOrder
   }>({
     isOpen: false,
     mode: 'bulk',
+    sortChoice: 'default',
   })
 
-  // Export Loading States
+  // Export & Print Loading States
   const [exportingPdf, setExportingPdf] = useState(false)
   const [exportingExcel, setExportingExcel] = useState(false)
+  const [printingRoster, setPrintingRoster] = useState(false)
+
+  // Printable cohort gradebook target data
+  const [printTargetStudents, setPrintTargetStudents] = useState<StudentDirectoryRecord[] | null>(null)
+  const [printTargetSortLabel, setPrintTargetSortLabel] = useState<string | null>(null)
 
   // Transcript Hierarchical Drill-Down State
   const [selectedTranscriptModuleId, setSelectedTranscriptModuleId] = useState<string | null>(null)
@@ -512,30 +563,7 @@ function ProfessorStudentsContent() {
       return true
     })
 
-    result.sort((a, b) => {
-      switch (sortOrder) {
-        case 'name_asc':
-          return a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name)
-        case 'name_desc':
-          return b.last_name.localeCompare(a.last_name) || b.first_name.localeCompare(a.first_name)
-        case 'score_desc': {
-          const scoreA = a.final_score !== null ? a.final_score : -1
-          const scoreB = b.final_score !== null ? b.final_score : -1
-          return scoreB - scoreA
-        }
-        case 'score_asc': {
-          const scoreA = a.final_score !== null ? a.final_score : 999
-          const scoreB = b.final_score !== null ? b.final_score : 999
-          return scoreA - scoreB
-        }
-        case 'matricule_asc':
-          return a.matricule.localeCompare(b.matricule)
-        default:
-          return 0
-      }
-    })
-
-    return result
+    return sortStudentsList(result, sortOrder)
   }, [students, selectedSection, selectedGroup, statusFilter, searchQuery, sortOrder])
 
   // Computed dynamic metrics based on currently displayed/filtered candidates
@@ -614,7 +642,7 @@ function ProfessorStudentsContent() {
     displayedStudents.some((s) => selectedCandidateIds.has(s.id)) && !isAllDisplayedSelected
 
   // Modal Dialog Openers
-  const openBulkExportModal = (targetIds?: string[]) => {
+  const openBulkExportModal = (targetIds?: string[], initialSort?: SortOrder) => {
     const ids =
       targetIds && targetIds.length > 0
         ? targetIds
@@ -632,6 +660,7 @@ function ProfessorStudentsContent() {
       mode: 'bulk',
       candidateIds: ids,
       scopeTitle,
+      sortChoice: initialSort || sortOrder,
     })
   }
 
@@ -706,7 +735,13 @@ function ProfessorStudentsContent() {
           throw new Error('No candidates selected for bulk export.')
         }
 
-        const targetStudents = students.filter((s) => targetIds.includes(s.id))
+        const sortToUse = exportModal.sortChoice || sortOrder
+        const targetStudents = sortStudentsList(
+          students.filter((s) => targetIds.includes(s.id)),
+          sortToUse
+        )
+        const sortedTargetIds = targetStudents.map((s) => s.id)
+
         const bulkOptions: BulkExportReportOptions = {
           evaluatingProfessorName: professorName,
           facultyName,
@@ -724,7 +759,7 @@ function ProfessorStudentsContent() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              student_ids: targetIds,
+              student_ids: sortedTargetIds,
               module_id: selectedModuleId !== 'all' ? selectedModuleId : undefined,
             }),
           })
@@ -759,6 +794,79 @@ function ProfessorStudentsContent() {
     } finally {
       setExportingPdf(false)
       setExportingExcel(false)
+    }
+  }
+
+  // Execute Direct Print from Modal
+  const executeModalPrint = async () => {
+    setPrintingRoster(true)
+    try {
+      if (exportModal.mode === 'single') {
+        window.print()
+      } else {
+        const targetIds =
+          exportModal.candidateIds && exportModal.candidateIds.length > 0
+            ? exportModal.candidateIds
+            : selectedCandidateIds.size > 0
+            ? Array.from(selectedCandidateIds)
+            : displayedStudents.map((s) => s.id)
+
+        if (targetIds.length === 0) {
+          throw new Error('No candidates selected to print.')
+        }
+
+        const sortToUse = exportModal.sortChoice || sortOrder
+        const targetStudents = sortStudentsList(
+          students.filter((s) => targetIds.includes(s.id)),
+          sortToUse
+        )
+        const sortedTargetIds = targetStudents.map((s) => s.id)
+
+        if (exportGranularity === 'detailed') {
+          showInfo(`Retrieving detailed station rubrics for ${targetStudents.length} candidates to print...`)
+          const res = await fetch('/api/professor/students', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              student_ids: sortedTargetIds,
+              module_id: selectedModuleId !== 'all' ? selectedModuleId : undefined,
+            }),
+          })
+          const json = await res.json()
+          if (!res.ok || !json.success) {
+            throw new Error(json.error || 'Failed to retrieve detailed transcripts for print.')
+          }
+
+          const bulkOptions: BulkExportReportOptions = {
+            evaluatingProfessorName: professorName,
+            facultyName,
+            granularity: exportGranularity,
+            sectionName: selectedSection !== 'all' ? selectedSection : null,
+            groupName: selectedGroup !== 'all' ? selectedGroup : null,
+            moduleName: selectedModuleName,
+            cohortName: selectedYear?.name || 'Academic Session',
+            totalStudentsCount: targetStudents.length,
+            action: 'print',
+            autoPrint: true,
+          }
+
+          await exportBulkStudentsToPDF(targetStudents, json.transcripts, bulkOptions)
+          showSuccess(`Print booklet generated for ${targetStudents.length} candidates.`)
+        } else {
+          // General Summary print
+          setPrintTargetStudents(targetStudents)
+          setPrintTargetSortLabel(SORT_OPTIONS.find((o) => o.value === sortToUse)?.label || 'Default (Excel)')
+          setTimeout(() => {
+            window.print()
+          }, 150)
+        }
+      }
+      setExportModal((prev) => ({ ...prev, isOpen: false }))
+    } catch (err: any) {
+      console.error('Print error:', err)
+      showError(err?.message || 'Failed to print marksheets.')
+    } finally {
+      setPrintingRoster(false)
     }
   }
 
@@ -1501,8 +1609,24 @@ function ProfessorStudentsContent() {
   // RENDER: MODE 1 - STUDENT SEARCH & SELECTION GRID / DIRECTORY
   // ===========================================================================
   return (
-    <div className="space-y-6 animate-in fade-in duration-300 pb-16">
-      {/* 1. Header & Quick Actions */}
+    <>
+      {/* Dedicated Clean Master Gradebook Layout for Print / PDF */}
+      <div className="hidden print:block w-full">
+        <PrintCohortGradebook
+          students={printTargetStudents || displayedStudents}
+          evaluatingProfessorName={professorName}
+          facultyName={facultyName}
+          cohortName={selectedYear?.name || '2026-2027'}
+          moduleName={selectedModuleName || 'All Assigned Modules'}
+          sectionName={selectedSection !== 'all' ? selectedSection : undefined}
+          groupName={selectedGroup !== 'all' ? selectedGroup : undefined}
+          sortLabel={printTargetSortLabel || SORT_OPTIONS.find((s) => s.value === sortOrder)?.label}
+          stats={summary}
+        />
+      </div>
+
+      <div className="space-y-6 animate-in fade-in duration-300 pb-16 print:hidden">
+        {/* 1. Header & Quick Actions */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
@@ -2176,6 +2300,24 @@ function ProfessorStudentsContent() {
           </div>
 
           <div className="flex items-center gap-2.5 self-end sm:self-auto">
+            {/* Direct Print Action Button */}
+            <button
+              type="button"
+              onClick={() => {
+                const ids =
+                  selectedCandidateIds.size > 0
+                    ? Array.from(selectedCandidateIds)
+                    : displayedStudents.map((s) => s.id)
+                openBulkExportModal(ids)
+              }}
+              disabled={displayedStudents.length === 0}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-xs transition-colors cursor-pointer"
+              title="Print official candidate gradebook roster in chosen sequence"
+            >
+              <Printer className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Print</span>
+            </button>
+
             {/* Bulk / Cohort Export Action Button */}
             <button
               type="button"
@@ -2828,12 +2970,53 @@ function ProfessorStudentsContent() {
               </div>
             </div>
 
+            {/* Candidate Sequence Sort Order Choice */}
+            {exportModal.mode === 'bulk' && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Candidate Sequence Order
+                  </label>
+                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">
+                    {SORT_OPTIONS.find((o) => o.value === (exportModal.sortChoice || sortOrder))?.label}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {SORT_OPTIONS.map((opt) => {
+                    const isSelected = (exportModal.sortChoice || sortOrder) === opt.value
+                    const Icon = opt.icon
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() =>
+                          setExportModal((prev) => ({
+                            ...prev,
+                            sortChoice: opt.value,
+                          }))
+                        }
+                        className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-semibold text-left transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-emerald-50/80 dark:bg-emerald-950/60 border-emerald-500 text-emerald-800 dark:text-emerald-200 ring-1 ring-emerald-500/20'
+                            : 'bg-white dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+                        }`}
+                      >
+                        <Icon className="size-3.5 text-slate-400 shrink-0" />
+                        <span className="truncate">{opt.label}</span>
+                        {isSelected && <Check className="size-3 ml-auto text-emerald-600 shrink-0" />}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
                 onClick={closeExportModal}
-                disabled={exportingPdf || exportingExcel}
+                disabled={exportingPdf || exportingExcel || printingRoster}
                 className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 Cancel
@@ -2841,8 +3024,22 @@ function ProfessorStudentsContent() {
 
               <button
                 type="button"
+                onClick={() => executeModalPrint()}
+                disabled={exportingPdf || exportingExcel || printingRoster}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300/80 dark:border-slate-700 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {printingRoster ? (
+                  <Loader2 className="size-3.5 animate-spin text-emerald-500" />
+                ) : (
+                  <Printer className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                )}
+                <span>{printingRoster ? 'Preparing Print...' : 'Print Marksheets'}</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => executeModalExport('pdf')}
-                disabled={exportingPdf || exportingExcel}
+                disabled={exportingPdf || exportingExcel || printingRoster}
                 className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white transition-all shadow-sm cursor-pointer disabled:opacity-50"
               >
                 {exportingPdf ? (
@@ -2856,7 +3053,7 @@ function ProfessorStudentsContent() {
               <button
                 type="button"
                 onClick={() => executeModalExport('excel')}
-                disabled={exportingPdf || exportingExcel}
+                disabled={exportingPdf || exportingExcel || printingRoster}
                 className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-md shadow-emerald-500/20 cursor-pointer disabled:opacity-50"
               >
                 {exportingExcel ? (
@@ -2871,6 +3068,7 @@ function ProfessorStudentsContent() {
         </div>
       )}
     </div>
+    </>
   )
 }
 

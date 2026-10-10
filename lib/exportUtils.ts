@@ -27,6 +27,8 @@ export interface BulkExportReportOptions extends ExportReportOptions {
   evaluatedStudentsCount?: number
   averageScore?: number
   passRate?: number
+  autoPrint?: boolean
+  action?: 'save' | 'print'
 }
 
 /**
@@ -2099,7 +2101,15 @@ export function exportBulkStudentsToPDF(
 
   const scopeLabel = (options.sectionName || options.cohortName || 'Cohort').replace(/\s+/g, '_')
   const defaultFilename = `OSCE_Bulk_${scopeLabel}_${granularity}.pdf`
-  doc.save(defaultFilename)
+  if (options.autoPrint || options.action === 'print') {
+    if (typeof doc.autoPrint === 'function') {
+      doc.autoPrint()
+    }
+    const blobUrl = doc.output('bloburl')
+    window.open(blobUrl, '_blank')
+  } else {
+    doc.save(defaultFilename)
+  }
 }
 
 /**

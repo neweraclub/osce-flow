@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     const moduleIdParam = searchParams.get('module_id')
     const searchParam = searchParams.get('search')?.trim().toLowerCase()
     const statusParam = searchParams.get('status')?.trim().toLowerCase() || 'all'
-    const sortParam = searchParams.get('sort')?.trim().toLowerCase() || 'name_asc'
+    const sortParam = searchParams.get('sort')?.trim().toLowerCase() || 'default'
     const studentIdParam = searchParams.get('student_id')?.trim()
 
     // 2. Fetch Academic Years for Faculty Context
@@ -219,6 +219,8 @@ export async function GET(req: NextRequest) {
         first_name,
         last_name,
         group_id,
+        import_index,
+        created_at,
         groups!inner (
           id,
           group_name,
@@ -245,6 +247,10 @@ export async function GET(req: NextRequest) {
         targetLevelIds
       )
     }
+
+    enrolledStudentsQuery = enrolledStudentsQuery
+      .order('import_index', { ascending: true })
+      .order('created_at', { ascending: true })
 
     const { data: enrolledStudents, error: enrolledErr } = await enrolledStudentsQuery
     if (enrolledErr) throw enrolledErr
@@ -285,6 +291,8 @@ export async function GET(req: NextRequest) {
           first_name,
           last_name,
           group_id,
+          import_index,
+          created_at,
           groups (
             id,
             group_name,
@@ -484,6 +492,8 @@ export async function GET(req: NextRequest) {
         first_name: st.first_name,
         last_name: st.last_name,
         full_name: `${st.first_name} ${st.last_name}`,
+        import_index: typeof st.import_index === 'number' ? st.import_index : null,
+        created_at: st.created_at || null,
         group_name: groupData?.group_name ? `Group ${groupData.group_name}` : 'Unassigned',
         section_name: sectionData?.section_name ? `Section ${sectionData.section_name}` : 'Unassigned',
         level_name: studyLevelData?.level_name || 'Medical Level',
@@ -528,6 +538,19 @@ export async function GET(req: NextRequest) {
     // 12. Apply Sorting
     filteredStudents.sort((a, b) => {
       switch (sortParam) {
+        case 'default': {
+          const idxA = a.import_index !== null && a.import_index !== undefined ? a.import_index : null
+          const idxB = b.import_index !== null && b.import_index !== undefined ? b.import_index : null
+          if (idxA !== null && idxB !== null && idxA !== idxB) {
+            return idxA - idxB
+          }
+          if (idxA !== null && idxB === null) return -1
+          if (idxA === null && idxB !== null) return 1
+          if (a.created_at && b.created_at && a.created_at !== b.created_at) {
+            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          }
+          return a.matricule.localeCompare(b.matricule, undefined, { numeric: true })
+        }
         case 'name_asc':
           return a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name)
         case 'name_desc':
@@ -543,9 +566,20 @@ export async function GET(req: NextRequest) {
           return scoreA - scoreB
         }
         case 'matricule_asc':
-          return a.matricule.localeCompare(b.matricule)
-        default:
-          return a.last_name.localeCompare(b.last_name)
+          return a.matricule.localeCompare(b.matricule, undefined, { numeric: true })
+        default: {
+          const idxA = a.import_index !== null && a.import_index !== undefined ? a.import_index : null
+          const idxB = b.import_index !== null && b.import_index !== undefined ? b.import_index : null
+          if (idxA !== null && idxB !== null && idxA !== idxB) {
+            return idxA - idxB
+          }
+          if (idxA !== null && idxB === null) return -1
+          if (idxA === null && idxB !== null) return 1
+          if (a.created_at && b.created_at && a.created_at !== b.created_at) {
+            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          }
+          return a.matricule.localeCompare(b.matricule, undefined, { numeric: true })
+        }
       }
     })
 

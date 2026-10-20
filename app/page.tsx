@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
 import { Bricolage_Grotesque, Plus_Jakarta_Sans } from 'next/font/google'
 import { Brain, Droplets, Heart, Wind, type LucideIcon } from 'lucide-react'
 
@@ -90,22 +89,7 @@ export default function LandingPage() {
       `}</style>
 
       <div className="mx-auto grid min-h-dvh max-w-7xl grid-rows-[auto_1fr] px-5 sm:px-8">
-        <header className="flex items-center justify-between py-6">
-          <Link href="/" className="font-[family-name:var(--font-display)] text-xl font-extrabold tracking-tight hover:opacity-90 transition-opacity">
-            OSCE<span style={{ color: '#E53888' }}>-flow</span>
-          </Link>
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-medium opacity-60 hidden sm:inline">New Era ECOS</span>
-            <Link
-              href="/login"
-              className="text-xs sm:text-sm font-semibold px-4 py-1.5 rounded-full border transition-all duration-200 hover:bg-[#17135C] hover:text-white"
-              style={{ borderColor: `${INK}33` }}
-            >
-              Accès Portail &rarr;
-            </Link>
-          </div>
-        </header>
-
+        
         <main className="grid items-center gap-10 pb-12 lg:grid-cols-[1fr_1.1fr] lg:gap-14">
           {/* Headline */}
           <div className="max-w-xl">

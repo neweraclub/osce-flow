@@ -7,29 +7,21 @@ import {
   Heart,
   Wind,
 } from 'lucide-react'
+import { OsceCircuitFigure } from '@/components/OsceCircuitFigure'
 
 export default function LandingPage() {
-  // Cursor Tracking with Smooth Damping (Lerp) for 3D Physics
-  const [targetTilt, setTargetTilt] = useState({ x: 0, y: 0 })
-  const [currentTilt, setCurrentTilt] = useState({ x: 0, y: 0 })
   const [mouseSpeed, setMouseSpeed] = useState(0)
   const lastMousePos = useRef({ x: 0, y: 0, time: Date.now() })
   const mouseCoords = useRef({ x: -1000, y: -1000 })
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
-  // Specialty strip hover state
+  // Specialty strip hover state (synced with OSCE circuit figure)
   const [hoveredSpecialty, setHoveredSpecialty] = useState<string | null>(null)
 
-  // Mouse move handler for 3D tilt & velocity
+  // Mouse move handler for ECG reaction & velocity
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const { clientX, clientY } = e
-    const { innerWidth, innerHeight } = window
 
-    // Normalized -1 to +1 coordinates
-    const nx = (clientX / innerWidth - 0.5) * 2
-    const ny = (clientY / innerHeight - 0.5) * 2
-
-    setTargetTilt({ x: nx, y: ny })
     mouseCoords.current = { x: clientX, y: clientY }
 
     // Calculate mouse speed for dynamic ECG reaction
@@ -43,20 +35,6 @@ export default function LandingPage() {
     setMouseSpeed((prev) => Math.max(prev * 0.85, speed))
     lastMousePos.current = { x: clientX, y: clientY, time: now }
   }
-
-  // Smooth lerp animation loop for 3D tilt
-  useEffect(() => {
-    let animId: number
-    const updateTilt = () => {
-      setCurrentTilt((prev) => ({
-        x: prev.x + (targetTilt.x - prev.x) * 0.08,
-        y: prev.y + (targetTilt.y - prev.y) * 0.08,
-      }))
-      animId = requestAnimationFrame(updateTilt)
-    }
-    animId = requestAnimationFrame(updateTilt)
-    return () => cancelAnimationFrame(animId)
-  }, [targetTilt])
 
   // =========================================================================
   // CONTINUOUS REACTIVE ECG HEARTBEAT LINE
@@ -290,102 +268,21 @@ export default function LandingPage() {
           </p>
         </div>
 
-        {/* Floating 3D Glass Emblem with Continuous Pulse Wave */}
-        <div
-          className="relative flex items-center justify-center pt-2"
-          style={{ perspective: '1200px' }}
-        >
-          {/* Continuous Glowing Pulse Waves Rippling Outward */}
+        {/* OSCE Circuit Interactive Hairline Figure */}
+        <div className="relative w-full max-w-xl sm:max-w-2xl flex flex-col items-center justify-center pt-1">
+          {/* Subtle concentric glowing pulse ripple */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <span
-              className="absolute size-44 sm:size-52 rounded-full border border-cyan-400/30 animate-ping"
-              style={{ animationDuration: '3.6s' }}
-            />
-            <span
-              className="absolute size-60 sm:size-72 rounded-full border border-emerald-400/20 animate-ping"
-              style={{ animationDuration: '4.8s', animationDelay: '1.2s' }}
-            />
-            <span
-              className="absolute size-72 sm:size-88 rounded-full border border-indigo-400/15 animate-ping"
-              style={{ animationDuration: '6s', animationDelay: '2.4s' }}
+              className="absolute size-48 sm:size-64 rounded-full border border-cyan-400/20 animate-ping opacity-25"
+              style={{ animationDuration: '4.8s' }}
             />
           </div>
 
-          {/* 3D Tilting Glass Emblem Prism */}
-          <div
-            className="relative size-40 sm:size-48 rounded-3xl p-0.5 transition-transform duration-100 ease-out will-change-transform"
-            style={{
-              transform: `rotateX(${currentTilt.y * -14}deg) rotateY(${currentTilt.x * 14}deg) translateZ(30px)`,
-              transformStyle: 'preserve-3d',
-            }}
-          >
-            {/* Luminous Specular Border Reflection */}
-            <div className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-cyan-400/30 via-white/20 to-emerald-400/30 blur-xs" />
-
-            {/* Frosted Glass Body */}
-            <div className="relative size-full rounded-3xl bg-gradient-to-b from-white/[0.10] via-white/[0.04] to-black/40 backdrop-blur-2xl border border-white/20 shadow-[0_25px_60px_-12px_rgba(0,0,0,0.8),inset_0_1px_2px_rgba(255,255,255,0.35)] flex items-center justify-center overflow-hidden group">
-              {/* Internal Caustic Light Ray Sweep */}
-              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.06] to-transparent opacity-80" />
-
-              {/* Central Concentric Frosted Core Ring */}
-              <div className="relative size-24 sm:size-28 rounded-2xl bg-white/[0.05] border border-white/15 backdrop-blur-md flex items-center justify-center shadow-inner">
-                {/* Stylized Medical Heart & Caduceus Emblem SVG */}
-                <svg
-                  viewBox="0 0 100 100"
-                  className="size-14 sm:size-16 drop-shadow-[0_0_14px_rgba(6,182,212,0.6)]"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <defs>
-                    <linearGradient id="emblemGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#06B6D4" />
-                      <stop offset="50%" stopColor="#10B981" />
-                      <stop offset="100%" stopColor="#6366F1" />
-                    </linearGradient>
-                    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
-                      <feGaussianBlur stdDeviation="2" result="blur" />
-                      <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                    </filter>
-                  </defs>
-
-                  {/* Stylized Cardiac Outer Silhouette */}
-                  <path
-                    d="M50 82C50 82 22 62 16 42C11 25 24 16 35 18C42 19.5 47 24 50 28C53 24 58 19.5 65 18C76 16 89 25 84 42C78 62 50 82 50 82Z"
-                    stroke="url(#emblemGrad)"
-                    strokeWidth="3.2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="opacity-90"
-                  />
-
-                  {/* Intersecting Biometric Rhythm Beam */}
-                  <path
-                    d="M20 50H36L42 36L48 64L54 44L58 54L62 50H80"
-                    stroke="url(#emblemGrad)"
-                    strokeWidth="2.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    filter="url(#softGlow)"
-                  />
-
-                  {/* Ascending Staff / Honor Beacon */}
-                  <line
-                    x1="50"
-                    y1="14"
-                    x2="50"
-                    y2="26"
-                    stroke="#FFFFFF"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
-                  <circle cx="50" cy="12" r="3" fill="#06B6D4" />
-                </svg>
-              </div>
-
-              {/* Bottom Subtle Refractive Rim */}
-              <div className="absolute bottom-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent" />
-            </div>
-          </div>
+          <OsceCircuitFigure
+            activeStationId={hoveredSpecialty}
+            onStationHover={setHoveredSpecialty}
+            className="w-full relative z-10"
+          />
         </div>
       </main>
 

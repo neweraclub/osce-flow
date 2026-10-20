@@ -1,335 +1,254 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
-import {
-  Brain,
-  Droplets,
-  Heart,
-  Wind,
-} from 'lucide-react'
-import { OsceCircuitFigure } from '@/components/OsceCircuitFigure'
+import React, { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
+import { Bricolage_Grotesque, Plus_Jakarta_Sans } from 'next/font/google'
+import { Brain, Droplets, Heart, Wind, type LucideIcon } from 'lucide-react'
+
+const display = Bricolage_Grotesque({ subsets: ['latin'], variable: '--font-display' })
+const body = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-body' })
+
+const INK = '#17135C'
+const PASS = 10 // /20
+
+type Station = { id: string; name: string; icon: LucideIcon; color: string; weight: number }
+
+// Weights follow lib/gradeUtils: station% x weight, summed, x 0.2 => /20
+const STATIONS: Station[] = [
+  { id: 'cardio', name: 'Cardiologie', icon: Heart, color: '#3B33FF', weight: 30 },
+  { id: 'neuro', name: 'Neurologie', icon: Brain, color: '#8B3EE1', weight: 25 },
+  { id: 'pneumo', name: 'Pneumologie', icon: Wind, color: '#E53888', weight: 25 },
+  { id: 'nephro', name: 'Néphrologie', icon: Droplets, color: '#F97316', weight: 20 },
+]
+
+// One heartbeat cycle is 400 units wide; the R spike grows with the score.
+function tracePath(score: number) {
+  const A = 4 + score * 1.7
+  const cycle = (ox: number): [number, number][] => [
+    [ox, 40], [ox + 90, 40], [ox + 106, 34], [ox + 122, 40], [ox + 160, 40],
+    [ox + 168, 46], [ox + 180, 40 - A], [ox + 192, 50], [ox + 200, 40],
+    [ox + 250, 40], [ox + 275, 31], [ox + 300, 40], [ox + 400, 40],
+  ]
+  const pts = [...cycle(0), ...cycle(400)]
+  return pts.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x} ${y}`).join(' ')
+}
+
+function useTween(target: number) {
+  const [v, setV] = useState(target)
+  const cur = useRef(target)
+  useEffect(() => {
+    let id = 0
+    const tick = () => {
+      cur.current += (target - cur.current) * 0.14
+      if (Math.abs(target - cur.current) < 0.004) cur.current = target
+      setV(cur.current)
+      if (cur.current !== target) id = requestAnimationFrame(tick)
+    }
+    id = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(id)
+  }, [target])
+  return v
+}
 
 export default function LandingPage() {
-  const [mouseSpeed, setMouseSpeed] = useState(0)
-  const lastMousePos = useRef({ x: 0, y: 0, time: Date.now() })
-  const mouseCoords = useRef({ x: -1000, y: -1000 })
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const [scores, setScores] = useState([15, 17, 14, 17])
 
-  // Specialty strip hover state (synced with OSCE circuit figure)
-  const [hoveredSpecialty, setHoveredSpecialty] = useState<string | null>(null)
+  const total =
+    STATIONS.reduce((sum, s, i) => sum + (scores[i] / 20) * 100 * (s.weight / 100), 0) * 0.2
+  const shownTotal = useTween(total)
+  const passed = total >= PASS
 
-  // Mouse move handler for ECG reaction & velocity
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const { clientX, clientY } = e
+  const setScore = (i: number, value: number) =>
+    setScores((prev) => prev.map((v, j) => (j === i ? Math.max(0, Math.min(20, value)) : v)))
 
-    mouseCoords.current = { x: clientX, y: clientY }
-
-    // Calculate mouse speed for dynamic ECG reaction
-    const now = Date.now()
-    const dt = Math.max(now - lastMousePos.current.time, 16)
-    const dx = clientX - lastMousePos.current.x
-    const dy = clientY - lastMousePos.current.y
-    const dist = Math.sqrt(dx * dx + dy * dy)
-    const speed = Math.min(dist / dt, 5)
-
-    setMouseSpeed((prev) => Math.max(prev * 0.85, speed))
-    lastMousePos.current = { x: clientX, y: clientY, time: now }
+  const fromPointer = (i: number, e: React.PointerEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    setScore(i, Math.round(((e.clientX - r.left) / r.width) * 20))
   }
-
-  // =========================================================================
-  // CONTINUOUS REACTIVE ECG HEARTBEAT LINE
-  // =========================================================================
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    let animId: number
-    let offset = 0
-    let currentSpeed = 1.6
-
-    const resize = () => {
-      if (!canvas) return
-      const dpr = window.devicePixelRatio || 1
-      canvas.width = window.innerWidth * dpr
-      canvas.height = window.innerHeight * dpr
-      ctx.scale(dpr, dpr)
-    }
-    resize()
-    window.addEventListener('resize', resize)
-
-    const render = () => {
-      const width = window.innerWidth
-      const height = window.innerHeight
-
-      ctx.clearRect(0, 0, width, height)
-
-      // Speed adapts smoothly to mouse velocity
-      const targetSpeed = 1.4 + mouseSpeed * 1.8
-      currentSpeed += (targetSpeed - currentSpeed) * 0.05
-      offset += currentSpeed
-
-      // Y Baseline placed horizontally across the lower-middle viewport
-      const yBase = height * 0.58
-
-      // Determine mouse influence on ECG amplitude & glow
-      const mx = mouseCoords.current.x
-      const my = mouseCoords.current.y
-      const hasMouse = mx > 0 && my > 0
-
-      // Create gradient for the ECG trace with emerald-cyan sheen
-      const grad = ctx.createLinearGradient(0, 0, width, 0)
-      grad.addColorStop(0, 'rgba(6, 182, 212, 0.0)')
-      grad.addColorStop(0.15, 'rgba(6, 182, 212, 0.18)')
-      grad.addColorStop(0.5, 'rgba(16, 185, 129, 0.35)')
-      grad.addColorStop(0.85, 'rgba(99, 102, 241, 0.22)')
-      grad.addColorStop(1, 'rgba(99, 102, 241, 0.0)')
-
-      ctx.beginPath()
-      ctx.strokeStyle = grad
-      ctx.lineWidth = 1.75
-      ctx.lineJoin = 'round'
-      ctx.lineCap = 'round'
-
-      // Step across canvas
-      const step = 3
-      for (let x = 0; x <= width; x += step) {
-        // Biometric QRS Complex Cycle Length (320px cycle)
-        const cycle = (x + offset) % 320
-        let dy = 0
-
-        // P-Wave (Atrial Depolarization)
-        if (cycle >= 40 && cycle < 65) {
-          const progress = (cycle - 40) / 25
-          dy = -Math.sin(progress * Math.PI) * 7
-        }
-        // Q-Dip
-        else if (cycle >= 85 && cycle < 95) {
-          const progress = (cycle - 85) / 10
-          dy = Math.sin(progress * Math.PI) * 6
-        }
-        // R-Spike (Ventricular Depolarization - Sharp Peak)
-        else if (cycle >= 95 && cycle < 112) {
-          const progress = (cycle - 95) / 17
-          dy = -Math.sin(progress * Math.PI) * 48
-        }
-        // S-Dip
-        else if (cycle >= 112 && cycle < 125) {
-          const progress = (cycle - 112) / 13
-          dy = Math.sin(progress * Math.PI) * 14
-        }
-        // T-Wave (Ventricular Repolarization)
-        else if (cycle >= 150 && cycle < 185) {
-          const progress = (cycle - 150) / 35
-          dy = -Math.sin(progress * Math.PI) * 12
-        }
-
-        // Fluid Mouse Interaction: wave baseline gently arches toward mouse proximity
-        if (hasMouse) {
-          const distX = Math.abs(x - mx)
-          const distY = Math.abs(yBase - my)
-          const totalDist = Math.sqrt(distX * distX + distY * distY)
-          const influence = Math.max(0, 1 - totalDist / 340)
-          if (influence > 0) {
-            // Organic upward/downward curvature near cursor
-            const mousePull = (my - yBase) * 0.12 * Math.sin(influence * Math.PI)
-            dy += mousePull
-          }
-        }
-
-        const finalY = yBase + dy
-        if (x === 0) {
-          ctx.moveTo(x, finalY)
-        } else {
-          ctx.lineTo(x, finalY)
-        }
-      }
-
-      ctx.stroke()
-
-      // Subtle phosphor glow line pass
-      ctx.save()
-      ctx.shadowColor = 'rgba(16, 185, 129, 0.4)'
-      ctx.shadowBlur = 8
-      ctx.stroke()
-      ctx.restore()
-
-      animId = requestAnimationFrame(render)
-    }
-
-    render()
-
-    return () => {
-      cancelAnimationFrame(animId)
-      window.removeEventListener('resize', resize)
-    }
-  }, [mouseSpeed])
-
-  // Specialties dataset for bottom frosted capsules
-  const specialties = [
-    {
-      id: 'cardio',
-      name: 'Cardiologie',
-      icon: Heart,
-      accentColor: 'rose',
-      glowClass: 'hover:shadow-[0_0_35px_rgba(244,63,94,0.3)] hover:border-rose-500/40 hover:bg-rose-950/20',
-      iconColor: 'text-rose-400',
-    },
-    {
-      id: 'neuro',
-      name: 'Neurologie',
-      icon: Brain,
-      accentColor: 'indigo',
-      glowClass: 'hover:shadow-[0_0_35px_rgba(99,102,241,0.3)] hover:border-indigo-500/40 hover:bg-indigo-950/20',
-      iconColor: 'text-indigo-400',
-    },
-    {
-      id: 'pneumo',
-      name: 'Pneumologie',
-      icon: Wind,
-      accentColor: 'cyan',
-      glowClass: 'hover:shadow-[0_0_35px_rgba(6,182,212,0.3)] hover:border-cyan-500/40 hover:bg-cyan-950/20',
-      iconColor: 'text-cyan-400',
-    },
-    {
-      id: 'nephro',
-      name: 'Néphrologie',
-      icon: Droplets,
-      accentColor: 'emerald',
-      glowClass: 'hover:shadow-[0_0_35px_rgba(16,185,129,0.3)] hover:border-emerald-500/40 hover:bg-emerald-950/20',
-      iconColor: 'text-emerald-400',
-    },
-  ]
 
   return (
     <div
-      onMouseMove={handleMouseMove}
-      className="relative w-screen h-screen min-h-[680px] bg-[#04070B] text-white flex flex-col justify-between items-center overflow-hidden select-none font-sans"
+      className={`${display.variable} ${body.variable} relative min-h-dvh overflow-x-hidden font-[family-name:var(--font-body)] antialiased`}
+      style={{
+        color: INK,
+        backgroundColor: '#FFFAFB',
+        // Real ECG paper: 1 mm squares and 5 mm major lines
+        backgroundImage: `
+          linear-gradient(rgba(229,56,136,0.20) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(229,56,136,0.20) 1px, transparent 1px),
+          linear-gradient(rgba(229,56,136,0.08) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(229,56,136,0.08) 1px, transparent 1px)`,
+        backgroundSize: '60px 60px, 60px 60px, 12px 12px, 12px 12px',
+      }}
     >
-      {/* ===================================================================== */}
-      {/* 1. ATMOSPHERIC CANVAS & TRICOLOR BREATHING GLOW                       */}
-      {/* ===================================================================== */}
+      <style>{`
+        @keyframes ecg-scroll { from { transform: translateX(0) } to { transform: translateX(-50%) } }
+        @keyframes ecg-reveal { from { clip-path: inset(0 100% 0 0) } to { clip-path: inset(0 0 0 0) } }
+        .ecg-scroll { animation: ecg-scroll 9s linear infinite }
+        .ecg-reveal { animation: ecg-reveal 1.5s cubic-bezier(.2,.7,.2,1) both }
+        @media (prefers-reduced-motion: reduce) { .ecg-scroll, .ecg-reveal { animation: none } }
+      `}</style>
 
-      {/* Reactive ECG Biometric Canvas */}
-      <canvas
-        ref={canvasRef}
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 z-0 opacity-70"
-      />
+      <div className="mx-auto grid min-h-dvh max-w-7xl grid-rows-[auto_1fr] px-5 sm:px-8">
+        <header className="flex items-center justify-between py-6">
+          <Link href="/" className="font-[family-name:var(--font-display)] text-xl font-extrabold tracking-tight hover:opacity-90 transition-opacity">
+            OSCE<span style={{ color: '#E53888' }}>-flow</span>
+          </Link>
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium opacity-60 hidden sm:inline">New Era ECOS</span>
+            <Link
+              href="/login"
+              className="text-xs sm:text-sm font-semibold px-4 py-1.5 rounded-full border transition-all duration-200 hover:bg-[#17135C] hover:text-white"
+              style={{ borderColor: `${INK}33` }}
+            >
+              Accès Portail &rarr;
+            </Link>
+          </div>
+        </header>
 
-      {/* Central Breathing Aura Orb - Soft shifting between Indigo, Emerald, Cyan */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-[650px] sm:size-[850px] rounded-full blur-[140px] opacity-40 transition-all duration-1000 animate-pulse"
-        style={{
-          background:
-            'radial-gradient(circle at center, rgba(99,102,241,0.25) 0%, rgba(16,185,129,0.20) 40%, rgba(6,182,212,0.18) 70%, transparent 85%)',
-          animationDuration: '10s',
-        }}
-      />
-
-      {/* Secondary Ambient Accent Blobs */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute top-[15%] left-[20%] size-[450px] rounded-full bg-indigo-500/10 blur-[120px]"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute bottom-[15%] right-[20%] size-[500px] rounded-full bg-emerald-500/10 blur-[130px]"
-      />
-
-      {/* Subtle Micro Dot-Matrix Texture */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.06)_1px,transparent_1px)] [background-size:32px_32px] [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_85%)] opacity-40"
-      />
-
-      {/* ===================================================================== */}
-      {/* 2. MINIMAL HEADER                                                     */}
-      {/* ===================================================================== */}
-      <header className="relative z-20 w-full pt-8 sm:pt-10 flex items-center justify-center">
-        <span className="text-sm sm:text-base font-bold tracking-[0.28em] uppercase text-slate-200/90 hover:text-white transition-colors">
-          OSCE<span className="text-cyan-400 font-mono">-flow</span>
-        </span>
-      </header>
-
-      {/* ===================================================================== */}
-      {/* 3. THE CENTERPIECE (VISUAL ANCHOR)                                    */}
-      {/* ===================================================================== */}
-      <main className="relative z-10 flex flex-col items-center justify-center text-center px-6 max-w-4xl mx-auto my-auto space-y-8 sm:space-y-10">
-        {/* Crisp Headline & Subtitle */}
-        <div className="space-y-3.5 max-w-2xl">
-          <h1 className="text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-white leading-tight">
-            Redefining Clinical Exams.
-          </h1>
-          <p className="text-base sm:text-lg md:text-xl font-normal text-slate-400 leading-relaxed tracking-normal">
-            Fluid, objective assessment for modern medical faculties.
-          </p>
-        </div>
-
-        {/* OSCE Circuit Interactive Hairline Figure */}
-        <div className="relative w-full max-w-xl sm:max-w-2xl flex flex-col items-center justify-center pt-1">
-          {/* Subtle concentric glowing pulse ripple */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <span
-              className="absolute size-48 sm:size-64 rounded-full border border-cyan-400/20 animate-ping opacity-25"
-              style={{ animationDuration: '4.8s' }}
-            />
+        <main className="grid items-center gap-10 pb-12 lg:grid-cols-[1fr_1.1fr] lg:gap-14">
+          {/* Headline */}
+          <div className="max-w-xl">
+            <h1 className="font-[family-name:var(--font-display)] text-[clamp(3rem,8.5vw,6.75rem)] font-extrabold leading-[0.92] tracking-[-0.045em]">
+              Redefining Clinical Exams.
+            </h1>
+            <p className="mt-6 max-w-md text-lg leading-relaxed opacity-70">
+              Fluid, objective assessment for modern medical faculties.
+            </p>
           </div>
 
-          <OsceCircuitFigure
-            activeStationId={hoveredSpecialty}
-            onStationHover={setHoveredSpecialty}
-            className="w-full relative z-10"
-          />
-        </div>
-      </main>
+          {/* The memorable thing: a marksheet that is also a heart monitor */}
+          <section
+            aria-label="Interactive OSCE marksheet"
+            className="rounded-[28px] border bg-white/90 shadow-[0_30px_80px_-30px_rgba(59,51,255,0.45)] backdrop-blur-sm"
+            style={{ borderColor: `${INK}1F` }}
+          >
+            <ul>
+              {STATIONS.map((s, i) => {
+                const Icon = s.icon
+                const score = scores[i]
+                return (
+                  <li
+                    key={s.id}
+                    className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-2 border-b px-5 pb-3 pt-4 last:border-b-0 sm:px-7"
+                    style={{ borderColor: `${INK}14` }}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Icon className="size-[18px]" style={{ color: s.color }} aria-hidden="true" />
+                      <span className="font-[family-name:var(--font-display)] text-lg font-bold tracking-tight">
+                        {s.name}
+                      </span>
+                      <span className="text-xs font-medium opacity-50">weight {s.weight}%</span>
+                    </div>
+                    <span className="text-right text-lg font-bold tabular-nums">
+                      {score}
+                      <span className="text-sm font-medium opacity-50">/20</span>
+                    </span>
 
-      {/* ===================================================================== */}
-      {/* 4. BOTTOM FLOATING SPECIALTY STRIP                                    */}
-      {/* ===================================================================== */}
-      <footer className="relative z-20 pb-10 sm:pb-12 px-6 w-full flex justify-center">
-        <div className="flex items-center justify-center flex-wrap gap-3 sm:gap-4 max-w-4xl mx-auto">
-          {specialties.map((item) => {
-            const Icon = item.icon
-            const isHovered = hoveredSpecialty === item.id
+                    {/* Lead: drag or use arrow keys to set this station's score */}
+                    <div
+                      role="slider"
+                      tabIndex={0}
+                      aria-label={`${s.name} score`}
+                      aria-valuemin={0}
+                      aria-valuemax={20}
+                      aria-valuenow={score}
+                      onPointerDown={(e) => {
+                        e.currentTarget.setPointerCapture(e.pointerId)
+                        fromPointer(i, e)
+                      }}
+                      onPointerMove={(e) => {
+                        if (e.pointerType === 'mouse' || e.buttons === 1) fromPointer(i, e)
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'ArrowRight' || e.key === 'ArrowUp') setScore(i, score + 1)
+                        if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') setScore(i, score - 1)
+                      }}
+                      className="relative col-span-2 h-20 cursor-ew-resize overflow-hidden rounded-xl outline-none focus-visible:ring-2 [touch-action:pan-y]"
+                      style={{ ['--tw-ring-color' as string]: s.color }}
+                    >
+                      {/* scored span */}
+                      <div
+                        className="absolute inset-y-0 left-0 transition-[width] duration-150"
+                        style={{ width: `${(score / 20) * 100}%`, background: `${s.color}14` }}
+                      />
+                      {/* scrolling trace, drawn in once on load */}
+                      <div className="ecg-reveal absolute inset-0" style={{ animationDelay: `${i * 140}ms` }}>
+                        <div className="ecg-scroll flex h-full w-[200%]">
+                          {[0, 1].map((k) => (
+                            <svg
+                              key={k}
+                              viewBox="0 0 800 80"
+                              preserveAspectRatio="none"
+                              className="h-full w-1/2"
+                              aria-hidden="true"
+                            >
+                              <path
+                                d={tracePath(score)}
+                                fill="none"
+                                stroke={s.color}
+                                strokeWidth="2.25"
+                                strokeLinejoin="round"
+                                strokeLinecap="round"
+                                vectorEffect="non-scaling-stroke"
+                              />
+                            </svg>
+                          ))}
+                        </div>
+                      </div>
+                      {/* score marker */}
+                      <div
+                        className="absolute inset-y-0 w-px transition-[left] duration-150"
+                        style={{ left: `${(score / 20) * 100}%`, background: s.color }}
+                      >
+                        <span
+                          className="absolute -left-[4px] top-1/2 size-[9px] -translate-y-1/2 rounded-full ring-2 ring-white"
+                          style={{ background: s.color }}
+                        />
+                      </div>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
 
-            return (
-              <div
-                key={item.id}
-                onMouseEnter={() => setHoveredSpecialty(item.id)}
-                onMouseLeave={() => setHoveredSpecialty(null)}
-                className={`group px-5 py-2.5 rounded-full bg-white/[0.03] border border-white/[0.08] backdrop-blur-xl shadow-lg transition-all duration-300 flex items-center gap-3 cursor-default ${item.glowClass} ${
-                  isHovered ? 'scale-105' : 'scale-100'
-                }`}
-              >
-                {/* Organ Icon with smooth heartbeat pulse on hover */}
-                <div
-                  className={`size-7 rounded-full flex items-center justify-center transition-transform duration-300 ${
-                    item.iconColor
-                  } ${isHovered ? 'scale-125' : 'scale-100'}`}
-                >
-                  <Icon
-                    className={`size-4 transition-transform duration-300 ${
-                      isHovered ? 'animate-pulse' : ''
-                    }`}
-                  />
+            {/* Deliberation */}
+            <div className="border-t px-5 py-5 sm:px-7" style={{ borderColor: `${INK}1F` }}>
+              <div className="flex items-end justify-between gap-4">
+                <div className="font-[family-name:var(--font-display)] font-extrabold leading-none tracking-[-0.04em]">
+                  <span className="text-6xl tabular-nums sm:text-7xl">{shownTotal.toFixed(1)}</span>
+                  <span className="ml-1 text-2xl opacity-40">/20</span>
                 </div>
-
-                {/* Specialty Name */}
-                <span
-                  className={`text-xs sm:text-sm font-medium tracking-wide transition-colors duration-200 ${
-                    isHovered ? 'text-white' : 'text-slate-400'
-                  }`}
+                <p
+                  className="pb-1 text-right text-lg font-bold"
+                  style={{ color: passed ? '#0E8F60' : '#D92D20' }}
+                  aria-live="polite"
                 >
-                  {item.name}
-                </span>
+                  {passed ? 'Admis' : 'Ajourné'}
+                  <span className="block text-xs font-medium opacity-60" style={{ color: INK }}>
+                    pass line at 10/20
+                  </span>
+                </p>
               </div>
-            )
-          })}
-        </div>
-      </footer>
+
+              <div className="relative mt-4 h-2 rounded-full" style={{ background: `${INK}12` }}>
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${(shownTotal / 20) * 100}%`,
+                    background: 'linear-gradient(90deg,#3B33FF,#8B3EE1,#E53888,#F97316)',
+                  }}
+                />
+                <span
+                  className="absolute -top-1.5 left-1/2 h-5 w-0.5 rounded"
+                  style={{ background: INK }}
+                  aria-hidden="true"
+                />
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
     </div>
   )
 }

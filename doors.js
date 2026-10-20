@@ -1,6 +1,6 @@
 /**
- * doors: an OSCE clinical exam corridor with three station doors.
- * The pointer opens a door to reveal its clinical station room,
+ * doors: an OSCE clinical exam corridor with walled station rooms.
+ * The pointer opens a door to reveal its clinical station,
  * with distance falloff to neighbors and a running total toward 10/20 pass.
  */
 const {
@@ -10,24 +10,34 @@ const {
 } = HL;
 
 const STATIONS = [
-  { name: "anamnèse", w: 35, pts: "7.0", x: -56 },
+  { name: "anamnèse", w: 35, pts: "7.0", x: -54 },
   { name: "examen", w: 35, pts: "7.0", x: 0 },
-  { name: "urgence", w: 30, pts: "6.0", x: 56 },
+  { name: "urgence", w: 30, pts: "6.0", x: 54 },
 ];
-const N = 3, DW = 24, DH = 46, DT = 1.4;
+const N = 3, DW = 24, DH = 44, DT = 1.4;
 
 function mount({ stage, svg, read }, value) {
   const bag = disposer();
   let intensity = value;
 
   const C = Cam(45, 0.5, 1.85);
-  fit(C, [[-88, 30, 0], [88, -30, 0], [-88, -32, 54], [88, 30, 54], [0, 0, 0]], 200, 166);
+  fit(C, [[-86, 30, 0], [86, -30, 0], [-86, -32, 54], [86, 30, 54], [0, 0, 0]], 200, 166);
   const P = proj(C), front = facing(C);
   const addPrism = (p, r, inr, z0, z1) => { const s = solid(p); put(s, prism(P, front, r, inr, z0, z1)); };
 
   const g = mk("g", {}, svg);
-  mk("path", { d: seg(P(-84, 0, 0), P(84, 0, 0)), class: "lo" }, g);
-  mk("path", { d: seg(P(-82, 0, 23), P(82, 0, 23)), class: "dash" }, g);
+
+  // Room back walls and dividing partition walls
+  const wallsGrp = mk("g", { class: "lo" }, g);
+  mk("path", { d: poly([P(-74, -26, 0), P(74, -26, 0), P(74, -26, DH + 4), P(-74, -26, DH + 4)]), class: "nf lo" }, wallsGrp);
+  addPrism(wallsGrp, ...rings(-75, -26, -73, 0, 0.8, 0.3), 0, DH + 4);
+  addPrism(wallsGrp, ...rings(-28, -26, -26, 0, 0.8, 0.3), 0, DH + 4);
+  addPrism(wallsGrp, ...rings(26, -26, 28, 0, 0.8, 0.3), 0, DH + 4);
+  addPrism(wallsGrp, ...rings(73, -26, 75, 0, 0.8, 0.3), 0, DH + 4);
+
+  // Corridor base guideline and pass datum at 10/20
+  mk("path", { d: seg(P(-80, 0, 0), P(80, 0, 0)), class: "lo" }, g);
+  mk("path", { d: seg(P(-78, 0, 22), P(78, 0, 22)), class: "dash" }, g);
 
   const stations = [], restCenters = [];
 
@@ -54,12 +64,13 @@ function mount({ stage, svg, read }, value) {
     const doorLeaf = mk("path", { class: "sil" }, grp), doorCrease = mk("path", { class: "nf lo" }, grp);
     const handle = mk("circle", { r: 1.5, class: "dot m" }, grp);
 
-    for (let k = 0; k <= i; k++) {
-      place(mk("circle", { r: 1.2, class: "dot off" }, grp), P(st.x + (k - i / 2) * 3.5, 0, DH + 4));
-    }
+    // Illuminated station signboard block above doorway
+    addPrism(grp, ...rings(st.x - 9, -0.6, st.x + 9, 0.6, 1.2, 0.3), DH + 2, DH + 7.5);
+    const signDot = mk("circle", { r: 1.4, class: "dot" }, grp);
+    place(signDot, P(st.x, 0, DH + 4.8));
 
     restCenters.push(P(st.x, 0, DH / 2));
-    stations.push({ ...st, x0, roomGrp, doorLeaf, doorCrease, handle, angle: tween(0) });
+    stations.push({ ...st, x0, roomGrp, doorLeaf, doorCrease, handle, signDot, angle: tween(0) });
   }
 
   const restDot = mk("circle", { r: 1.8, class: "dot" }, g);
@@ -122,6 +133,7 @@ function mount({ stage, svg, read }, value) {
       st.roomGrp.classList.toggle("hi", isPick);
       st.roomGrp.classList.toggle("lo", !isPick);
       st.handle.setAttribute("class", isPick ? "dot" : "dot m");
+      st.signDot.setAttribute("class", isPick ? "dot" : "dot m");
     }
     loop.wake();
   }
@@ -140,7 +152,7 @@ function mount({ stage, svg, read }, value) {
 
 hairline({
   name: "doors",
-  means: "Three OSCE station doors along a clinical corridor: the picked door swings open to reveal its room, neighbors cracking in turn.",
+  means: "Three OSCE station rooms along a clinical corridor: the picked door swings open to reveal its room, neighbors cracking in turn.",
   rules: [1, 2, 4, 8, 9, 10],
   range: [20, 50, 80],
   tour: [[105, 166], [200, 166], [295, 166], null],

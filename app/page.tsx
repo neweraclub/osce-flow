@@ -12,8 +12,8 @@ const body = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-body' })
 const INK = '#17135C'
 
 export default function LandingPage() {
-  const [totalScore, setTotalScore] = useState(15.1)
-  const [isPassed, setIsPassed] = useState(true)
+  const [totalScore, setTotalScore] = useState(8.0)
+  const [isPassed, setIsPassed] = useState(false)
 
   return (
     <div
@@ -66,24 +66,24 @@ export default function LandingPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
               <div className="flex flex-col gap-1 p-3 rounded-2xl bg-white/90 border border-slate-200 shadow-xs text-xs">
                 <div className="flex items-center gap-1.5 font-bold text-slate-800">
-                  <Stethoscope className="size-3.5 text-blue-600" />
-                  <span>Station 1</span>
+                  <Stethoscope className="size-3.5 text-[#3B33FF]" />
+                  <span>Anamnèse</span>
                 </div>
-                <span className="text-[11px] text-slate-500">Anamnèse & Bureau PC</span>
+                <span className="text-[11px] text-slate-500">Entretien & consultation (35%)</span>
               </div>
               <div className="flex flex-col gap-1 p-3 rounded-2xl bg-white/90 border border-slate-200 shadow-xs text-xs">
                 <div className="flex items-center gap-1.5 font-bold text-slate-800">
-                  <CheckCircle2 className="size-3.5 text-pink-600" />
-                  <span>Station 2</span>
+                  <CheckCircle2 className="size-3.5 text-[#E53888]" />
+                  <span>Examen physique</span>
                 </div>
-                <span className="text-[11px] text-slate-500">Examen & Mannequin CPR</span>
+                <span className="text-[11px] text-slate-500">Table & auscultation (35%)</span>
               </div>
               <div className="flex flex-col gap-1 p-3 rounded-2xl bg-white/90 border border-slate-200 shadow-xs text-xs">
                 <div className="flex items-center gap-1.5 font-bold text-slate-800">
-                  <ShieldCheck className="size-3.5 text-orange-600" />
-                  <span>Station 3</span>
+                  <ShieldCheck className="size-3.5 text-[#F97316]" />
+                  <span>Urgence</span>
                 </div>
-                <span className="text-[11px] text-slate-500">Urgence & Chariot Mobile</span>
+                <span className="text-[11px] text-slate-500">Chariot & réanimation (30%)</span>
               </div>
             </div>
 

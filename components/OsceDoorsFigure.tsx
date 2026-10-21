@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 
 export interface OsceDoorsFigureProps {
   className?: string
@@ -14,63 +14,64 @@ interface StationInfo {
   weight: number
   color: string
   defaultScore: number
-  roomType: string
   description: string
+  awardedPoints: number
 }
 
 const STATIONS: StationInfo[] = [
   {
     id: 'anamnese',
-    name: 'Anamnèse & Consultation',
+    name: 'Anamnèse',
     stationNumber: 1,
     weight: 35,
-    color: '#3B33FF', // Clinical Blue
+    color: '#3B33FF', // Clinical Royal Blue
     defaultScore: 16,
-    roomType: 'Bureau Praticien & Consultation Patient',
-    description: 'Poste informatique d’évaluation avec bureau exécutif, PC et patient simulé en anamnèse',
+    description: 'Entretien patient & recueil clinique',
+    awardedPoints: 5.6,
   },
   {
-    id: 'cpr',
-    name: 'Examen Clinique & Réanimation CPR',
+    id: 'examen',
+    name: 'Examen physique',
     stationNumber: 2,
     weight: 35,
-    color: '#E53888', // Magenta / Pulse
+    color: '#E53888', // Medical Magenta Pulse
     defaultScore: 15,
-    roomType: 'Poste PC & Salle de Réanimation CPR',
-    description: 'Poste informatique, lit d’examen avec mannequin de réanimation et moniteur de rythme',
+    description: 'Auscultation & examen clinique sur table',
+    awardedPoints: 5.3,
   },
   {
     id: 'urgence',
-    name: 'Urgence Médicale & Déchocage',
+    name: 'Urgence',
     stationNumber: 3,
     weight: 30,
-    color: '#F97316', // Emergency Orange
+    color: '#F97316', // Emergency Amber Orange
     defaultScore: 14,
-    roomType: 'Poste PC & Baie d’Urgence Mobile',
-    description: 'Poste informatique, chariot d’urgence avec défibrillateur et tige à perfusion',
+    description: 'Réanimation d’urgence, chariot & monitorage',
+    awardedPoints: 4.2,
   },
 ]
 
 const N = 3
-// Room centers: -62, 0, 62
-const POS_X = [-62, 0, 62]
-// Exact same height for doors and room walls
-const WH = 28 // Wall height
-const DH = 28 // Door height (EXACTLY same size as room wall)
-const DW = 22 // Door width (swings cleanly along partition wall)
-const DT = 1.2
-const RD = 30 // Room depth (from y = -30 to y = 0)
+const INK = '#17135C'
+const PASS_SCORE = 10.0 // /20
 
-// Room partition X coordinates
-const ROOM_WALLS = [
-  { left: -93, right: -31, cx: -62 },
-  { left: -31, right: 31, cx: 0 },
-  { left: 31, right: 93, cx: 62 },
+// Room Centers & Proportions
+const POS_X = [-52, 0, 52]
+const RW = 46 // Room width
+const RD = 26 // Room depth (y from -26 to 0)
+const WH = 26 // Wall height
+const DH = 24 // Door height
+const DW = 20 // Door leaf width
+const DT = 1.2 // Door thickness
+
+const ROOM_BOUNDS = [
+  { left: -76, right: -28, cx: -52 },
+  { left: -26, right: 26, cx: 0 },
+  { left: 28, right: 76, cx: 52 },
 ]
 
 // Isometric Projection Engine
 const rad = (d: number) => (d * Math.PI) / 180
-const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v))
 const r2 = (n: number) => Math.round(n * 100) / 100
 
 function Cam(azDeg: number, k: number, S: number) {
@@ -187,6 +188,8 @@ const poly = (pts: [number, number][]) =>
   'M' + pts.map((p) => `${r2(p[0])} ${r2(p[1])}`).join('L') + 'Z'
 const openPoly = (pts: [number, number][]) =>
   pts.length < 2 ? '' : 'M' + pts.map((p) => `${r2(p[0])} ${r2(p[1])}`).join('L')
+const seg = (a: [number, number], b: [number, number]) =>
+  `M${r2(a[0])} ${r2(a[1])}L${r2(b[0])} ${r2(b[1])}`
 
 function prism(
   P: (x: number, y: number, z: number) => [number, number],
@@ -204,146 +207,159 @@ function prism(
 
 export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigureProps) {
   const [activeDoor, setActiveDoor] = useState<number>(-1)
-  const [scores, setScores] = useState<number[]>([16, 15, 14])
-  // REST STATE: Doors rest slightly ajar at 28° so offices are open, never closed stalls!
-  const [doorAngles, setDoorAngles] = useState<number[]>([28, 28, 28])
+  const [doorAngles, setDoorAngles] = useState<number[]>([0, 0, 0])
 
-  // Total Grade Calculation (/20 scale)
-  const totalGrade = useMemo(() => {
-    return (
-      STATIONS.reduce(
-        (sum, s, idx) => sum + (scores[idx] / 20) * 100 * (s.weight / 100),
-        0
-      ) * 0.2
-    )
-  }, [scores])
+  // Real-time Running Total with Pass Line at 10/20
+  // When a door opens, its station points are fully awarded!
+  const currentTotal = useMemo(() => {
+    if (activeDoor === 0) return 8.0 + 5.6 // Anamnèse awards +5.6 => 13.6/20 (Passed)
+    if (activeDoor === 1) return 8.0 + 5.3 // Examen awards +5.3 => 13.3/20 (Passed)
+    if (activeDoor === 2) return 8.0 + 4.2 // Urgence awards +4.2 => 12.2/20 (Passed)
+    return 8.0 // Closed rest state (before station points awarded)
+  }, [activeDoor])
 
-  const isPassed = totalGrade >= 10.0
+  const isPassed = currentTotal >= PASS_SCORE
 
   useEffect(() => {
-    onScoreChange?.(totalGrade, isPassed)
-  }, [totalGrade, isPassed, onScoreChange])
+    onScoreChange?.(currentTotal, isPassed)
+  }, [currentTotal, isPassed, onScoreChange])
 
-  // Camera & Static Geometry Precomputation
+  // Camera & Geometry Fit
   const {
     P,
     roomGeometries,
-    backWallPath,
-    partitionPaths,
-    roomFloors,
-    headerBeams,
+    roomFloorPaths,
+    roomShadowPaths,
+    backWallPaths,
+    partitionWallPaths,
+    doorwayFrames,
     signPositions,
     hitZones,
   } = useMemo(() => {
-    const C = Cam(35, 0.5, 2.05)
+    // Scaled up S=2.45 to fill the canvas, centered
+    const C = Cam(35, 0.5, 2.45)
     fit(
       C,
       [
-        [-95, -32, 0],
-        [95, 2, 0],
-        [-95, -32, WH + 3],
-        [95, 2, WH + 3],
+        [-80, -28, 0],
+        [80, 4, 0],
+        [-80, -28, WH + 3],
+        [80, 4, WH + 3],
         [0, 0, 0],
       ],
-      200,
-      160
+      210,
+      148
     )
     const P = proj(C)
     const front = facing(C)
 
-    // 1. Room Floor Slabs (Elevated light hospital platforms)
-    const roomFloors = ROOM_WALLS.map((rw) =>
-      poly([P(rw.left, -RD, 0), P(rw.right, -RD, 0), P(rw.right, 0, 0), P(rw.left, 0, 0)])
+    // 1. Room Floor Platforms & Soft Shadows
+    const roomFloorPaths: string[] = []
+    const roomShadowPaths: string[] = []
+
+    ROOM_BOUNDS.forEach((rb) => {
+      const p0 = P(rb.left, -RD, 0)
+      const p1 = P(rb.right, -RD, 0)
+      const p2 = P(rb.right, 0, 0)
+      const p3 = P(rb.left, 0, 0)
+      roomFloorPaths.push(poly([p0, p1, p2, p3]))
+
+      // Ambient drop shadow quad under room
+      const s0 = P(rb.left - 1.5, -RD - 1.5, -0.5)
+      const s1 = P(rb.right + 2, -RD - 1.5, -0.5)
+      const s2 = P(rb.right + 2, 2.5, -0.5)
+      const s3 = P(rb.left - 1.5, 2.5, -0.5)
+      roomShadowPaths.push(poly([s0, s1, s2, s3]))
+    })
+
+    // 2. Back Wall per Room
+    const backWallPaths = ROOM_BOUNDS.map((rb) =>
+      poly([P(rb.left, -RD, 0), P(rb.right, -RD, 0), P(rb.right, -RD, WH), P(rb.left, -RD, WH)])
     )
 
-    // 2. Back Hospital Wall across all rooms (Same WH=28 height)
-    const backWallPath = poly([
-      P(-93, -RD, 0),
-      P(93, -RD, 0),
-      P(93, -RD, WH),
-      P(-93, -RD, WH),
-    ])
-
-    // 3. Room Dividing Partition Walls (Exactly same WH=28 height, perfectly level!)
-    const partitionPaths = [
-      // Left exterior wall
-      poly([P(-93, -RD, 0), P(-93, 0, 0), P(-93, 0, WH), P(-93, -RD, WH)]),
-      // Divider 1 (between Room 1 & 2)
-      poly([P(-31, -RD, 0), P(-31, 0, 0), P(-31, 0, WH), P(-31, -RD, WH)]),
-      // Divider 2 (between Room 2 & 3)
-      poly([P(31, -RD, 0), P(31, 0, 0), P(31, 0, WH), P(31, -RD, WH)]),
-      // Right exterior wall
-      poly([P(93, -RD, 0), P(93, 0, 0), P(93, 0, WH), P(93, -RD, WH)]),
+    // 3. Partition Walls (Dividing rooms with architectural cutaway)
+    const partitionWallPaths = [
+      // Left exterior
+      poly([P(-76, -RD, 0), P(-76, 0, 0), P(-76, 0, WH), P(-76, -RD, WH)]),
+      // Divider 1 (between Anamnèse & Examen)
+      poly([P(-27, -RD, 0), P(-27, 0, 0), P(-27, 0, WH), P(-27, -RD, WH)]),
+      // Divider 2 (between Examen & Urgence)
+      poly([P(27, -RD, 0), P(27, 0, 0), P(27, 0, WH), P(27, -RD, WH)]),
+      // Right exterior
+      poly([P(76, -RD, 0), P(76, 0, 0), P(76, 0, WH), P(76, -RD, WH)]),
     ]
 
-    // 4. Overhead Entrance Header Beams (Level with partition walls at WH=28)
-    const headerBeams = ROOM_WALLS.map((rw) =>
-      poly([
-        P(rw.left, 0, WH - 2.5),
-        P(rw.right, 0, WH - 2.5),
-        P(rw.right, 0, WH),
-        P(rw.left, 0, WH),
-      ])
-    )
+    // 4. Doorway Frames & Sign Positions
+    const doorwayFrames: string[] = []
+    const signPositions: [number, number][] = []
 
-    // Green Station Signs mounted cleanly above the entrance at WH + 2
-    const signPositions: [number, number][] = ROOM_WALLS.map((rw) =>
-      P(rw.cx, 0, WH + 2)
-    )
+    POS_X.forEach((cx, idx) => {
+      const x0 = cx - DW / 2
+      const x1 = cx + DW / 2
+      doorwayFrames.push(
+        openPoly([
+          P(x0, 0, 0),
+          P(x0, 0, DH),
+          P(x1, 0, DH),
+          P(x1, 0, 0),
+        ])
+      )
+      // Sign mounted directly above doorway frame
+      signPositions.push(P(cx, 0, DH + 4.5))
+    })
 
-    // 5. Discrete, non-overlapping hit zones partitioned along room divider walls
+    // 5. Discrete Screen Hit Zones (Non-overlapping)
     const hitZones = [
-      { x: 0, y: 20, w: 138, h: 280 },
-      { x: 138, y: 20, w: 106, h: 280 },
-      { x: 244, y: 20, w: 156, h: 280 },
+      { x: 0, y: 20, w: 142, h: 260 },
+      { x: 142, y: 20, w: 110, h: 260 },
+      { x: 252, y: 20, w: 168, h: 260 },
     ]
 
     const roomGeometries = []
 
     for (let i = 0; i < N; i++) {
-      const rw = ROOM_WALLS[i]
-      const cx = rw.cx
-      const doorHingeX = rw.left // Door hinges DIRECTLY on the partition wall front corner!
+      const cx = POS_X[i]
+      const doorHingeX = cx - DW / 2
 
-      // =====================================================================
-      // 1. EXECUTIVE CONSULTATION DESK & PC WORKSTATION (Every Room)
-      // =====================================================================
       const objects: {
         sil: string
         crease?: string
-        color?: string
         type?: string
         p1?: [number, number]
         p2?: [number, number]
+        points?: [number, number][]
       }[] = []
 
-      // Desktop PC Computer Tower (CPU) under/beside desk
-      const pcTower = prism(P, front, ...rings(cx - 20, -25, cx - 16, -17, 0.8, 0.3), 0, 8.5)
+      // =======================================================================
+      // 1. EXAMINER OFFICE DESK & DESKTOP PC WORKSTATION (In Every Room)
+      // =======================================================================
+      // PC Computer Tower (CPU) under/beside desk
+      const pcTower = prism(P, front, ...rings(cx - 21, -24, cx - 18, -17, 0.8, 0.3), 0, 7.5)
 
-      // Desk Table Top (Spacious Consultation Surface)
-      const deskTop = prism(P, front, ...rings(cx - 20, -27, cx + 2, -15, 1.8, 0.6), 8.5, 9.8)
+      // Desk Table Top (Consultation & Evaluation Surface)
+      const deskTop = prism(P, front, ...rings(cx - 21.5, -25, cx - 5.5, -15, 1.4, 0.4), 7.5, 8.8)
 
       // Desk Modesty & Support Panels
-      const deskPanel = prism(P, front, ...rings(cx - 19, -16.5, cx + 1, -15, 0.6, 0.2), 0, 8.5)
-      const deskRightLeg = prism(P, front, ...rings(cx - 1, -26, cx + 1.5, -16, 0.6, 0.2), 0, 8.5)
+      const deskPanel = prism(P, front, ...rings(cx - 21, -16.2, cx - 6, -15, 0.5, 0.2), 0, 7.5)
+      const deskRightLeg = prism(P, front, ...rings(cx - 7.5, -24, cx - 6, -16, 0.5, 0.2), 0, 7.5)
 
-      // PC Widescreen Monitor Base & Elevated Screen
-      const monitorBase = prism(P, front, ...rings(cx - 11, -23, cx - 7, -20, 0.8, 0.3), 9.8, 11.5)
-      const monitorScreen = prism(P, front, ...rings(cx - 14, -23.5, cx - 4, -21.5, 0.6, 0.2), 11.5, 19.5)
+      // Desktop PC Widescreen Monitor Base & Elevated Screen
+      const monitorBase = prism(P, front, ...rings(cx - 15, -22, cx - 11, -19.5, 0.6, 0.2), 8.8, 10.2)
+      const monitorScreen = prism(P, front, ...rings(cx - 17, -22.5, cx - 9, -21, 0.6, 0.2), 10.2, 17.5)
 
       // PC Keyboard & Mouse on Desk
-      const keyboard = prism(P, front, ...rings(cx - 12, -19.5, cx - 5, -16.5, 0.5, 0.2), 9.8, 10.5)
-      const mouse = prism(P, front, ...rings(cx - 3.5, -18.5, cx - 1.5, -16.5, 0.4, 0.1), 9.8, 10.4)
+      const keyboard = prism(P, front, ...rings(cx - 15.5, -19, cx - 10.5, -16.5, 0.4, 0.1), 8.8, 9.4)
+      const mouse = prism(P, front, ...rings(cx - 9, -18.5, cx - 7.5, -16.8, 0.3, 0.1), 8.8, 9.3)
 
-      // Ergonomic Examiner Swivel Office Chair
+      // Examiner Ergonomic Office Swivel Chair
       const chairBase = {
         sil: '',
         type: 'line',
-        p1: P(cx - 9, -10, 0),
-        p2: P(cx - 9, -10, 5),
+        p1: P(cx - 13, -11, 0),
+        p2: P(cx - 13, -11, 4.5),
       }
-      const chairSeat = prism(P, front, ...rings(cx - 13, -13, cx - 5, -7, 1.8, 0.6), 5, 7.5)
-      const chairBack = prism(P, front, ...rings(cx - 13, -7.5, cx - 5, -6, 1.2, 0.4), 7.5, 16.5)
+      const chairSeat = prism(P, front, ...rings(cx - 16, -13.5, cx - 10, -8.5, 1.2, 0.4), 4.5, 6.8)
+      const chairBack = prism(P, front, ...rings(cx - 16, -9, cx - 10, -7.5, 0.8, 0.3), 6.8, 14.5)
 
       objects.push(
         pcTower,
@@ -359,86 +375,159 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
         chairBack
       )
 
-      // =====================================================================
-      // 2. CLINICAL SPECIALTY MEDICAL EQUIPMENT PER ROOM
-      // =====================================================================
+      // =======================================================================
+      // 2. DISTINCT CLINICAL EXAMINATION SPECIALTY PER ROOM
+      // =======================================================================
       if (i === 0) {
-        // ROOM 1: Doctor Consultation + Seated Patient in Interview
-        // Patient consultation chair facing doctor desk
-        const patientChairSeat = prism(P, front, ...rings(cx + 10, -23, cx + 18, -15, 1.8, 0.6), 0, 7.5)
-        const patientChairBack = prism(P, front, ...rings(cx + 16.5, -23, cx + 18, -15, 0.8, 0.3), 7.5, 17)
+        // =====================================================================
+        // ROOM 1: ANAMNÈSE (Patient Interview Chair + Seated Patient + Notepad)
+        // =====================================================================
+        // Patient consultation chair facing the doctor's desk
+        const patChairSeat = prism(P, front, ...rings(cx + 6, -21, cx + 13, -14, 1.4, 0.4), 0, 6.5)
+        const patChairBack = prism(P, front, ...rings(cx + 11.5, -21, cx + 13, -14, 0.8, 0.3), 6.5, 14.5)
 
-        // Seated Patient Figure
-        const patientTorso = prism(P, front, ...rings(cx + 11.5, -21.5, cx + 16.5, -16.5, 1.5, 0.5), 7.5, 16)
-        const patientHead = prism(P, front, ...rings(cx + 12.5, -20.5, cx + 15.5, -17.5, 1.2, 0.4), 16, 21)
+        // Seated Patient Figure in Interview
+        const patTorso = prism(P, front, ...rings(cx + 7, -19.5, cx + 11.5, -15.5, 1.2, 0.4), 6.5, 13.5)
+        const patHead = prism(P, front, ...rings(cx + 8, -18.5, cx + 10.5, -16.5, 1, 0.3), 13.5, 17.5)
 
-        // Patient consultation speech dialogue bubble
-        const speechBubble = prism(P, front, ...rings(cx + 10, -21, cx + 18, -17, 1.5, 0.4), 23, 28)
-        // Medical Chart Clipboard on Desk
-        const clipboard = prism(P, front, ...rings(cx, -23, cx + 2, -18, 0.4, 0.1), 9.8, 10.3)
-
-        objects.push(
-          patientChairSeat,
-          patientChairBack,
-          patientTorso,
-          patientHead,
-          speechBubble,
-          clipboard
-        )
-      } else if (i === 1) {
-        // ROOM 2: CPR Examination Table & Supine Resuscitation Mannequin
-        // Clinical examination stretcher / bed
-        const bedFrame = prism(P, front, ...rings(cx + 7, -28, cx + 27, -10, 2.2, 0.7), 0, 8.5)
-        const bedMattress = prism(P, front, ...rings(cx + 8, -27, cx + 26, -11, 2, 0.6), 8.5, 11)
-        const headrestPillow = prism(P, front, ...rings(cx + 21, -26, cx + 26, -12, 1.5, 0.4), 11, 13)
-
-        // Supine CPR Resuscitation Mannequin
-        const cprTorso = prism(P, front, ...rings(cx + 12, -23, cx + 20, -15, 1.8, 0.5), 11, 15.5)
-        const cprHead = prism(P, front, ...rings(cx + 21, -22, cx + 25, -16, 1.3, 0.4), 11, 15.5)
-        const cprLegs = prism(P, front, ...rings(cx + 9, -22, cx + 12, -16, 1.2, 0.4), 11, 14)
-
-        // Mobile Cardiac Defibrillator Monitor on Pole
-        const monitorPole = {
+        // Clinical Evaluation Notepad on Desk with Paper Lines
+        const notepad = prism(P, front, ...rings(cx - 4.5, -21, cx - 1.5, -17, 0.4, 0.1), 8.8, 9.2)
+        const noteLine1 = {
           sil: '',
           type: 'line',
-          p1: P(cx + 22, -29, 0),
-          p2: P(cx + 22, -29, 23),
+          p1: P(cx - 4, -20, 9.2),
+          p2: P(cx - 2, -20, 9.2),
         }
-        const cardiacScreen = prism(P, front, ...rings(cx + 19, -30, cx + 25, -28, 0.8, 0.3), 17, 23)
+        const noteLine2 = {
+          sil: '',
+          type: 'line',
+          p1: P(cx - 4, -18.5, 9.2),
+          p2: P(cx - 2.5, -18.5, 9.2),
+        }
 
         objects.push(
-          bedFrame,
-          bedMattress,
-          headrestPillow,
-          cprTorso,
-          cprHead,
-          cprLegs,
-          monitorPole,
-          cardiacScreen
+          patChairSeat,
+          patChairBack,
+          patTorso,
+          patHead,
+          notepad,
+          noteLine1,
+          noteLine2
+        )
+      } else if (i === 1) {
+        // =====================================================================
+        // ROOM 2: EXAMEN PHYSIQUE (Clinical Couch + Supine Patient + Stethoscope)
+        // =====================================================================
+        // Examination Couch / Table (Table d'examen clinique)
+        const couchBase = prism(P, front, ...rings(cx + 1.5, -23, cx + 18, -11, 1.6, 0.5), 0, 7.5)
+        const couchMattress = prism(P, front, ...rings(cx + 2, -22.5, cx + 17.5, -11.5, 1.4, 0.4), 7.5, 9.5)
+        const headrest = prism(P, front, ...rings(cx + 12.5, -22, cx + 17.5, -12, 1.2, 0.3), 9.5, 11.5)
+
+        // Supine Patient Shape on Couch
+        const patTorso = prism(P, front, ...rings(cx + 6.5, -19, cx + 12.5, -15, 1.2, 0.3), 9.5, 13)
+        const patHead = prism(P, front, ...rings(cx + 13.5, -18.5, cx + 16.5, -15.5, 1, 0.3), 11.5, 14.5)
+        const patLegs = prism(P, front, ...rings(cx + 3, -18.5, cx + 6.5, -15.5, 1, 0.3), 9.5, 11.8)
+
+        // Stethoscope on wall hook beside exam table
+        const stethStand = {
+          sil: '',
+          type: 'line',
+          p1: P(cx + 19.5, -22, 0),
+          p2: P(cx + 19.5, -22, 20),
+        }
+        const stethHook = {
+          sil: '',
+          type: 'line',
+          p1: P(cx + 18, -22, 19.5),
+          p2: P(cx + 21, -22, 19.5),
+        }
+        const stethTube1 = {
+          sil: '',
+          type: 'line',
+          p1: P(cx + 19.5, -22, 19.5),
+          p2: P(cx + 18.5, -21, 14),
+        }
+        const stethTube2 = {
+          sil: '',
+          type: 'line',
+          p1: P(cx + 18.5, -21, 14),
+          p2: P(cx + 17.5, -20, 11),
+        }
+
+        objects.push(
+          couchBase,
+          couchMattress,
+          headrest,
+          patTorso,
+          patHead,
+          patLegs,
+          stethStand,
+          stethHook,
+          stethTube1,
+          stethTube2
         )
       } else {
-        // ROOM 3: Mobile Emergency Crash Cart & IV Infusion Stand
-        // Multi-tier emergency crash cart
-        const crashCart = prism(P, front, ...rings(cx + 8, -26, cx + 20, -14, 2, 0.6), 2, 17)
-        // Defibrillator monitor unit on top shelf
-        const defibMonitor = prism(P, front, ...rings(cx + 10, -24, cx + 18, -16, 1.2, 0.4), 17, 23.5)
+        // =====================================================================
+        // ROOM 3: URGENCE (Emergency Crash Cart + Monitor ECG + IV Pole)
+        // =====================================================================
+        // Multi-tier Emergency Crash Cart
+        const crashCart = prism(P, front, ...rings(cx + 1.5, -23, cx + 12.5, -12, 1.6, 0.5), 1.5, 14)
+        const drawerLine1 = {
+          sil: '',
+          type: 'line',
+          p1: P(cx + 1.5, -12, 6),
+          p2: P(cx + 12.5, -12, 6),
+        }
+        const drawerLine2 = {
+          sil: '',
+          type: 'line',
+          p1: P(cx + 1.5, -12, 10),
+          p2: P(cx + 12.5, -12, 10),
+        }
 
-        // Tall IV infusion pole with saline bottle
+        // Vital Signs Defibrillator Monitor on Crash Cart
+        const monitorBody = prism(P, front, ...rings(cx + 3.5, -21, cx + 10.5, -14, 1, 0.3), 14, 20.5)
+
+        // Heartbeat ECG Pulse Wave on Monitor Screen (P-Q-R-S-T)
+        const ecgPoints: [number, number][] = [
+          P(cx + 4.5, -14, 17.2),
+          P(cx + 6, -14, 17.2),
+          P(cx + 6.8, -14, 19.2),
+          P(cx + 7.5, -14, 15.5),
+          P(cx + 8.2, -14, 18),
+          P(cx + 9.5, -14, 17.2),
+        ]
+        const ecgWave = {
+          sil: '',
+          type: 'wave',
+          points: ecgPoints,
+        }
+
+        // Tall IV Infusion Stand (Tige à perfusion)
         const ivPole = {
           sil: '',
           type: 'line',
-          p1: P(cx + 24, -18, 0),
-          p2: P(cx + 24, -18, 32),
+          p1: P(cx + 16.5, -17, 0),
+          p2: P(cx + 16.5, -17, 29),
         }
-        const ivCross = {
+        const ivHanger = {
           sil: '',
           type: 'line',
-          p1: P(cx + 21.5, -18, 31),
-          p2: P(cx + 26.5, -18, 31),
+          p1: P(cx + 14.5, -17, 28),
+          p2: P(cx + 18.5, -17, 28),
         }
-        const ivBottle = prism(P, front, ...rings(cx + 21, -19, cx + 23, -17, 0.6, 0.2), 24, 30)
+        const salineBag = prism(P, front, ...rings(cx + 14.5, -18, cx + 16.2, -16, 0.4, 0.2), 22, 27.5)
 
-        objects.push(crashCart, defibMonitor, ivPole, ivCross, ivBottle)
+        objects.push(
+          crashCart,
+          drawerLine1,
+          drawerLine2,
+          monitorBody,
+          ecgWave,
+          ivPole,
+          ivHanger,
+          salineBag
+        )
       }
 
       roomGeometries.push({
@@ -451,25 +540,36 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
     return {
       P,
       roomGeometries,
-      backWallPath,
-      partitionPaths,
-      roomFloors,
-      headerBeams,
+      roomFloorPaths,
+      roomShadowPaths,
+      backWallPaths,
+      partitionWallPaths,
+      doorwayFrames,
       signPositions,
       hitZones,
     }
   }, [])
 
-  // Smooth Stable Door Swing Physics (Door height DH=28 EXACTLY matches wall height WH=28!)
+  // Smooth Stable Door Swing Physics:
+  // Active door swings wide open (78°); neighbors crack slightly (22° and 6°)
   useEffect(() => {
     let animId: number
-    const targetAngles = [28, 28, 28] // Default open invitation angle
+    const targetAngles = [0, 0, 0] // Closed rest state
 
     if (activeDoor >= 0) {
       for (let i = 0; i < N; i++) {
-        // Active door swings wide open to 75° against partition wall; others stay ajar at 28°
-        targetAngles[i] = i === activeDoor ? 75 : 28
+        const dist = Math.abs(i - activeDoor)
+        targetAngles[i] = dist === 0 ? 78 : dist === 1 ? 22 : 6
       }
+    }
+
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    if (prefersReducedMotion) {
+      setDoorAngles(targetAngles)
+      return
     }
 
     const update = () => {
@@ -501,139 +601,177 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
 
   return (
     <div
-      className={`relative flex flex-col items-center select-none ${className}`}
+      className={`relative flex flex-col items-center select-none bg-transparent ${className}`}
       onMouseLeave={() => setActiveDoor(-1)}
     >
-      {/* Top Clinical Readout Card (Crisp Light Medical Hospital Styling) */}
-      <div className="mb-3 sm:mb-4 w-full flex items-center justify-between px-4 sm:px-5 py-3 rounded-2xl bg-white border border-slate-200 shadow-sm">
+      {/* 1. DYNAMIC REAL-TIME DELIBERATION READ-OUT (Pass Line at 10/20) */}
+      <div className="mb-3 w-full flex items-center justify-between px-4 sm:px-6 py-3 rounded-2xl bg-white/95 border border-[#17135C]/15 shadow-sm">
+        {/* Active Station Readout */}
         <div className="flex items-center gap-3">
           <span
-            className="size-3 rounded-full transition-colors duration-300"
+            className="size-3 rounded-full transition-all duration-300"
             style={{
-              backgroundColor: activeStation ? activeStation.color : '#10B981',
+              backgroundColor: activeStation ? activeStation.color : INK,
               boxShadow: activeStation
-                ? `0 0 10px ${activeStation.color}`
-                : '0 0 8px #10B981',
+                ? `0 0 12px ${activeStation.color}`
+                : 'none',
             }}
           />
           <div>
-            <div className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-2">
+            <div className="text-xs sm:text-sm font-bold flex items-center gap-2" style={{ color: INK }}>
               {activeStation ? (
                 <>
-                  <span className="text-emerald-700 font-mono text-xs px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 font-bold">
-                    STATION {activeStation.stationNumber}
+                  <span
+                    className="font-mono text-xs px-2.5 py-0.5 rounded-full font-extrabold text-white"
+                    style={{ backgroundColor: activeStation.color }}
+                  >
+                    {activeStation.name}
                   </span>
-                  <span>{activeStation.name}</span>
-                  <span className="text-slate-400 font-normal text-xs">
-                    (Poids {activeStation.weight}%)
+                  <span>{activeStation.weight}%</span>
+                  <span className="font-semibold text-xs opacity-75">
+                    +{activeStation.awardedPoints} pts
                   </span>
                 </>
               ) : (
                 <>
-                  <span className="text-emerald-700 font-semibold">
-                    Circuit ECOS • 3 Salles d&apos;Évaluation Clinique
-                  </span>
-                  <span className="text-slate-400 text-xs hidden sm:inline">
-                    (Passez la souris sur une salle pour l&apos;activer)
+                  <span className="font-extrabold">Circuit ECOS Clinique</span>
+                  <span className="text-xs font-normal opacity-60 hidden sm:inline">
+                    (Survolez ou touchez une porte pour ouvrir la station)
                   </span>
                 </>
               )}
             </div>
-            <div className="text-[11px] text-slate-500">
+            <div className="text-[11px] opacity-70" style={{ color: INK }}>
               {activeStation
-                ? `${activeStation.roomType} — ${activeStation.description}`
-                : 'Bureaux d’évaluation médicale ouverts • Portes vitrées de même hauteur que les cloisons'}
+                ? activeStation.description
+                : '3 Stations d’Évaluation • Seuil de Délibération fixé à 10.00 / 20'}
             </div>
           </div>
         </div>
 
-        {/* Real-time Deliberation Score */}
-        <div className="text-right">
-          <div className="text-sm sm:text-base font-extrabold tracking-tight flex items-baseline justify-end gap-1">
-            <span className="text-2xl sm:text-3xl font-black font-mono text-slate-900">
-              {totalGrade.toFixed(1)}
+        {/* Dynamic Running Total Score with Pass Line Gauge */}
+        <div className="text-right flex flex-col items-end">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-2xl sm:text-3xl font-black font-mono tracking-tight" style={{ color: INK }}>
+              {currentTotal.toFixed(1)}
             </span>
-            <span className="text-xs font-semibold text-slate-400">/20</span>
+            <span className="text-xs font-semibold opacity-50" style={{ color: INK }}>/ 20</span>
           </div>
-          <div
-            className={`text-[10px] font-bold uppercase tracking-wider ${
-              isPassed ? 'text-emerald-700' : 'text-rose-600'
-            }`}
-          >
-            {isPassed ? 'Admis (Seuil 10/20)' : 'Ajourné (< 10/20)'}
+
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <div className="w-16 h-1.5 rounded-full bg-slate-200 overflow-hidden relative">
+              <div
+                className="h-full rounded-full transition-all duration-300"
+                style={{
+                  width: `${Math.min(100, (currentTotal / 20) * 100)}%`,
+                  backgroundColor: isPassed ? '#10B981' : '#E11D48',
+                }}
+              />
+              {/* Pass Line Marker at 50% (10/20) */}
+              <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-black/40 z-10" />
+            </div>
+            <span
+              className={`text-[10px] font-bold tracking-wider uppercase ${
+                isPassed ? 'text-emerald-700' : 'text-rose-600'
+              }`}
+            >
+              {isPassed ? 'Admis (≥ 10/20)' : 'Seuil 10/20'}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Main 3D Spacious Clinic Suite SVG Stage */}
+      {/* 2. MAIN 3D ISOMETRIC STATIONS CANVAS (Pure Transparent Background) */}
       <div
-        className="relative w-full max-w-[620px] aspect-[400/320] flex items-center justify-center rounded-3xl bg-white p-2 border border-slate-200 shadow-md overflow-hidden"
+        className="relative w-full max-w-[640px] aspect-[420/280] flex items-center justify-center bg-transparent overflow-visible"
         onMouseLeave={() => setActiveDoor(-1)}
       >
         <svg
-          viewBox="0 0 400 320"
+          viewBox="0 0 420 280"
           preserveAspectRatio="xMidYMid meet"
-          className="size-full overflow-visible"
+          className="size-full overflow-visible cursor-pointer"
+          onMouseMove={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect()
+            const relX = (e.clientX - rect.left) / rect.width
+            const target = relX < 0.35 ? 0 : relX < 0.65 ? 1 : 2
+            setActiveDoor(target)
+          }}
+          onTouchMove={(e) => {
+            if (!e.touches[0]) return
+            const rect = e.currentTarget.getBoundingClientRect()
+            const relX = (e.touches[0].clientX - rect.left) / rect.width
+            const target = relX < 0.35 ? 0 : relX < 0.65 ? 1 : 2
+            setActiveDoor(target)
+          }}
+          onClick={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect()
+            const relX = (e.clientX - rect.left) / rect.width
+            const target = relX < 0.35 ? 0 : relX < 0.65 ? 1 : 2
+            setActiveDoor((prev) => (prev === target ? -1 : target))
+          }}
           onMouseLeave={() => setActiveDoor(-1)}
         >
-          {/* 1. BACK HOSPITAL WALL (Exact WH=28 height) */}
-          <path
-            d={backWallPath}
-            fill="#F8FAFC"
-            stroke="#CBD5E1"
-            strokeWidth="1.2"
-          />
+          {/* DEFINITIONS FOR LIGHT SPILL & SHADOWS */}
+          <defs>
+            <radialGradient id="roomShadowGrad" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#17135C" stopOpacity="0.12" />
+              <stop offset="100%" stopColor="#17135C" stopOpacity="0" />
+            </radialGradient>
+          </defs>
 
-          {/* 2. ROOM FLOORS (Spacious Light Medical Slabs) */}
-          {roomFloors.map((flD, idx) => {
+          {/* 1. SOFT AMBIENT ROOM SHADOWS */}
+          {roomShadowPaths.map((sdD, idx) => (
+            <path key={idx} d={sdD} fill="url(#roomShadowGrad)" />
+          ))}
+
+          {/* 2. SOLID ROOM FLOOR PLATFORMS (Pure White with crisp Ink Border) */}
+          {roomFloorPaths.map((flD, idx) => {
             const isHovered = idx === activeDoor
             const st = STATIONS[idx]
             return (
               <path
                 key={idx}
                 d={flD}
-                fill={isHovered ? '#FFFFFF' : '#F8FAFC'}
-                stroke={isHovered ? st.color : '#E2E8F0'}
-                strokeWidth={isHovered ? '1.8' : '1'}
+                fill="#FFFFFF"
+                stroke={isHovered ? st.color : INK}
+                strokeWidth={isHovered ? '2' : '1.3'}
+                strokeOpacity={isHovered ? 1 : 0.8}
                 className="transition-colors duration-300"
               />
             )
           })}
 
-          {/* 3. ARCHITECTURAL PARTITION WALLS BETWEEN ROOMS (Exact WH=28 height from back to front) */}
-          {partitionPaths.map((wD, idx) => (
+          {/* 3. BACK HOSPITAL WALLS */}
+          {backWallPaths.map((bwD, idx) => (
             <path
               key={idx}
-              d={wD}
-              fill="#E2E8F0"
-              stroke="#94A3B8"
-              strokeWidth="1.1"
+              d={bwD}
+              fill="#FFFFFF"
+              stroke={INK}
+              strokeWidth="1.2"
+              strokeOpacity="0.4"
+            />
+          ))}
+
+          {/* 4. ARCHITECTURAL PARTITION WALLS (Clear Object Contrast) */}
+          {partitionWallPaths.map((pwD, idx) => (
+            <path
+              key={idx}
+              d={pwD}
+              fill="#FFFFFF"
+              stroke={INK}
+              strokeWidth="1.4"
               strokeLinejoin="round"
             />
           ))}
 
-          {/* 4. OVERHEAD ENTRANCE HEADER BEAMS (Flush with partition walls at WH=28) */}
-          {headerBeams.map((bD, idx) => {
-            const isHovered = idx === activeDoor
-            const st = STATIONS[idx]
-            return (
-              <path
-                key={idx}
-                d={bD}
-                fill="#F1F5F9"
-                stroke={isHovered ? st.color : '#94A3B8'}
-                strokeWidth="1.1"
-              />
-            )
-          })}
-
-          {/* 5. ROOM INTERIORS (Desk + PC System + Clinical Equipment) */}
+          {/* 5. INTERIOR ROOM PROPS (Distinct Setup per Station) */}
           {roomGeometries.map((rm, idx) => {
             const st = STATIONS[idx]
             const isHovered = idx === activeDoor
             const angle = doorAngles[idx]
 
-            // Modern Clinic Door Calculation - Hinged directly at partition wall corner, height DH=WH=28
+            // Door Leaf Calculation
             const radTh = rad(angle)
             const cosT = Math.cos(radTh),
               sinT = Math.sin(radTh)
@@ -649,45 +787,41 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
             const doorLeafD = poly(hull(ptsT.concat(ptsB)))
             const doorCreaseD = openPoly([ptsT[0], ptsT[1], ptsT[2]])
             const handlePos = P(
-              xh + (DW - 4) * cosT + DT * sinT,
-              -(DW - 4) * sinT + DT * cosT,
+              xh + (DW - 3) * cosT + DT * sinT,
+              -(DW - 3) * sinT + DT * cosT,
               DH * 0.48
             )
 
-            // Warm Specialty Floodlight on Floor when room is active
-            const floorLightD = poly([
-              P(rm.cx - 28, -RD + 2, 0),
-              P(rm.cx + 28, -RD + 2, 0),
-              P(rm.cx + 28, 0, 0),
-              P(rm.cx - 28, 0, 0),
+            // Warm Light Spill on Floor (Spreads across floor when door swings open)
+            const lightSpillD = poly([
+              P(rm.doorHingeX, 0, 0),
+              P(rm.doorHingeX + DW, 0, 0),
+              P(rm.doorHingeX + DW + 18 * (angle / 78), 22 * (angle / 78), 0),
+              P(rm.doorHingeX - 18 * (angle / 78), 22 * (angle / 78), 0),
             ])
 
             return (
               <g key={st.id} className="pointer-events-none">
-                {/* Floor Accent Glow */}
-                {isHovered && (
+                {/* Brand Color Floor Light Spill */}
+                {angle > 4 && (
                   <path
-                    d={floorLightD}
+                    d={lightSpillD}
                     fill={st.color}
-                    fillOpacity="0.12"
-                    className="transition-opacity duration-300"
+                    fillOpacity={(angle / 78) * 0.25}
+                    className="transition-opacity duration-200"
                   />
                 )}
 
-                {/* Desk + PC System + Clinical Equipment inside room */}
-                <g
-                  style={{
-                    opacity: isHovered ? 1 : 0.85,
-                  }}
-                >
+                {/* Props inside each room (White fill with crisp Ink outline) */}
+                <g style={{ opacity: isHovered ? 1 : 0.9 }}>
                   {rm.objects.map((obj, oIdx) => (
                     <React.Fragment key={oIdx}>
                       {obj.sil && (
                         <path
                           d={obj.sil}
                           fill="#FFFFFF"
-                          stroke={isHovered ? st.color : '#64748B'}
-                          strokeWidth={isHovered ? '1.3' : '1.1'}
+                          stroke={INK}
+                          strokeWidth="1.3"
                           strokeLinejoin="round"
                         />
                       )}
@@ -695,8 +829,9 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
                         <path
                           d={obj.crease}
                           fill="none"
-                          stroke={isHovered ? st.color : '#CBD5E1'}
-                          strokeWidth="0.7"
+                          stroke={INK}
+                          strokeWidth="0.8"
+                          strokeOpacity="0.45"
                         />
                       )}
                       {obj.type === 'line' && obj.p1 && obj.p2 && (
@@ -705,83 +840,123 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
                           y1={obj.p1[1]}
                           x2={obj.p2[0]}
                           y2={obj.p2[1]}
-                          stroke={isHovered ? st.color : '#64748B'}
-                          strokeWidth="1.2"
+                          stroke={INK}
+                          strokeWidth="1.3"
+                          strokeLinecap="round"
+                        />
+                      )}
+                      {obj.type === 'wave' && obj.points && (
+                        <path
+                          d={openPoly(obj.points)}
+                          fill="none"
+                          stroke={isHovered ? st.color : INK}
+                          strokeWidth="1.5"
+                          strokeLinejoin="round"
+                          strokeLinecap="round"
                         />
                       )}
                     </React.Fragment>
                   ))}
                 </g>
 
-                {/* SOLID CLINIC GLASS DOOR LEAF (Hinged directly on partition wall, height EXACTLY matches wall height WH=28!) */}
+                {/* Doorway Frame (Accented with station brand color when active) */}
+                <path
+                  d={doorwayFrames[idx]}
+                  fill="none"
+                  stroke={isHovered ? st.color : INK}
+                  strokeWidth={isHovered ? '2' : '1.3'}
+                  strokeOpacity={isHovered ? 1 : 0.6}
+                  strokeLinecap="round"
+                  className="transition-colors duration-200"
+                />
+
+                {/* Hinges on Door Frame */}
+                <circle
+                  cx={P(xh, 0, 4)[0]}
+                  cy={P(xh, 0, 4)[1]}
+                  r="1.4"
+                  fill={isHovered ? st.color : INK}
+                />
+                <circle
+                  cx={P(xh, 0, DH - 4)[0]}
+                  cy={P(xh, 0, DH - 4)[1]}
+                  r="1.4"
+                  fill={isHovered ? st.color : INK}
+                />
+
+                {/* SOLID SWINGING DOOR LEAF */}
                 <path
                   d={doorLeafD}
                   fill="#FFFFFF"
-                  fillOpacity="0.82"
-                  stroke={isHovered ? st.color : '#475569'}
-                  strokeWidth={isHovered ? '1.8' : '1.2'}
+                  stroke={isHovered ? st.color : INK}
+                  strokeWidth={isHovered ? '1.8' : '1.3'}
                   strokeLinejoin="round"
+                  className="transition-colors duration-200"
                 />
                 {doorCreaseD && (
                   <path
                     d={doorCreaseD}
                     fill="none"
-                    stroke={isHovered ? st.color : '#CBD5E1'}
+                    stroke={INK}
                     strokeWidth="0.8"
+                    strokeOpacity="0.35"
                   />
                 )}
-                {/* Sleek Vertical Door Handle */}
+
+                {/* Door Handle */}
                 <circle
                   cx={handlePos[0]}
                   cy={handlePos[1]}
                   r="1.8"
-                  fill={isHovered ? st.color : '#64748B'}
+                  fill={isHovered ? st.color : INK}
                   stroke="#FFFFFF"
-                  strokeWidth="0.6"
+                  strokeWidth="0.7"
                 />
 
-                {/* GREEN HOSPITAL EXIT-STYLE SIGNBOARD (Mounted on header beam, always crisp and on top!) */}
+                {/* CLEAN STATION BRAND LABEL (Real station names, ample padding, NO green) */}
                 <g>
+                  {/* Label Plate Pill */}
                   <rect
-                    x={signPositions[idx][0] - 18}
-                    y={signPositions[idx][1] - 6}
-                    width="36"
-                    height="12"
-                    rx="2"
-                    fill={isHovered ? '#047857' : '#065F46'}
-                    stroke={isHovered ? '#34D399' : '#10B981'}
-                    strokeWidth="1.2"
+                    x={
+                      idx === 0
+                        ? signPositions[idx][0] - 25
+                        : idx === 1
+                        ? signPositions[idx][0] - 36
+                        : signPositions[idx][0] - 22
+                    }
+                    y={signPositions[idx][1] - 8}
+                    width={idx === 0 ? 50 : idx === 1 ? 72 : 44}
+                    height="15"
+                    rx="4"
+                    fill="#FFFFFF"
+                    stroke={st.color}
+                    strokeWidth={isHovered ? '2' : '1.3'}
                     style={{
                       filter: isHovered
-                        ? 'drop-shadow(0 0 8px rgba(16,185,129,0.8))'
-                        : 'drop-shadow(0 0 3px rgba(16,185,129,0.35))',
+                        ? `drop-shadow(0 0 10px ${st.color}55)`
+                        : 'drop-shadow(0 2px 4px rgba(23,19,92,0.06))',
                     }}
                   />
-                  <circle
-                    cx={signPositions[idx][0] - 12}
-                    cy={signPositions[idx][1]}
-                    r="1.6"
-                    fill="#A7F3D0"
-                  />
+                  {/* Station Name in Brand Color */}
                   <text
-                    x={signPositions[idx][0] + 2}
-                    y={signPositions[idx][1] + 2.2}
+                    x={signPositions[idx][0]}
+                    y={signPositions[idx][1] + 2.5}
                     textAnchor="middle"
-                    fill="#FFFFFF"
-                    fontSize="5"
+                    fill={st.color}
+                    fontSize="6"
                     fontWeight="800"
-                    fontFamily="monospace"
-                    letterSpacing="0.08em"
+                    fontFamily="system-ui, -apple-system, sans-serif"
+                    letterSpacing="0.02em"
                     className="select-none"
                   >
-                    STATION {st.stationNumber}
+                    {st.name}
                   </text>
                 </g>
               </g>
             )
           })}
 
-          {/* 6. STATIC INVISIBLE HIT TARGETS (Discrete, Non-overlapping, Silky Smooth) */}
+          {/* 6. STATIC HIT TARGETS (Discrete, Non-overlapping, Silky Smooth) */}
           {hitZones.map((zone, idx) => (
             <rect
               key={idx}
@@ -789,75 +964,19 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
               y={zone.y}
               width={zone.w}
               height={zone.h}
-              fill="transparent"
-              className="cursor-pointer pointer-events-auto"
+              fill="#FFFFFF"
+              fillOpacity="0.001"
+              pointerEvents="all"
+              className="cursor-pointer"
               onMouseEnter={() => setActiveDoor(idx)}
-              onClick={() => setActiveDoor((prev) => (prev === idx ? -1 : idx))}
+              onTouchStart={() => setActiveDoor(idx)}
+              onClick={(e) => {
+                e.stopPropagation()
+                setActiveDoor((prev) => (prev === idx ? -1 : idx))
+              }}
             />
           ))}
         </svg>
-      </div>
-
-      {/* Interactive Station Sliders (Pure Light Medical Palette) */}
-      <div className="mt-4 sm:mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-[620px]">
-        {STATIONS.map((s, idx) => {
-          const isSelected = activeDoor === idx
-          const score = scores[idx]
-
-          return (
-            <div
-              key={s.id}
-              onMouseEnter={() => setActiveDoor(idx)}
-              className={`p-3 rounded-2xl border transition-all duration-200 cursor-pointer ${
-                isSelected
-                  ? 'bg-white shadow-md border-slate-300 ring-2 ring-slate-100'
-                  : 'bg-white/80 hover:bg-white border-slate-200'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded text-white"
-                    style={{ backgroundColor: s.color }}
-                  >
-                    STATION {s.stationNumber}
-                  </span>
-                  <span className="text-xs font-bold text-slate-900 truncate">
-                    {s.name}
-                  </span>
-                </div>
-                <span className="text-xs font-mono font-extrabold text-slate-900">
-                  {score}
-                  <span className="text-[10px] text-slate-400 font-normal">/20</span>
-                </span>
-              </div>
-
-              {/* Slider for station score */}
-              <input
-                type="range"
-                min={0}
-                max={20}
-                step={1}
-                value={score}
-                onChange={(e) => {
-                  const val = Number(e.target.value)
-                  setScores((prev) =>
-                    prev.map((sc, i) => (i === idx ? val : sc))
-                  )
-                }}
-                className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-ew-resize"
-                style={{ accentColor: s.color }}
-              />
-
-              <div className="flex items-center justify-between mt-1 text-[10px] text-slate-500">
-                <span>Poids: {s.weight}%</span>
-                <span className="font-semibold text-slate-700">
-                  +{(score * (s.weight / 100)).toFixed(1)} / {(20 * (s.weight / 100)).toFixed(1)} pts
-                </span>
-              </div>
-            </div>
-          )
-        })}
       </div>
     </div>
   )

@@ -233,7 +233,6 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
     backWallPaths,
     partitionWallPaths,
     doorwayFrames,
-    signPositions,
     hitZones,
   } = useMemo(() => {
     // Scaled up S=2.45 to fill the canvas, centered
@@ -289,9 +288,8 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
       poly([P(76, -RD, 0), P(76, 0, 0), P(76, 0, WH), P(76, -RD, WH)]),
     ]
 
-    // 4. Doorway Frames & Sign Positions
+    // 4. Doorway Frames
     const doorwayFrames: string[] = []
-    const signPositions: [number, number][] = []
 
     POS_X.forEach((cx, idx) => {
       const x0 = cx - DW / 2
@@ -304,8 +302,6 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
           P(x1, 0, 0),
         ])
       )
-      // Sign mounted directly above doorway frame
-      signPositions.push(P(cx, 0, DH + 4.5))
     })
 
     // 5. Discrete Screen Hit Zones (Non-overlapping)
@@ -545,7 +541,6 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
       backWallPaths,
       partitionWallPaths,
       doorwayFrames,
-      signPositions,
       hitZones,
     }
   }, [])
@@ -792,13 +787,6 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
               DH * 0.48
             )
 
-            // Real Office Door Sign Nameplate mounted directly ON the door leaf face (eye-level, swings with door)
-            const doorSignPos = P(
-              xh + (DW * 0.5) * cosT + DT * sinT,
-              -(DW * 0.5) * sinT + DT * cosT,
-              DH * 0.65
-            )
-
             // Warm Light Spill on Floor (Spreads across floor when door swings open)
             const lightSpillD = poly([
               P(rm.doorHingeX, 0, 0),
@@ -919,65 +907,6 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
                   stroke="#FFFFFF"
                   strokeWidth="0.7"
                 />
-
-                {/* AUTHENTIC OFFICE DOOR SIGN (Mounted ON the door leaf, not top of doorway) */}
-                <g>
-                  {/* Acrylic/Brushed Plaque Plate on Door Face */}
-                  <rect
-                    x={
-                      idx === 0
-                        ? doorSignPos[0] - 21
-                        : idx === 1
-                        ? doorSignPos[0] - 31
-                        : doorSignPos[0] - 17
-                    }
-                    y={doorSignPos[1] - 6}
-                    width={idx === 0 ? 42 : idx === 1 ? 62 : 34}
-                    height="12"
-                    rx="3"
-                    fill="#FFFFFF"
-                    stroke={st.color}
-                    strokeWidth={isHovered ? '1.8' : '1.2'}
-                    style={{
-                      filter: isHovered
-                        ? `drop-shadow(0 0 8px ${st.color}66)`
-                        : 'drop-shadow(0 1px 3px rgba(23,19,92,0.18))',
-                    }}
-                  />
-                  {/* Station Accent Indicator Dot */}
-                  <circle
-                    cx={
-                      idx === 0
-                        ? doorSignPos[0] - 16
-                        : idx === 1
-                        ? doorSignPos[0] - 26
-                        : doorSignPos[0] - 12
-                    }
-                    cy={doorSignPos[1]}
-                    r="1.4"
-                    fill={st.color}
-                  />
-                  {/* Station Name in Crisp Brand Color */}
-                  <text
-                    x={
-                      idx === 0
-                        ? doorSignPos[0] + 2
-                        : idx === 1
-                        ? doorSignPos[0] + 2
-                        : doorSignPos[0] + 2
-                    }
-                    y={doorSignPos[1] + 1.8}
-                    textAnchor="middle"
-                    fill={st.color}
-                    fontSize={idx === 1 ? '4.5' : '5'}
-                    fontWeight="800"
-                    fontFamily="system-ui, -apple-system, sans-serif"
-                    letterSpacing="0.02em"
-                    className="select-none"
-                  >
-                    {st.name}
-                  </text>
-                </g>
               </g>
             )
           })}

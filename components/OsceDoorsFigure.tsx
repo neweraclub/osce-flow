@@ -792,6 +792,13 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
               DH * 0.48
             )
 
+            // Real Office Door Sign Nameplate mounted directly ON the door leaf face (eye-level, swings with door)
+            const doorSignPos = P(
+              xh + (DW * 0.5) * cosT + DT * sinT,
+              -(DW * 0.5) * sinT + DT * cosT,
+              DH * 0.65
+            )
+
             // Warm Light Spill on Floor (Spreads across floor when door swings open)
             const lightSpillD = poly([
               P(rm.doorHingeX, 0, 0),
@@ -913,37 +920,56 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
                   strokeWidth="0.7"
                 />
 
-                {/* CLEAN STATION BRAND LABEL (Real station names, ample padding, NO green) */}
+                {/* AUTHENTIC OFFICE DOOR SIGN (Mounted ON the door leaf, not top of doorway) */}
                 <g>
-                  {/* Label Plate Pill */}
+                  {/* Acrylic/Brushed Plaque Plate on Door Face */}
                   <rect
                     x={
                       idx === 0
-                        ? signPositions[idx][0] - 25
+                        ? doorSignPos[0] - 21
                         : idx === 1
-                        ? signPositions[idx][0] - 36
-                        : signPositions[idx][0] - 22
+                        ? doorSignPos[0] - 31
+                        : doorSignPos[0] - 17
                     }
-                    y={signPositions[idx][1] - 8}
-                    width={idx === 0 ? 50 : idx === 1 ? 72 : 44}
-                    height="15"
-                    rx="4"
+                    y={doorSignPos[1] - 6}
+                    width={idx === 0 ? 42 : idx === 1 ? 62 : 34}
+                    height="12"
+                    rx="3"
                     fill="#FFFFFF"
                     stroke={st.color}
-                    strokeWidth={isHovered ? '2' : '1.3'}
+                    strokeWidth={isHovered ? '1.8' : '1.2'}
                     style={{
                       filter: isHovered
-                        ? `drop-shadow(0 0 10px ${st.color}55)`
-                        : 'drop-shadow(0 2px 4px rgba(23,19,92,0.06))',
+                        ? `drop-shadow(0 0 8px ${st.color}66)`
+                        : 'drop-shadow(0 1px 3px rgba(23,19,92,0.18))',
                     }}
                   />
-                  {/* Station Name in Brand Color */}
+                  {/* Station Accent Indicator Dot */}
+                  <circle
+                    cx={
+                      idx === 0
+                        ? doorSignPos[0] - 16
+                        : idx === 1
+                        ? doorSignPos[0] - 26
+                        : doorSignPos[0] - 12
+                    }
+                    cy={doorSignPos[1]}
+                    r="1.4"
+                    fill={st.color}
+                  />
+                  {/* Station Name in Crisp Brand Color */}
                   <text
-                    x={signPositions[idx][0]}
-                    y={signPositions[idx][1] + 2.5}
+                    x={
+                      idx === 0
+                        ? doorSignPos[0] + 2
+                        : idx === 1
+                        ? doorSignPos[0] + 2
+                        : doorSignPos[0] + 2
+                    }
+                    y={doorSignPos[1] + 1.8}
                     textAnchor="middle"
                     fill={st.color}
-                    fontSize="6"
+                    fontSize={idx === 1 ? '4.5' : '5'}
                     fontWeight="800"
                     fontFamily="system-ui, -apple-system, sans-serif"
                     letterSpacing="0.02em"

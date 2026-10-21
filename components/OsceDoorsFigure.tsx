@@ -52,13 +52,21 @@ const STATIONS: StationInfo[] = [
 ]
 
 const N = 3
-// Room Spacing & Dimensions (Spacious, wide clinical offices)
+// Room centers: -62, 0, 62
 const POS_X = [-62, 0, 62]
-const RW = 52 // Room width (over 2x bigger than old stall)
-const RD = 32 // Room depth
-const DW = 22 // Door leaf width
-const DH = 34 // Door height
-const DT = 1.4
+// Exact same height for doors and room walls
+const WH = 28 // Wall height
+const DH = 28 // Door height (EXACTLY same size as room wall)
+const DW = 22 // Door width (swings cleanly along partition wall)
+const DT = 1.2
+const RD = 30 // Room depth (from y = -30 to y = 0)
+
+// Room partition X coordinates
+const ROOM_WALLS = [
+  { left: -93, right: -31, cx: -62 },
+  { left: -31, right: 31, cx: 0 },
+  { left: 31, right: 93, cx: 62 },
+]
 
 // Isometric Projection Engine
 const rad = (d: number) => (d * Math.PI) / 180
@@ -179,8 +187,6 @@ const poly = (pts: [number, number][]) =>
   'M' + pts.map((p) => `${r2(p[0])} ${r2(p[1])}`).join('L') + 'Z'
 const openPoly = (pts: [number, number][]) =>
   pts.length < 2 ? '' : 'M' + pts.map((p) => `${r2(p[0])} ${r2(p[1])}`).join('L')
-const seg = (a: [number, number], b: [number, number]) =>
-  `M${r2(a[0])} ${r2(a[1])}L${r2(b[0])} ${r2(b[1])}`
 
 function prism(
   P: (x: number, y: number, z: number) => [number, number],
@@ -199,8 +205,8 @@ function prism(
 export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigureProps) {
   const [activeDoor, setActiveDoor] = useState<number>(-1)
   const [scores, setScores] = useState<number[]>([16, 15, 14])
-  // REST STATE: Doors are ajar at 30° so the offices are NEVER closed like bathroom stalls!
-  const [doorAngles, setDoorAngles] = useState<number[]>([30, 30, 30])
+  // REST STATE: Doors rest slightly ajar at 28° so offices are open, never closed stalls!
+  const [doorAngles, setDoorAngles] = useState<number[]>([28, 28, 28])
 
   // Total Grade Calculation (/20 scale)
   const totalGrade = useMemo(() => {
@@ -225,7 +231,7 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
     backWallPath,
     partitionPaths,
     roomFloors,
-    portalBeams,
+    headerBeams,
     signPositions,
     hitZones,
   } = useMemo(() => {
@@ -233,10 +239,10 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
     fit(
       C,
       [
-        [-95, -34, 0],
-        [95, 6, 0],
-        [-95, -34, 40],
-        [95, 6, 40],
+        [-95, -32, 0],
+        [95, 2, 0],
+        [-95, -32, WH + 3],
+        [95, 2, WH + 3],
         [0, 0, 0],
       ],
       200,
@@ -245,47 +251,47 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
     const P = proj(C)
     const front = facing(C)
 
-    // 1. Spacious Room Floors (elevated architectural slabs)
-    const roomFloors = POS_X.map((cx) => {
-      const p0 = P(cx - RW / 2, -RD, 0)
-      const p1 = P(cx + RW / 2, -RD, 0)
-      const p2 = P(cx + RW / 2, 2, 0)
-      const p3 = P(cx - RW / 2, 2, 0)
-      return poly([p0, p1, p2, p3])
-    })
+    // 1. Room Floor Slabs (Elevated light hospital platforms)
+    const roomFloors = ROOM_WALLS.map((rw) =>
+      poly([P(rw.left, -RD, 0), P(rw.right, -RD, 0), P(rw.right, 0, 0), P(rw.left, 0, 0)])
+    )
 
-    // 2. Back Hospital Wall across all rooms with architectural depth
+    // 2. Back Hospital Wall across all rooms (Same WH=28 height)
     const backWallPath = poly([
-      P(-95, -RD, 0),
-      P(95, -RD, 0),
-      P(95, -RD, 34),
-      P(-95, -RD, 34),
+      P(-93, -RD, 0),
+      P(93, -RD, 0),
+      P(93, -RD, WH),
+      P(-93, -RD, WH),
     ])
 
-    // 3. Room Dividing Partition Walls (Architectural Cutaway - low & sleek)
+    // 3. Room Dividing Partition Walls (Exactly same WH=28 height, perfectly level!)
     const partitionPaths = [
       // Left exterior wall
-      poly([P(-94, -RD, 0), P(-94, 2, 0), P(-94, 2, 24), P(-94, -RD, 34)]),
+      poly([P(-93, -RD, 0), P(-93, 0, 0), P(-93, 0, WH), P(-93, -RD, WH)]),
       // Divider 1 (between Room 1 & 2)
-      poly([P(-31, -RD, 0), P(-31, 2, 0), P(-31, 2, 24), P(-31, -RD, 34)]),
+      poly([P(-31, -RD, 0), P(-31, 0, 0), P(-31, 0, WH), P(-31, -RD, WH)]),
       // Divider 2 (between Room 2 & 3)
-      poly([P(31, -RD, 0), P(31, 2, 0), P(31, 2, 24), P(31, -RD, 34)]),
+      poly([P(31, -RD, 0), P(31, 0, 0), P(31, 0, WH), P(31, -RD, WH)]),
       // Right exterior wall
-      poly([P(94, -RD, 0), P(94, 2, 0), P(94, 2, 24), P(94, -RD, 34)]),
+      poly([P(93, -RD, 0), P(93, 0, 0), P(93, 0, WH), P(93, -RD, WH)]),
     ]
 
-    // 4. Overhead Entrance Portal Beams
-    const portalBeams = POS_X.map((cx) => {
-      const p0 = P(cx - 14, 0, DH + 1)
-      const p1 = P(cx + 14, 0, DH + 1)
-      const p2 = P(cx + 14, 0, DH + 6)
-      const p3 = P(cx - 14, 0, DH + 6)
-      return poly([p0, p1, p2, p3])
-    })
+    // 4. Overhead Entrance Header Beams (Level with partition walls at WH=28)
+    const headerBeams = ROOM_WALLS.map((rw) =>
+      poly([
+        P(rw.left, 0, WH - 2.5),
+        P(rw.right, 0, WH - 2.5),
+        P(rw.right, 0, WH),
+        P(rw.left, 0, WH),
+      ])
+    )
 
-    const signPositions: [number, number][] = POS_X.map((cx) => P(cx, 0, DH + 4))
+    // Green Station Signs mounted cleanly above the entrance at WH + 2
+    const signPositions: [number, number][] = ROOM_WALLS.map((rw) =>
+      P(rw.cx, 0, WH + 2)
+    )
 
-    // 3 Discrete, non-overlapping hit zones partitioned along room divider walls
+    // 5. Discrete, non-overlapping hit zones partitioned along room divider walls
     const hitZones = [
       { x: 0, y: 20, w: 138, h: 280 },
       { x: 138, y: 20, w: 106, h: 280 },
@@ -295,8 +301,9 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
     const roomGeometries = []
 
     for (let i = 0; i < N; i++) {
-      const cx = POS_X[i]
-      const doorHingeX = cx - DW / 2
+      const rw = ROOM_WALLS[i]
+      const cx = rw.cx
+      const doorHingeX = rw.left // Door hinges DIRECTLY on the partition wall front corner!
 
       // =====================================================================
       // 1. EXECUTIVE CONSULTATION DESK & PC WORKSTATION (Every Room)
@@ -308,36 +315,35 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
         type?: string
         p1?: [number, number]
         p2?: [number, number]
-        fill?: string
       }[] = []
 
       // Desktop PC Computer Tower (CPU) under/beside desk
-      const pcTower = prism(P, front, ...rings(cx - 24, -25, cx - 20, -17, 0.8, 0.3), 0, 8.5)
+      const pcTower = prism(P, front, ...rings(cx - 20, -25, cx - 16, -17, 0.8, 0.3), 0, 8.5)
 
       // Desk Table Top (Spacious Consultation Surface)
-      const deskTop = prism(P, front, ...rings(cx - 24, -27, cx - 4, -15, 1.8, 0.6), 8.5, 9.8)
+      const deskTop = prism(P, front, ...rings(cx - 20, -27, cx + 2, -15, 1.8, 0.6), 8.5, 9.8)
 
       // Desk Modesty & Support Panels
-      const deskPanel = prism(P, front, ...rings(cx - 23, -16.5, cx - 5, -15, 0.6, 0.2), 0, 8.5)
-      const deskRightLeg = prism(P, front, ...rings(cx - 7, -26, cx - 4.5, -16, 0.6, 0.2), 0, 8.5)
+      const deskPanel = prism(P, front, ...rings(cx - 19, -16.5, cx + 1, -15, 0.6, 0.2), 0, 8.5)
+      const deskRightLeg = prism(P, front, ...rings(cx - 1, -26, cx + 1.5, -16, 0.6, 0.2), 0, 8.5)
 
       // PC Widescreen Monitor Base & Elevated Screen
-      const monitorBase = prism(P, front, ...rings(cx - 16, -23, cx - 12, -20, 0.8, 0.3), 9.8, 11.5)
-      const monitorScreen = prism(P, front, ...rings(cx - 19, -23.5, cx - 9, -21.5, 0.6, 0.2), 11.5, 20.5)
+      const monitorBase = prism(P, front, ...rings(cx - 11, -23, cx - 7, -20, 0.8, 0.3), 9.8, 11.5)
+      const monitorScreen = prism(P, front, ...rings(cx - 14, -23.5, cx - 4, -21.5, 0.6, 0.2), 11.5, 19.5)
 
       // PC Keyboard & Mouse on Desk
-      const keyboard = prism(P, front, ...rings(cx - 17, -19.5, cx - 10, -16.5, 0.5, 0.2), 9.8, 10.5)
-      const mouse = prism(P, front, ...rings(cx - 8.5, -18.5, cx - 6.5, -16.5, 0.4, 0.1), 9.8, 10.4)
+      const keyboard = prism(P, front, ...rings(cx - 12, -19.5, cx - 5, -16.5, 0.5, 0.2), 9.8, 10.5)
+      const mouse = prism(P, front, ...rings(cx - 3.5, -18.5, cx - 1.5, -16.5, 0.4, 0.1), 9.8, 10.4)
 
       // Ergonomic Examiner Swivel Office Chair
       const chairBase = {
         sil: '',
         type: 'line',
-        p1: P(cx - 14, -10, 0),
-        p2: P(cx - 14, -10, 5),
+        p1: P(cx - 9, -10, 0),
+        p2: P(cx - 9, -10, 5),
       }
-      const chairSeat = prism(P, front, ...rings(cx - 18, -13, cx - 10, -7, 1.8, 0.6), 5, 7.5)
-      const chairBack = prism(P, front, ...rings(cx - 18, -7.5, cx - 10, -6, 1.2, 0.4), 7.5, 17)
+      const chairSeat = prism(P, front, ...rings(cx - 13, -13, cx - 5, -7, 1.8, 0.6), 5, 7.5)
+      const chairBack = prism(P, front, ...rings(cx - 13, -7.5, cx - 5, -6, 1.2, 0.4), 7.5, 16.5)
 
       objects.push(
         pcTower,
@@ -359,17 +365,17 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
       if (i === 0) {
         // ROOM 1: Doctor Consultation + Seated Patient in Interview
         // Patient consultation chair facing doctor desk
-        const patientChairSeat = prism(P, front, ...rings(cx + 6, -23, cx + 14, -15, 1.8, 0.6), 0, 7.5)
-        const patientChairBack = prism(P, front, ...rings(cx + 12.5, -23, cx + 14, -15, 0.8, 0.3), 7.5, 17)
+        const patientChairSeat = prism(P, front, ...rings(cx + 10, -23, cx + 18, -15, 1.8, 0.6), 0, 7.5)
+        const patientChairBack = prism(P, front, ...rings(cx + 16.5, -23, cx + 18, -15, 0.8, 0.3), 7.5, 17)
 
         // Seated Patient Figure
-        const patientTorso = prism(P, front, ...rings(cx + 7.5, -21.5, cx + 12.5, -16.5, 1.5, 0.5), 7.5, 16)
-        const patientHead = prism(P, front, ...rings(cx + 8.5, -20.5, cx + 11.5, -17.5, 1.2, 0.4), 16, 21)
+        const patientTorso = prism(P, front, ...rings(cx + 11.5, -21.5, cx + 16.5, -16.5, 1.5, 0.5), 7.5, 16)
+        const patientHead = prism(P, front, ...rings(cx + 12.5, -20.5, cx + 15.5, -17.5, 1.2, 0.4), 16, 21)
 
         // Patient consultation speech dialogue bubble
-        const speechBubble = prism(P, front, ...rings(cx + 6, -21, cx + 14, -17, 1.5, 0.4), 24, 29.5)
+        const speechBubble = prism(P, front, ...rings(cx + 10, -21, cx + 18, -17, 1.5, 0.4), 23, 28)
         // Medical Chart Clipboard on Desk
-        const clipboard = prism(P, front, ...rings(cx - 6, -23, cx - 4, -18, 0.4, 0.1), 9.8, 10.3)
+        const clipboard = prism(P, front, ...rings(cx, -23, cx + 2, -18, 0.4, 0.1), 9.8, 10.3)
 
         objects.push(
           patientChairSeat,
@@ -382,23 +388,23 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
       } else if (i === 1) {
         // ROOM 2: CPR Examination Table & Supine Resuscitation Mannequin
         // Clinical examination stretcher / bed
-        const bedFrame = prism(P, front, ...rings(cx + 2, -28, cx + 24, -10, 2.2, 0.7), 0, 8.5)
-        const bedMattress = prism(P, front, ...rings(cx + 3, -27, cx + 23, -11, 2, 0.6), 8.5, 11)
-        const headrestPillow = prism(P, front, ...rings(cx + 18, -26, cx + 23, -12, 1.5, 0.4), 11, 13)
+        const bedFrame = prism(P, front, ...rings(cx + 7, -28, cx + 27, -10, 2.2, 0.7), 0, 8.5)
+        const bedMattress = prism(P, front, ...rings(cx + 8, -27, cx + 26, -11, 2, 0.6), 8.5, 11)
+        const headrestPillow = prism(P, front, ...rings(cx + 21, -26, cx + 26, -12, 1.5, 0.4), 11, 13)
 
         // Supine CPR Resuscitation Mannequin
-        const cprTorso = prism(P, front, ...rings(cx + 7, -23, cx + 17, -15, 1.8, 0.5), 11, 15.5)
-        const cprHead = prism(P, front, ...rings(cx + 18, -22, cx + 22, -16, 1.3, 0.4), 11, 15.5)
-        const cprLegs = prism(P, front, ...rings(cx + 4, -22, cx + 7, -16, 1.2, 0.4), 11, 14)
+        const cprTorso = prism(P, front, ...rings(cx + 12, -23, cx + 20, -15, 1.8, 0.5), 11, 15.5)
+        const cprHead = prism(P, front, ...rings(cx + 21, -22, cx + 25, -16, 1.3, 0.4), 11, 15.5)
+        const cprLegs = prism(P, front, ...rings(cx + 9, -22, cx + 12, -16, 1.2, 0.4), 11, 14)
 
         // Mobile Cardiac Defibrillator Monitor on Pole
         const monitorPole = {
           sil: '',
           type: 'line',
-          p1: P(cx + 17, -29, 0),
-          p2: P(cx + 17, -29, 23),
+          p1: P(cx + 22, -29, 0),
+          p2: P(cx + 22, -29, 23),
         }
-        const cardiacScreen = prism(P, front, ...rings(cx + 14, -30, cx + 20, -28, 0.8, 0.3), 17, 23)
+        const cardiacScreen = prism(P, front, ...rings(cx + 19, -30, cx + 25, -28, 0.8, 0.3), 17, 23)
 
         objects.push(
           bedFrame,
@@ -413,24 +419,24 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
       } else {
         // ROOM 3: Mobile Emergency Crash Cart & IV Infusion Stand
         // Multi-tier emergency crash cart
-        const crashCart = prism(P, front, ...rings(cx + 4, -26, cx + 16, -14, 2, 0.6), 2, 17)
+        const crashCart = prism(P, front, ...rings(cx + 8, -26, cx + 20, -14, 2, 0.6), 2, 17)
         // Defibrillator monitor unit on top shelf
-        const defibMonitor = prism(P, front, ...rings(cx + 6, -24, cx + 14, -16, 1.2, 0.4), 17, 23.5)
+        const defibMonitor = prism(P, front, ...rings(cx + 10, -24, cx + 18, -16, 1.2, 0.4), 17, 23.5)
 
         // Tall IV infusion pole with saline bottle
         const ivPole = {
           sil: '',
           type: 'line',
-          p1: P(cx + 20, -18, 0),
-          p2: P(cx + 20, -18, 35),
+          p1: P(cx + 24, -18, 0),
+          p2: P(cx + 24, -18, 32),
         }
         const ivCross = {
           sil: '',
           type: 'line',
-          p1: P(cx + 17.5, -18, 34),
-          p2: P(cx + 22.5, -18, 34),
+          p1: P(cx + 21.5, -18, 31),
+          p2: P(cx + 26.5, -18, 31),
         }
-        const ivBottle = prism(P, front, ...rings(cx + 17, -19, cx + 19, -17, 0.6, 0.2), 27, 33)
+        const ivBottle = prism(P, front, ...rings(cx + 21, -19, cx + 23, -17, 0.6, 0.2), 24, 30)
 
         objects.push(crashCart, defibMonitor, ivPole, ivCross, ivBottle)
       }
@@ -448,21 +454,21 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
       backWallPath,
       partitionPaths,
       roomFloors,
-      portalBeams,
+      headerBeams,
       signPositions,
       hitZones,
     }
   }, [])
 
-  // Smooth Stable Door Swing Physics (NEVER closed like a stall: resting open at 30°, opens to 75°)
+  // Smooth Stable Door Swing Physics (Door height DH=28 EXACTLY matches wall height WH=28!)
   useEffect(() => {
     let animId: number
-    const targetAngles = [30, 30, 30] // Default open invitation angle
+    const targetAngles = [28, 28, 28] // Default open invitation angle
 
     if (activeDoor >= 0) {
       for (let i = 0; i < N; i++) {
-        // Active door swings wide open to 75°; other rooms remain at friendly 30° open
-        targetAngles[i] = i === activeDoor ? 75 : 30
+        // Active door swings wide open to 75° against partition wall; others stay ajar at 28°
+        targetAngles[i] = i === activeDoor ? 75 : 28
       }
     }
 
@@ -536,7 +542,7 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
             <div className="text-[11px] text-slate-500">
               {activeStation
                 ? `${activeStation.roomType} — ${activeStation.description}`
-                : 'Bureaux d’évaluation médicale ouverts • Poste PC & équipement clinique dans chaque salle'}
+                : 'Bureaux d’évaluation médicale ouverts • Portes vitrées de même hauteur que les cloisons'}
             </div>
           </div>
         </div>
@@ -570,7 +576,7 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
           className="size-full overflow-visible"
           onMouseLeave={() => setActiveDoor(-1)}
         >
-          {/* 1. BACK HOSPITAL WALL */}
+          {/* 1. BACK HOSPITAL WALL (Exact WH=28 height) */}
           <path
             d={backWallPath}
             fill="#F8FAFC"
@@ -594,7 +600,7 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
             )
           })}
 
-          {/* 3. ARCHITECTURAL PARTITION WALLS BETWEEN ROOMS */}
+          {/* 3. ARCHITECTURAL PARTITION WALLS BETWEEN ROOMS (Exact WH=28 height from back to front) */}
           {partitionPaths.map((wD, idx) => (
             <path
               key={idx}
@@ -606,13 +612,28 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
             />
           ))}
 
-          {/* 4. ROOM INTERIORS (Desk + PC + Specialty Medical Setup) */}
+          {/* 4. OVERHEAD ENTRANCE HEADER BEAMS (Flush with partition walls at WH=28) */}
+          {headerBeams.map((bD, idx) => {
+            const isHovered = idx === activeDoor
+            const st = STATIONS[idx]
+            return (
+              <path
+                key={idx}
+                d={bD}
+                fill="#F1F5F9"
+                stroke={isHovered ? st.color : '#94A3B8'}
+                strokeWidth="1.1"
+              />
+            )
+          })}
+
+          {/* 5. ROOM INTERIORS (Desk + PC System + Clinical Equipment) */}
           {roomGeometries.map((rm, idx) => {
             const st = STATIONS[idx]
             const isHovered = idx === activeDoor
             const angle = doorAngles[idx]
 
-            // Modern Clinic Door Calculation
+            // Modern Clinic Door Calculation - Hinged directly at partition wall corner, height DH=WH=28
             const radTh = rad(angle)
             const cosT = Math.cos(radTh),
               sinT = Math.sin(radTh)
@@ -628,17 +649,17 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
             const doorLeafD = poly(hull(ptsT.concat(ptsB)))
             const doorCreaseD = openPoly([ptsT[0], ptsT[1], ptsT[2]])
             const handlePos = P(
-              xh + (DW - 3) * cosT + DT * sinT,
-              -(DW - 3) * sinT + DT * cosT,
+              xh + (DW - 4) * cosT + DT * sinT,
+              -(DW - 4) * sinT + DT * cosT,
               DH * 0.48
             )
 
             // Warm Specialty Floodlight on Floor when room is active
             const floorLightD = poly([
-              P(rm.cx - RW / 2 + 2, -RD + 2, 0),
-              P(rm.cx + RW / 2 - 2, -RD + 2, 0),
-              P(rm.cx + RW / 2 - 2, 0, 0),
-              P(rm.cx - RW / 2 + 2, 0, 0),
+              P(rm.cx - 28, -RD + 2, 0),
+              P(rm.cx + 28, -RD + 2, 0),
+              P(rm.cx + 28, 0, 0),
+              P(rm.cx - 28, 0, 0),
             ])
 
             return (
@@ -653,7 +674,7 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
                   />
                 )}
 
-                {/* Desk + PC System + Clinical Equipment */}
+                {/* Desk + PC System + Clinical Equipment inside room */}
                 <g
                   style={{
                     opacity: isHovered ? 1 : 0.85,
@@ -692,57 +713,11 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
                   ))}
                 </g>
 
-                {/* Overhead Entrance Portal Beam */}
-                <path
-                  d={portalBeams[idx]}
-                  fill="#F1F5F9"
-                  stroke={isHovered ? st.color : '#94A3B8'}
-                  strokeWidth="1.1"
-                />
-
-                {/* GREEN HOSPITAL EXIT-STYLE SIGNBOARD (Real-Life Signage) */}
-                <g>
-                  <rect
-                    x={signPositions[idx][0] - 19}
-                    y={signPositions[idx][1] - 8}
-                    width="38"
-                    height="13"
-                    rx="2"
-                    fill={isHovered ? '#047857' : '#065F46'}
-                    stroke={isHovered ? '#34D399' : '#10B981'}
-                    strokeWidth="1.2"
-                    style={{
-                      filter: isHovered
-                        ? 'drop-shadow(0 0 8px rgba(16,185,129,0.8))'
-                        : 'drop-shadow(0 0 3px rgba(16,185,129,0.35))',
-                    }}
-                  />
-                  <circle
-                    cx={signPositions[idx][0] - 12.5}
-                    cy={signPositions[idx][1] - 1.5}
-                    r="1.8"
-                    fill="#A7F3D0"
-                  />
-                  <text
-                    x={signPositions[idx][0] + 2}
-                    y={signPositions[idx][1] + 1}
-                    textAnchor="middle"
-                    fill="#FFFFFF"
-                    fontSize="5.4"
-                    fontWeight="800"
-                    fontFamily="monospace"
-                    letterSpacing="0.08em"
-                    className="select-none"
-                  >
-                    STATION {st.stationNumber}
-                  </text>
-                </g>
-
-                {/* MODERN GLASS CLINIC DOOR (Resting open at 30°, wide open at 75°) */}
+                {/* SOLID CLINIC GLASS DOOR LEAF (Hinged directly on partition wall, height EXACTLY matches wall height WH=28!) */}
                 <path
                   d={doorLeafD}
                   fill="#FFFFFF"
-                  fillOpacity="0.75"
+                  fillOpacity="0.82"
                   stroke={isHovered ? st.color : '#475569'}
                   strokeWidth={isHovered ? '1.8' : '1.2'}
                   strokeLinejoin="round"
@@ -764,11 +739,49 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
                   stroke="#FFFFFF"
                   strokeWidth="0.6"
                 />
+
+                {/* GREEN HOSPITAL EXIT-STYLE SIGNBOARD (Mounted on header beam, always crisp and on top!) */}
+                <g>
+                  <rect
+                    x={signPositions[idx][0] - 18}
+                    y={signPositions[idx][1] - 6}
+                    width="36"
+                    height="12"
+                    rx="2"
+                    fill={isHovered ? '#047857' : '#065F46'}
+                    stroke={isHovered ? '#34D399' : '#10B981'}
+                    strokeWidth="1.2"
+                    style={{
+                      filter: isHovered
+                        ? 'drop-shadow(0 0 8px rgba(16,185,129,0.8))'
+                        : 'drop-shadow(0 0 3px rgba(16,185,129,0.35))',
+                    }}
+                  />
+                  <circle
+                    cx={signPositions[idx][0] - 12}
+                    cy={signPositions[idx][1]}
+                    r="1.6"
+                    fill="#A7F3D0"
+                  />
+                  <text
+                    x={signPositions[idx][0] + 2}
+                    y={signPositions[idx][1] + 2.2}
+                    textAnchor="middle"
+                    fill="#FFFFFF"
+                    fontSize="5"
+                    fontWeight="800"
+                    fontFamily="monospace"
+                    letterSpacing="0.08em"
+                    className="select-none"
+                  >
+                    STATION {st.stationNumber}
+                  </text>
+                </g>
               </g>
             )
           })}
 
-          {/* 5. STATIC INVISIBLE HIT TARGETS (Discrete, Non-overlapping, Silky Smooth) */}
+          {/* 6. STATIC INVISIBLE HIT TARGETS (Discrete, Non-overlapping, Silky Smooth) */}
           {hitZones.map((zone, idx) => (
             <rect
               key={idx}

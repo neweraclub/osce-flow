@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { Bricolage_Grotesque, Plus_Jakarta_Sans } from 'next/font/google'
-import { ArrowRight, CheckCircle2, ShieldCheck, Stethoscope } from 'lucide-react'
+import { CheckCircle2, ShieldCheck, Stethoscope } from 'lucide-react'
 import { OsceDoorsFigure } from '@/components/OsceDoorsFigure'
 
 const display = Bricolage_Grotesque({ subsets: ['latin'], variable: '--font-display' })
@@ -31,7 +31,7 @@ export default function LandingPage() {
       }}
     >
       <div className="mx-auto grid min-h-dvh max-w-7xl grid-rows-[auto_1fr] px-5 sm:px-8">
-        {/* Top Header */}
+        {/* Top Header - Pure branding without any portal buttons or New Era ECOS */}
         <header className="flex items-center justify-between py-6">
           <Link
             href="/"
@@ -39,24 +39,18 @@ export default function LandingPage() {
           >
             OSCE<span style={{ color: '#E53888' }}>-flow</span>
           </Link>
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-medium opacity-60 hidden sm:inline">New Era ECOS</span>
-            <Link
-              href="/login"
-              className="text-xs sm:text-sm font-semibold px-4 py-2 rounded-full border transition-all duration-200 hover:bg-[#17135C] hover:text-white flex items-center gap-1.5 shadow-sm"
-              style={{ borderColor: `${INK}33` }}
-            >
-              Accès Portail <ArrowRight className="size-3.5" />
-            </Link>
+          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/90 border border-slate-200/90 shadow-xs text-xs font-semibold text-slate-700">
+            <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Centre d&apos;Évaluation Clinique</span>
           </div>
         </header>
 
         {/* Main Hero Grid */}
         <main className="grid items-center gap-10 pb-12 lg:grid-cols-[1fr_1.15fr] lg:gap-12 my-auto">
-          {/* Left Column: Headline & Value Proposition */}
+          {/* Left Column: Headline & Value Proposition - Clean presentation without any buttons */}
           <div className="max-w-xl space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 border border-emerald-500/20 text-emerald-700">
-              <span className="size-1.5 rounded-full bg-emerald-500 animate-ping" />
+              <span className="size-1.5 rounded-full bg-emerald-500" />
               Plateforme ECOS Faculté de Médecine
             </div>
 
@@ -68,38 +62,45 @@ export default function LandingPage() {
               Fluid, objective assessment for modern medical faculties. Real-time scoring, station-by-station deliberation, and authenticated candidate audits.
             </p>
 
-            {/* Quick Clinical Badges */}
-            <div className="flex flex-wrap items-center gap-2.5 pt-2">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 border border-slate-200 shadow-xs text-xs font-medium">
-                <Stethoscope className="size-3.5 text-blue-600" />
-                <span>3 Stations d&apos;Évaluation</span>
+            {/* Clinical Station Overview & Badges */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+              <div className="flex flex-col gap-1 p-3 rounded-2xl bg-white/90 border border-slate-200 shadow-xs text-xs">
+                <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                  <Stethoscope className="size-3.5 text-blue-600" />
+                  <span>Station 1</span>
+                </div>
+                <span className="text-[11px] text-slate-500">Anamnèse & Bureau PC</span>
               </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 border border-slate-200 shadow-xs text-xs font-medium">
-                <CheckCircle2 className="size-3.5 text-emerald-600" />
-                <span>Seuil Fixé à 10.00 / 20</span>
+              <div className="flex flex-col gap-1 p-3 rounded-2xl bg-white/90 border border-slate-200 shadow-xs text-xs">
+                <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                  <CheckCircle2 className="size-3.5 text-pink-600" />
+                  <span>Station 2</span>
+                </div>
+                <span className="text-[11px] text-slate-500">Examen & Mannequin CPR</span>
               </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 border border-slate-200 shadow-xs text-xs font-medium">
-                <ShieldCheck className="size-3.5 text-purple-600" />
-                <span>Délibération Certifiée</span>
+              <div className="flex flex-col gap-1 p-3 rounded-2xl bg-white/90 border border-slate-200 shadow-xs text-xs">
+                <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                  <ShieldCheck className="size-3.5 text-orange-600" />
+                  <span>Station 3</span>
+                </div>
+                <span className="text-[11px] text-slate-500">Urgence & Chariot Mobile</span>
               </div>
             </div>
 
-            {/* Portal Action Buttons */}
-            <div className="pt-2 flex items-center gap-3">
-              <Link
-                href="/login"
-                className="px-6 py-3 rounded-full font-bold text-sm text-white shadow-lg transition-transform hover:scale-[1.02] flex items-center gap-2"
-                style={{ backgroundColor: INK }}
-              >
-                Espace Évaluateur & Délibération <ArrowRight className="size-4" />
-              </Link>
-              <Link
-                href="/student/results"
-                className="px-5 py-3 rounded-full font-semibold text-sm border bg-white/70 hover:bg-white transition-all shadow-xs"
-                style={{ borderColor: `${INK}26`, color: INK }}
-              >
-                Résultats Étudiants
-              </Link>
+            {/* Deliberation Status Information */}
+            <div className="p-4 rounded-2xl bg-white/90 border border-slate-200 shadow-xs space-y-1.5">
+              <div className="flex items-center justify-between text-xs font-semibold">
+                <span className="text-slate-600">Statut de Délibération ECOS</span>
+                <span className={isPassed ? 'text-emerald-700 font-bold' : 'text-rose-600 font-bold'}>
+                  {isPassed ? 'Admis (≥ 10.00 / 20)' : 'Ajourné (< 10.00 / 20)'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <span>Pondération totale : 35% + 35% + 30%</span>
+                <span className="font-mono font-bold text-slate-800 text-sm">
+                  {totalScore.toFixed(1)} / 20
+                </span>
+              </div>
             </div>
           </div>
 
@@ -118,3 +119,4 @@ export default function LandingPage() {
     </div>
   )
 }
+

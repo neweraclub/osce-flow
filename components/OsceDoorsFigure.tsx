@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import { Brain, Droplets, Heart, Sparkles, CheckCircle2, AlertTriangle } from 'lucide-react'
 
 export interface OsceDoorsFigureProps {
   className?: string
@@ -16,35 +15,39 @@ interface StationInfo {
   color: string
   defaultScore: number
   roomType: string
+  description: string
 }
 
 const STATIONS: StationInfo[] = [
   {
     id: 'anamnese',
-    name: 'Anamnèse',
+    name: 'Anamnèse & Entretien',
     stationNumber: 1,
     weight: 35,
-    color: '#3B33FF', // Blue
+    color: '#3B33FF', // Clinical Blue
     defaultScore: 16,
-    roomType: 'Entretien clinique & Anamnèse',
+    roomType: 'Bureau Médical & Patient Assis',
+    description: 'Poste informatique d’évaluation avec patient simulé en consultation',
   },
   {
-    id: 'examen',
-    name: 'Examen Physique',
+    id: 'cpr',
+    name: 'Examen & Réanimation CPR',
     stationNumber: 2,
     weight: 35,
-    color: '#E53888', // Magenta
+    color: '#E53888', // Magenta / Pulse
     defaultScore: 15,
-    roomType: 'Examen clinique & Manœuvres',
+    roomType: 'Poste PC & Mannequin CPR',
+    description: 'Table d’examen avec mannequin de réanimation cardio-pulmonaire',
   },
   {
     id: 'urgence',
-    name: 'Urgence Médicale',
+    name: 'Urgence & Déchocage',
     stationNumber: 3,
     weight: 30,
-    color: '#F97316', // Orange
+    color: '#F97316', // Emergency Orange
     defaultScore: 14,
-    roomType: 'Chariot d’urgence & Réanimation',
+    roomType: 'Poste PC & Chariot d’Urgence',
+    description: 'Chariot d’urgence mobile avec défibrillateur et tige à perfusion',
   },
 ]
 
@@ -188,32 +191,7 @@ function prism(
   }
 }
 
-// Ease lift: (.32, .72, 0, 1)
-function cubicBezier(x1: number, y1: number, x2: number, y2: number) {
-  const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx
-  const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by
-  function X(t: number) {
-    return ((ax * t + bx) * t + cx) * t
-  }
-  function Y(t: number) {
-    return ((ay * t + by) * cy) * t
-  }
-  return function (t: number) {
-    let u = t
-    for (let i = 0; i < 16; i++) {
-      const x = X(u) - t
-      if (Math.abs(x) < 1e-4) break
-      const dx = (3 * ax * u + 2 * bx) * u + cx
-      if (Math.abs(dx) < 1e-6) break
-      u -= x / dx
-    }
-    return Y(clamp(u, 0, 1))
-  }
-}
-const EASE_SWING = cubicBezier(0.32, 0.72, 0, 1)
-
 export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigureProps) {
-  const svgRef = useRef<SVGSVGElement | null>(null)
   const [activeDoor, setActiveDoor] = useState<number>(-1)
   const [scores, setScores] = useState<number[]>([16, 15, 14])
   const [doorAngles, setDoorAngles] = useState<number[]>([0, 0, 0])
@@ -243,7 +221,7 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
     passLineD,
     doorFrames,
     signPositions,
-    restCenters,
+    hitZones,
   } = useMemo(() => {
     const C = Cam(45, 0.5, 1.85)
     fit(
@@ -265,61 +243,98 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
     const corridorLineD = seg(P(-82, 0, 0), P(82, 0, 0))
     const passLineD = seg(P(-80, 0, 22), P(80, 0, 22))
 
-    // Dividing Walls Between Rooms (Left, Divider 1, Divider 2, Right, Back)
+    // Dividing Walls Between Rooms (Solid Hospital Walls)
     const wallPaths = [
-      // Back wall backdrop
+      // Back wall of the rooms
       poly([P(-74, -26, 0), P(74, -26, 0), P(74, -26, DH + 4), P(-74, -26, DH + 4)]),
-      // Left exterior room wall
+      // Left exterior wall
       prism(P, front, ...rings(-75, -26, -73, 0, 0.8, 0.3), 0, DH + 4).sil,
-      // Divider 1 (between Anamnèse & Examen)
+      // Divider 1 (between Station 1 & 2)
       prism(P, front, ...rings(-28, -26, -26, 0, 0.8, 0.3), 0, DH + 4).sil,
-      // Divider 2 (between Examen & Urgence)
+      // Divider 2 (between Station 2 & 3)
       prism(P, front, ...rings(26, -26, 28, 0, 0.8, 0.3), 0, DH + 4).sil,
-      // Right exterior room wall
+      // Right exterior wall
       prism(P, front, ...rings(73, -26, 75, 0, 0.8, 0.3), 0, DH + 4).sil,
     ]
 
-    // Room objects solids
     const roomGeometries = []
     const doorFrames = []
-    const signPositions = []
-    const restCenters: [number, number][] = []
+    const signPositions: [number, number][] = []
+
+    // 3 Discrete, non-overlapping hit zones partitioned along room divider walls
+    const hitZones = [
+      { x: 0, y: 20, w: 164, h: 280 },
+      { x: 164, y: 20, w: 71, h: 280 },
+      { x: 235, y: 20, w: 165, h: 280 },
+    ]
 
     for (let i = 0; i < N; i++) {
       const cx = POS_X[i]
       const x0 = cx - DW / 2
       const x1 = cx + DW / 2
 
-      // Door frame
       doorFrames.push(openPoly([P(x0, 0, 0), P(x0, 0, DH), P(x1, 0, DH), P(x1, 0, 0)]))
+      signPositions.push(P(cx, 0, DH + 5))
 
-      // Sign position
-      const signScreen = P(cx, 0, DH + 5)
-      signPositions.push(signScreen)
+      // =====================================================================
+      // 1. DESK & PC SETUP (Standard Examiner Desktop inside each room)
+      // =====================================================================
+      const objects: { sil: string; crease?: string; color?: string; type?: string; p1?: [number, number]; p2?: [number, number] }[] = []
 
-      // Rest center for hit test
-      restCenters.push(P(cx, 0, DH / 2))
+      // Desk Table
+      const desk = prism(P, front, ...rings(cx - 9, -21, cx - 1, -12, 1.5, 0.5), 0, 9)
+      // PC Monitor Base & Screen
+      const monitorBase = prism(P, front, ...rings(cx - 6, -17, cx - 4, -15, 0.8, 0.3), 9, 10.5)
+      const monitorScreen = prism(P, front, ...rings(cx - 7.5, -17.5, cx - 2.5, -16.5, 0.6, 0.2), 10.5, 17.5)
+      // PC Keyboard
+      const keyboard = prism(P, front, ...rings(cx - 7, -15, cx - 3, -13, 0.5, 0.2), 9, 9.8)
+      objects.push(desk, monitorBase, monitorScreen, keyboard)
 
-      // Clinical Solids per room
-      const objects: { sil: string; crease?: string; dot?: [number, number] }[] = []
-
+      // =====================================================================
+      // 2. CLINICAL SPECIALTY MEDICAL EQUIPMENT PER ROOM
+      // =====================================================================
       if (i === 0) {
-        // Station 1: Consultation Chair + Dialogue
-        const seat = prism(P, front, ...rings(cx - 6, -20, cx + 6, -10, 2, 0.8), 0, 9)
-        const back = prism(P, front, ...rings(cx - 6, -21, cx + 6, -18, 1.5, 0.6), 9, 21)
-        const cue = prism(P, front, ...rings(cx - 4, -18, cx + 4, -13, 2, 0.6), 24, 30)
-        objects.push(seat, back, cue)
+        // ROOM 1: Patient Consultation Chair + Patient Seated Figure
+        const chairSeat = prism(P, front, ...rings(cx + 2, -20, cx + 8, -12, 1.8, 0.6), 0, 7.5)
+        const chairBack = prism(P, front, ...rings(cx + 6.5, -20, cx + 8, -12, 0.8, 0.3), 7.5, 16.5)
+        const patientTorso = prism(P, front, ...rings(cx + 2.5, -19, cx + 6.5, -13, 1.5, 0.5), 7.5, 15.5)
+        const patientHead = prism(P, front, ...rings(cx + 3.2, -18, cx + 6, -14, 1.2, 0.4), 15.5, 20.5)
+        // Speech Dialogue Ring Cue
+        const dialogueRing = prism(P, front, ...rings(cx + 2, -18, cx + 7.5, -14, 1.5, 0.4), 23, 28)
+        objects.push(chairSeat, chairBack, patientTorso, patientHead, dialogueRing)
       } else if (i === 1) {
-        // Station 2: Examination Plinth + Headrest + Stethoscope
-        const tbl = prism(P, front, ...rings(cx - 8, -23, cx + 8, -9, 2.5, 0.8), 0, 11)
-        const cush = prism(P, front, ...rings(cx - 8, -23, cx - 1, -9, 2, 0.6), 11, 15)
-        const stethDot = P(cx + 3, -16, 12.5)
-        objects.push(tbl, cush, { sil: '', dot: stethDot })
+        // ROOM 2: CPR Examination Table + Resuscitation Mannequin
+        const examPlinth = prism(P, front, ...rings(cx + 1, -23, cx + 9, -9, 2, 0.6), 0, 8.5)
+        // Mannequin Torso & Head lying flat
+        const cprTorso = prism(P, front, ...rings(cx + 2.2, -20, cx + 7.8, -12, 1.5, 0.5), 8.5, 12.5)
+        const cprHead = prism(P, front, ...rings(cx + 3.2, -22.5, cx + 6.8, -20, 1.2, 0.4), 8.5, 12)
+        const cprLegs = prism(P, front, ...rings(cx + 3, -12, cx + 7, -9.5, 1.1, 0.4), 8.5, 11)
+        // Cardiac monitor ECG wave indicator
+        const ecgLine = {
+          sil: '',
+          type: 'line',
+          p1: P(cx + 2, -16, 17),
+          p2: P(cx + 8, -16, 17),
+        }
+        objects.push(examPlinth, cprTorso, cprHead, cprLegs, ecgLine)
       } else {
-        // Station 3: Crash Cart + Defibrillator Unit
-        const cart = prism(P, front, ...rings(cx - 7, -21, cx + 7, -11, 2, 0.7), 3, 17)
-        const mon = prism(P, front, ...rings(cx - 4, -19, cx + 4, -13, 1.5, 0.5), 17, 26)
-        objects.push(cart, mon)
+        // ROOM 3: Emergency Crash Cart + Defibrillator Unit + IV Pole
+        const crashCart = prism(P, front, ...rings(cx + 2, -22, cx + 8, -12, 1.8, 0.6), 2, 15.5)
+        const defibMonitor = prism(P, front, ...rings(cx + 3, -20, cx + 7, -14, 1.2, 0.4), 15.5, 22.5)
+        // IV Pole vertical rod & drip hanger
+        const ivPole = {
+          sil: '',
+          type: 'line',
+          p1: P(cx + 8.5, -11, 2),
+          p2: P(cx + 8.5, -11, 33),
+        }
+        const ivHanger = {
+          sil: '',
+          type: 'line',
+          p1: P(cx + 7, -11, 32),
+          p2: P(cx + 10, -11, 32),
+        }
+        objects.push(crashCart, defibMonitor, ivPole, ivHanger)
       }
 
       roomGeometries.push({
@@ -338,112 +353,72 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
       passLineD,
       doorFrames,
       signPositions,
-      restCenters,
+      hitZones,
     }
   }, [])
 
-  // Smooth Door Swing Physics Loop
-  const animRef = useRef<number | null>(null)
-  const startTimeRef = useRef<number>(Date.now())
-  const tweenTargets = useRef<number[]>([0, 0, 0])
-  const tweenStarts = useRef<number[]>([0, 0, 0])
-  const tweenDelays = useRef<number[]>([0, 0, 0])
-
+  // Smooth Stable Door Swing (Lerp-based, absolutely ZERO jitter)
   useEffect(() => {
-    const now = Date.now()
-    startTimeRef.current = now
+    let animId: number
+    const targetAngles = [0, 0, 0]
 
-    for (let i = 0; i < N; i++) {
-      const isPick = i === activeDoor
-      const dist = activeDoor < 0 ? 0 : Math.abs(i - activeDoor)
-      const targetDeg =
-        activeDoor < 0 ? 0 : isPick ? 78 : Math.max(0, 24 - dist * 14)
-
-      tweenStarts.current[i] = doorAngles[i]
-      tweenTargets.current[i] = targetDeg
-      tweenDelays.current[i] = activeDoor < 0 ? (N - 1 - i) * 30 : dist * 60
-    }
-
-    const duration = 650
-
-    const tick = () => {
-      const currentNow = Date.now()
-      let stillMoving = false
-      const nextAngles: number[] = []
-
+    if (activeDoor >= 0) {
       for (let i = 0; i < N; i++) {
-        const delay = tweenDelays.current[i]
-        const elapsed = currentNow - (startTimeRef.current + delay)
-        const p = clamp(elapsed / duration, 0, 1)
-        if (p < 1) stillMoving = true
-
-        const eased = EASE_SWING(p)
-        const from = tweenStarts.current[i]
-        const to = tweenTargets.current[i]
-        nextAngles.push(from + (to - from) * eased)
-      }
-
-      setDoorAngles(nextAngles)
-
-      if (stillMoving) {
-        animRef.current = requestAnimationFrame(tick)
+        const dist = Math.abs(i - activeDoor)
+        // Active door opens 60 degrees cleanly, neighbors crack 8 degrees
+        targetAngles[i] = dist === 0 ? 60 : dist === 1 ? 8 : 0
       }
     }
 
-    animRef.current = requestAnimationFrame(tick)
+    const update = () => {
+      let isMoving = false
+      setDoorAngles((prev) => {
+        return prev.map((cur, i) => {
+          const target = targetAngles[i]
+          const diff = target - cur
+          if (Math.abs(diff) > 0.15) {
+            isMoving = true
+            return cur + diff * 0.22
+          }
+          return target
+        })
+      })
 
+      if (isMoving) {
+        animId = requestAnimationFrame(update)
+      }
+    }
+
+    animId = requestAnimationFrame(update)
     return () => {
-      if (animRef.current) cancelAnimationFrame(animRef.current)
+      if (animId) cancelAnimationFrame(animId)
     }
   }, [activeDoor])
-
-  // Hit Detection for Door Hover & Click
-  const handlePointerAt = useCallback(
-    (clientX: number, clientY: number) => {
-      if (!svgRef.current) return
-      const rect = svgRef.current.getBoundingClientRect()
-      const x = ((clientX - rect.left) / rect.width) * 400
-      const y = ((clientY - rect.top) / rect.height) * 320
-
-      let best = -1
-      let minD = 48
-      for (let i = 0; i < N; i++) {
-        const d = Math.hypot(x - restCenters[i][0], y - restCenters[i][1])
-        if (d < minD) {
-          minD = d
-          best = i
-        }
-      }
-
-      if (best !== activeDoor) {
-        setActiveDoor(best)
-      }
-    },
-    [activeDoor, restCenters]
-  )
 
   const activeStation = activeDoor >= 0 ? STATIONS[activeDoor] : null
 
   return (
-    <div className={`relative flex flex-col items-center select-none ${className}`}>
-      {/* Live OSCE Deliberation Top Readout */}
-      <div className="mb-3 sm:mb-4 w-full flex items-center justify-between px-4 py-2.5 rounded-2xl bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 shadow-md backdrop-blur-md">
+    <div
+      className={`relative flex flex-col items-center select-none ${className}`}
+      onMouseLeave={() => setActiveDoor(-1)}
+    >
+      {/* Top Clinical Readout Card (Light Medical Palette) */}
+      <div className="mb-3 sm:mb-4 w-full flex items-center justify-between px-4 sm:px-5 py-3 rounded-2xl bg-white border border-slate-200 shadow-sm">
         <div className="flex items-center gap-3">
-          {/* Status Indicator */}
           <span
-            className="size-3 rounded-full animate-pulse"
+            className="size-3 rounded-full transition-colors duration-300"
             style={{
               backgroundColor: activeStation ? activeStation.color : '#10B981',
               boxShadow: activeStation
-                ? `0 0 12px ${activeStation.color}`
-                : '0 0 10px #10B981',
+                ? `0 0 10px ${activeStation.color}`
+                : '0 0 8px #10B981',
             }}
           />
           <div>
-            <div className="text-xs sm:text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+            <div className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-2">
               {activeStation ? (
                 <>
-                  <span className="text-emerald-500 font-mono text-xs px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 font-bold">
+                  <span className="text-emerald-700 font-mono text-xs px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 font-bold">
                     STATION {activeStation.stationNumber}
                   </span>
                   <span>{activeStation.name}</span>
@@ -453,19 +428,19 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
                 </>
               ) : (
                 <>
-                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
-                    Couloir ECOS • 3 Stations d&apos;Évaluation
+                  <span className="text-emerald-700 font-semibold">
+                    Couloir ECOS Clinique • 3 Stations d&apos;Évaluation
                   </span>
                   <span className="text-slate-400 text-xs hidden sm:inline">
-                    (Survolez une porte)
+                    (Passez la souris sur une porte pour l&apos;ouvrir)
                   </span>
                 </>
               )}
             </div>
-            <div className="text-[11px] text-slate-500 dark:text-slate-400">
+            <div className="text-[11px] text-slate-500">
               {activeStation
-                ? activeStation.roomType
-                : 'Portes d’examen indépendantes avec cloisons cliniques'}
+                ? `${activeStation.roomType} — ${activeStation.description}`
+                : 'Cloisons médicales séparées • Bureau & PC dans chaque salle'}
             </div>
           </div>
         </div>
@@ -473,14 +448,14 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
         {/* Real-time Deliberation Score */}
         <div className="text-right">
           <div className="text-sm sm:text-base font-extrabold tracking-tight flex items-baseline justify-end gap-1">
-            <span className="text-2xl sm:text-3xl font-black font-mono text-slate-900 dark:text-white">
+            <span className="text-2xl sm:text-3xl font-black font-mono text-slate-900">
               {totalGrade.toFixed(1)}
             </span>
             <span className="text-xs font-semibold text-slate-400">/20</span>
           </div>
           <div
             className={`text-[10px] font-bold uppercase tracking-wider ${
-              isPassed ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'
+              isPassed ? 'text-emerald-700' : 'text-rose-600'
             }`}
           >
             {isPassed ? 'Admis (Seuil 10/20)' : 'Ajourné (< 10/20)'}
@@ -488,91 +463,42 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
         </div>
       </div>
 
-      {/* Main 3D Corridor SVG Stage */}
-      <div className="relative w-full max-w-[580px] aspect-[400/320] flex items-center justify-center rounded-3xl bg-slate-50/50 dark:bg-slate-950/40 p-2 border border-slate-200/50 dark:border-slate-800/60 shadow-xl overflow-hidden">
+      {/* Main 3D Corridor SVG Stage (Clean Crisp Light Hospital Aesthetic) */}
+      <div
+        className="relative w-full max-w-[580px] aspect-[400/320] flex items-center justify-center rounded-3xl bg-white p-2 border border-slate-200 shadow-md overflow-hidden"
+        onMouseLeave={() => setActiveDoor(-1)}
+      >
         <svg
-          ref={svgRef}
           viewBox="0 0 400 320"
           preserveAspectRatio="xMidYMid meet"
-          className="size-full overflow-visible touch-none cursor-pointer"
-          onPointerMove={(e) => handlePointerAt(e.clientX, e.clientY)}
-          onPointerLeave={() => setActiveDoor(-1)}
-          onTouchMove={(e) => {
-            if (e.touches[0]) {
-              handlePointerAt(e.touches[0].clientX, e.touches[0].clientY)
-            }
-          }}
-          onTouchEnd={() => setActiveDoor(-1)}
+          className="size-full overflow-visible"
+          onMouseLeave={() => setActiveDoor(-1)}
         >
-          <defs>
-            {/* Green Exit Sign Glow Filter */}
-            <filter id="greenExitGlow" x="-30%" y="-30%" width="160%" height="160%">
-              <feGaussianBlur stdDeviation="2" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
-            {/* Room Light Spill Linear Gradient */}
-            <linearGradient id="corridorLight" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.35" />
-              <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-
-          {/* 1. ROOM WALLS & DIVIDERS (Real Clinical Consultation Rooms) */}
-          <g className="transition-opacity duration-300">
-            {/* Back room wall plate */}
+          {/* 1. SOLID HOSPITAL ROOM WALLS & PARTITIONS */}
+          <g>
+            {/* Back Wall */}
             <path
               d={wallPaths[0]}
-              fill="#0F172A"
-              fillOpacity="0.08"
+              fill="#F8FAFC"
               stroke="#CBD5E1"
-              strokeWidth="0.8"
-              className="dark:fill-slate-900/60 dark:stroke-slate-800"
+              strokeWidth="0.9"
             />
-            {/* Left exterior partition wall */}
-            <path
-              d={wallPaths[1]}
-              fill="#E2E8F0"
-              stroke="#94A3B8"
-              strokeWidth="1.1"
-              className="dark:fill-slate-800 dark:stroke-slate-700"
-            />
-            {/* Divider 1 between Station 1 & 2 */}
-            <path
-              d={wallPaths[2]}
-              fill="#E2E8F0"
-              stroke="#94A3B8"
-              strokeWidth="1.1"
-              className="dark:fill-slate-800 dark:stroke-slate-700"
-            />
-            {/* Divider 2 between Station 2 & 3 */}
-            <path
-              d={wallPaths[3]}
-              fill="#E2E8F0"
-              stroke="#94A3B8"
-              strokeWidth="1.1"
-              className="dark:fill-slate-800 dark:stroke-slate-700"
-            />
-            {/* Right exterior partition wall */}
-            <path
-              d={wallPaths[4]}
-              fill="#E2E8F0"
-              stroke="#94A3B8"
-              strokeWidth="1.1"
-              className="dark:fill-slate-800 dark:stroke-slate-700"
-            />
+            {/* Divider Walls */}
+            <path d={wallPaths[1]} fill="#E2E8F0" stroke="#94A3B8" strokeWidth="1" />
+            <path d={wallPaths[2]} fill="#E2E8F0" stroke="#94A3B8" strokeWidth="1" />
+            <path d={wallPaths[3]} fill="#E2E8F0" stroke="#94A3B8" strokeWidth="1" />
+            <path d={wallPaths[4]} fill="#E2E8F0" stroke="#94A3B8" strokeWidth="1" />
           </g>
 
-          {/* 10/20 Pass Datum Guide */}
-          <g>
-            <path
-              d={passLineD}
-              fill="none"
-              stroke="#06B6D4"
-              strokeWidth="1"
-              strokeDasharray="4 4"
-              className="opacity-30"
-            />
-          </g>
+          {/* 10/20 Pass Datum Benchmark Guide Line */}
+          <path
+            d={passLineD}
+            fill="none"
+            stroke="#06B6D4"
+            strokeWidth="1"
+            strokeDasharray="4 4"
+            className="opacity-40"
+          />
 
           {/* Corridor Floor Baseline */}
           <path
@@ -580,16 +506,16 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
             fill="none"
             stroke="#94A3B8"
             strokeWidth="1.2"
-            className="dark:stroke-slate-700 opacity-60"
+            className="opacity-50"
           />
 
-          {/* 2. CLINICAL STATIONS & OBJECTS INSIDE ROOMS */}
+          {/* 2. ROOM OBJECTS (Desk + PC + Medical Element) */}
           {roomGeometries.map((rm, idx) => {
             const st = STATIONS[idx]
             const isHovered = idx === activeDoor
             const angle = doorAngles[idx]
 
-            // Door geometry calculation based on swing angle
+            // Door Geometry
             const radTh = rad(angle)
             const cosT = Math.cos(radTh),
               sinT = Math.sin(radTh)
@@ -609,34 +535,30 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
               DH * 0.48
             )
 
-            // Light spill polygon on floor when door opens
+            // Light Spill Polygon on Floor
             const lightSpillD = poly([
               P(rm.x0, 0, 0),
               P(rm.x1, 0, 0),
-              P(rm.x1 + 12 * (angle / 78), 20 * (angle / 78), 0),
-              P(rm.x0 - 12 * (angle / 78), 20 * (angle / 78), 0),
+              P(rm.x1 + 14 * (angle / 65), 18 * (angle / 65), 0),
+              P(rm.x0 - 14 * (angle / 65), 18 * (angle / 65), 0),
             ])
 
             return (
-              <g key={st.id} className="transition-all duration-300">
-                {/* Floor light spill when door is open */}
-                {angle > 10 && (
+              <g key={st.id} className="pointer-events-none">
+                {/* Light Spill when door opens */}
+                {angle > 5 && (
                   <path
                     d={lightSpillD}
                     fill={st.color}
-                    fillOpacity={(angle / 78) * 0.18}
-                    className="pointer-events-none transition-opacity duration-300"
+                    fillOpacity={(angle / 65) * 0.15}
+                    className="transition-opacity duration-200"
                   />
                 )}
 
-                {/* Room Objects (visible inside doorway) */}
+                {/* Desk + PC + Medical Equipment inside Room */}
                 <g
-                  className="transition-all duration-300"
                   style={{
-                    opacity: isHovered ? 1 : 0.65,
-                    filter: isHovered
-                      ? `drop-shadow(0 0 10px ${st.color}40)`
-                      : 'none',
+                    opacity: isHovered ? 1 : 0.7,
                   }}
                 >
                   {rm.objects.map((obj, oIdx) => (
@@ -646,125 +568,129 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
                           d={obj.sil}
                           fill="#FFFFFF"
                           stroke={isHovered ? st.color : '#64748B'}
-                          strokeWidth="1.2"
-                          className="dark:fill-slate-900 transition-colors duration-200"
+                          strokeWidth="1.1"
+                          strokeLinejoin="round"
                         />
                       )}
                       {obj.crease && (
                         <path
                           d={obj.crease}
                           fill="none"
-                          stroke={isHovered ? st.color : '#94A3B8'}
-                          strokeWidth="0.8"
-                          className="transition-colors duration-200"
+                          stroke={isHovered ? st.color : '#CBD5E1'}
+                          strokeWidth="0.7"
                         />
                       )}
-                      {obj.dot && (
-                        <circle
-                          cx={obj.dot[0]}
-                          cy={obj.dot[1]}
-                          r="2.4"
-                          fill={st.color}
-                          stroke="#FFFFFF"
-                          strokeWidth="0.8"
+                      {obj.type === 'line' && obj.p1 && obj.p2 && (
+                        <line
+                          x1={obj.p1[0]}
+                          y1={obj.p1[1]}
+                          x2={obj.p2[0]}
+                          y2={obj.p2[1]}
+                          stroke={isHovered ? st.color : '#64748B'}
+                          strokeWidth="1.2"
                         />
                       )}
                     </React.Fragment>
                   ))}
                 </g>
 
-                {/* Door Frame Surround */}
+                {/* Door Frame */}
                 <path
                   d={doorFrames[idx]}
                   fill="none"
-                  stroke={isHovered ? st.color : '#475569'}
+                  stroke={isHovered ? st.color : '#64748B'}
                   strokeWidth={isHovered ? '2' : '1.3'}
                   strokeLinecap="round"
-                  className="transition-colors duration-200"
                 />
 
-                {/* 3. GREEN HOSPITAL EXIT/STATION SIGN (Authentic Real-Life Signage) */}
-                <g
-                  className="cursor-pointer"
-                  onClick={() => setActiveDoor(idx)}
-                >
-                  {/* Glowing Signboard Frame Box */}
+                {/* 3. GREEN HOSPITAL EXIT-STYLE SIGNBOARD (Real-Life Signage) */}
+                <g>
+                  {/* Glowing Green Sign Plate */}
                   <rect
                     x={signPositions[idx][0] - 18}
                     y={signPositions[idx][1] - 8}
                     width="36"
                     height="13"
-                    rx="2.5"
-                    fill={isHovered ? '#065F46' : '#064E3B'}
+                    rx="2"
+                    fill={isHovered ? '#047857' : '#065F46'}
                     stroke={isHovered ? '#34D399' : '#10B981'}
-                    strokeWidth={isHovered ? '1.5' : '1'}
-                    className="transition-all duration-200"
+                    strokeWidth="1.2"
                     style={{
                       filter: isHovered
-                        ? 'drop-shadow(0 0 10px rgba(16,185,129,0.75))'
-                        : 'drop-shadow(0 0 4px rgba(16,185,129,0.35))',
+                        ? 'drop-shadow(0 0 6px rgba(16,185,129,0.7))'
+                        : 'drop-shadow(0 0 2px rgba(16,185,129,0.3))',
                     }}
                   />
-
-                  {/* Little Running Man / Medical Cross Icon */}
+                  {/* Emergency Run/Cross Dot */}
                   <circle
                     cx={signPositions[idx][0] - 11.5}
                     cy={signPositions[idx][1] - 1.5}
-                    r="1.8"
-                    fill={isHovered ? '#A7F3D0' : '#6EE7B7'}
+                    r="1.7"
+                    fill="#A7F3D0"
                   />
-
-                  {/* Crisp White/Green "STATION 1 / 2 / 3" Label */}
+                  {/* Crisp White/Green "STATION 1 / 2 / 3" Text */}
                   <text
                     x={signPositions[idx][0] + 1.5}
                     y={signPositions[idx][1] + 1}
                     textAnchor="middle"
-                    fill={isHovered ? '#FFFFFF' : '#A7F3D0'}
+                    fill="#FFFFFF"
                     fontSize="5.2"
                     fontWeight="800"
                     fontFamily="monospace"
                     letterSpacing="0.08em"
-                    className="select-none pointer-events-none transition-colors duration-200"
+                    className="select-none"
                   >
                     STATION {st.stationNumber}
                   </text>
                 </g>
 
-                {/* 4. SOLID DOOR LEAF (Pivoting into room) */}
+                {/* 4. SOLID DOOR LEAF (Pivots inward smoothly) */}
                 <path
                   d={doorLeafD}
-                  fill={isHovered ? '#FFFFFF' : '#F8FAFC'}
+                  fill="#FFFFFF"
                   stroke={isHovered ? st.color : '#334155'}
                   strokeWidth={isHovered ? '1.8' : '1.2'}
                   strokeLinejoin="round"
-                  className="dark:fill-slate-900 transition-colors duration-200"
                 />
                 {doorCreaseD && (
                   <path
                     d={doorCreaseD}
                     fill="none"
-                    stroke={isHovered ? st.color : '#94A3B8'}
+                    stroke={isHovered ? st.color : '#CBD5E1'}
                     strokeWidth="0.8"
-                    className="transition-colors duration-200"
                   />
                 )}
-
                 {/* Door Handle */}
                 <circle
                   cx={handlePos[0]}
                   cy={handlePos[1]}
-                  r="1.8"
+                  r="1.7"
                   fill={isHovered ? st.color : '#64748B'}
                   stroke="#FFFFFF"
-                  strokeWidth="0.7"
+                  strokeWidth="0.6"
                 />
               </g>
             )
           })}
+
+          {/* 5. STATIC INVISIBLE HIT TARGETS (Eliminates ALL crazy spinning/flicker) */}
+          {hitZones.map((zone, idx) => (
+            <rect
+              key={idx}
+              x={zone.x}
+              y={zone.y}
+              width={zone.w}
+              height={zone.h}
+              fill="transparent"
+              className="cursor-pointer pointer-events-auto"
+              onMouseEnter={() => setActiveDoor(idx)}
+              onClick={() => setActiveDoor((prev) => (prev === idx ? -1 : idx))}
+            />
+          ))}
         </svg>
       </div>
 
-      {/* Interactive Bottom Station Cards with Sliders */}
+      {/* Interactive Station Sliders (Light Medical Palette) */}
       <div className="mt-4 sm:mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-[580px]">
         {STATIONS.map((s, idx) => {
           const isSelected = activeDoor === idx
@@ -774,16 +700,11 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
             <div
               key={s.id}
               onMouseEnter={() => setActiveDoor(idx)}
-              onMouseLeave={() => setActiveDoor(-1)}
-              className={`p-3 rounded-2xl border transition-all duration-300 cursor-pointer ${
+              className={`p-3 rounded-2xl border transition-all duration-200 cursor-pointer ${
                 isSelected
-                  ? 'bg-white dark:bg-slate-900 shadow-lg scale-[1.02]'
-                  : 'bg-white/60 dark:bg-slate-900/50 hover:bg-white/90 dark:hover:bg-slate-900/80'
+                  ? 'bg-white shadow-md border-slate-300 ring-2 ring-slate-100'
+                  : 'bg-white/80 hover:bg-white border-slate-200'
               }`}
-              style={{
-                borderColor: isSelected ? s.color : 'rgba(148, 163, 184, 0.25)',
-                boxShadow: isSelected ? `0 10px 25px -5px ${s.color}25` : 'none',
-              }}
             >
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-1.5">
@@ -793,11 +714,11 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
                   >
                     STATION {s.stationNumber}
                   </span>
-                  <span className="text-xs font-bold text-slate-800 dark:text-white truncate">
+                  <span className="text-xs font-bold text-slate-900 truncate">
                     {s.name}
                   </span>
                 </div>
-                <span className="text-xs font-mono font-extrabold text-slate-900 dark:text-white">
+                <span className="text-xs font-mono font-extrabold text-slate-900">
                   {score}
                   <span className="text-[10px] text-slate-400 font-normal">/20</span>
                 </span>
@@ -816,13 +737,13 @@ export function OsceDoorsFigure({ className = '', onScoreChange }: OsceDoorsFigu
                     prev.map((sc, i) => (i === idx ? val : sc))
                   )
                 }}
-                className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-ew-resize accent-[#3B33FF]"
+                className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-ew-resize"
                 style={{ accentColor: s.color }}
               />
 
               <div className="flex items-center justify-between mt-1 text-[10px] text-slate-500">
                 <span>Poids: {s.weight}%</span>
-                <span className="font-semibold text-slate-700 dark:text-slate-300">
+                <span className="font-semibold text-slate-700">
                   +{(score * (s.weight / 100)).toFixed(1)} / {(20 * (s.weight / 100)).toFixed(1)} pts
                 </span>
               </div>
